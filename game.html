@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>生存割草 V6 - 天赋系统</title>
+    <style>
+        body {
+            margin: 0; overflow: hidden; background-color: #1a1a1a;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas { background-color: #222; box-shadow: 0 0 40px rgba(0, 0, 0, 0.9); border-radius: 8px; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; text-shadow: 1px 1px 2px black; }
+        
+        #exp-bar-container { width: 400px; height: 10px; background: #333; margin-top: 10px; border-radius: 5px; overflow: hidden; }
+        #exp-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #00e5ff, #00ff88); transition: width 0.2s; }
+        
+        #weapons-display { margin-top: 15px; font-size: 14px; }
+        
+        /* Boss 血条 */
+        #boss-bar-container { 
+            display: none; position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            width: 500px; text-align: center;
+        }
+        #boss-name { font-size: 18px; color: #ff4444; margin-bottom: 5px; text-shadow: 0 0 10px #ff0000; }
+        #boss-bar-bg { width: 100%; height: 15px; background: #333; border-radius: 8px; overflow: hidden; border: 2px solid #ff4444; }
+        #boss-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #ff6600); transition: width 0.3s; }
+        
+        /* Boss 警告 */
+        #boss-warning {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 48px; color: #ff0000; text-shadow: 0 0 30px #ff0000;
+            animation: blink 0.3s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        
+        #levelup-menu {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(20, 20, 20, 0.95); padding: 30px; border: 2px solid #00e5ff; border-radius: 12px;
+            text-align: center; box-shadow: 0 0 50px rgba(0, 229, 255, 0.3); z-index: 10; max-width: 90%;
+        }
+        .card {
+            background: #333; padding: 15px; margin: 8px; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s; border: 1px solid #555; width: 180px; display: inline-block; vertical-align: top;
+        }
+        .card:hover { background: #444; border-color: #00e5ff; transform: scale(1.05); }
+        .card h3 { margin: 0 0 8px 0; color: #ffd700; font-size: 16px; }
+        .card .type { font-size: 11px; color: #888; margin-bottom: 5px; }
+        .card p { font-size: 12px; margin: 0; }
+        .card-new { border-color: #ff6b00 !important; }
+        .card-special { border-color: #ff00ff !important; background: linear-gradient(135deg, #333, #442244) !important; }
+        .card-special h3 { color: #ff66ff !important; }
+        .card { position: relative; }
+
+        /* 计时器 */
+        #timer { position: absolute; top: 20px; right: 20px; font-size: 24px; font-weight: bold; }
+        
+        /* 波次提示 */
+        #wave-notice {
+            display: none; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 32px; color: #ffaa00; text-shadow: 0 0 20px #ff6600;
+            animation: fadeInOut 2s forwards; pointer-events: none;
+        }
+        @keyframes fadeInOut { 0%,100% { opacity: 0; } 20%,80% { opacity: 1; } }
+        
+        /* 敌人统计 */
+        #enemy-stats { position: absolute; bottom: 20px; left: 20px; font-size: 12px; opacity: 0.7; pointer-events: none; }
+        
+        /* 开局天赋选择 */
+        #talent-select {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100;
+        }
+        #talent-select h1 { color: #ffd700; margin-bottom: 10px; font-size: 36px; }
+        #talent-select .subtitle { color: #888; margin-bottom: 30px; font-size: 16px; }
+        #talent-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; max-width: 900px; }
+        .talent-card {
+            width: 160px; padding: 15px; background: linear-gradient(135deg, #222, #333);
+            border: 2px solid #555; border-radius: 12px; cursor: pointer; text-align: center;
+            transition: all 0.2s;
+        }
+        .talent-card:hover { transform: translateY(-5px); border-color: #ffd700; box-shadow: 0 5px 20px rgba(255, 215, 0, 0.3); }
+        .talent-card.selected { border-color: #00e5ff; background: linear-gradient(135deg, #1a3a4a, #2a4a5a); }
+        .talent-icon { font-size: 36px; margin-bottom: 8px; }
+        .talent-name { font-size: 16px; font-weight: bold; color: #ffd700; margin-bottom: 5px; }
+        .talent-desc { font-size: 12px; color: #aaa; }
+        .talent-rarity { font-size: 10px; margin-top: 5px; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+        .rarity-common { background: #555; color: #ddd; }
+        .rarity-rare { background: #1a4a8a; color: #66aaff; }
+        .rarity-epic { background: #6a2a8a; color: #cc66ff; }
+        .rarity-legendary { background: #8a4a00; color: #ffaa00; }
+        #reroll-btn { margin-top: 20px; padding: 10px 25px; background: #444; border: 1px solid #666; color: #aaa; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        #reroll-btn:hover { background: #555; color: #fff; }
+        #start-btn { margin-top: 15px; padding: 15px 50px; background: linear-gradient(135deg, #00aa66, #00dd88); border: none; color: #fff; border-radius: 10px; cursor: pointer; font-size: 18px; font-weight: bold; }
+        #start-btn:hover { transform: scale(1.05); }
+        #start-btn:disabled { background: #555; cursor: not-allowed; }
+        
+        /* 当前天赋显示 */
+        #active-talents { position: absolute; top: 65px; left: 20px; font-size: 12px; opacity: 0.8; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2>Lv.<span id="level">1</span> | 击杀: <span id="score">0</span> | HP: <span id="hp">100</span></h2>
+        <div id="exp-bar-container"><div id="exp-bar"></div></div>
+        <div id="weapons-display">武器: <span id="weapon-list">🔫 基础弹射</span></div>
+    </div>
+    
+    <div id="timer">00:00</div>
+    
+    <div id="boss-bar-container">
+        <div id="boss-name">⚠️ BOSS ⚠️</div>
+        <div id="boss-bar-bg"><div id="boss-bar"></div></div>
+    </div>
+    
+    <div id="boss-warning">⚠️ BOSS 来袭 ⚠️</div>
+    <div id="wave-notice"></div>
+    <div id="enemy-stats"></div>
+    <div id="active-talents"></div>
+
+    <!-- 开局天赋选择 -->
+    <div id="talent-select">
+        <h1>🎭 选择天赋</h1>
+        <p class="subtitle">选择 1-3 个天赋开始游戏，每个天赋都会影响这局的玩法</p>
+        <div id="talent-cards"></div>
+        <button id="reroll-btn">🎲 重新随机 (剩余 3 次)</button>
+        <button id="start-btn" disabled>开始游戏</button>
+    </div>
+
+    <div id="levelup-menu">
+        <h1 style="color: #00e5ff; margin-top: 0;">🎯 升级！选择能力</h1>
+        <div id="cards-container"></div>
+    </div>
+
+    <canvas id="gameCanvas" width="1000" height="700"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const hpEl = document.getElementById('hp');
+    const levelEl = document.getElementById('level');
+    const expBar = document.getElementById('exp-bar');
+    const levelUpMenu = document.getElementById('levelup-menu');
+    const cardsContainer = document.getElementById('cards-container');
+    const weaponListEl = document.getElementById('weapon-list');
+    const timerEl = document.getElementById('timer');
+    const bossBarContainer = document.getElementById('boss-bar-container');
+    const bossBar = document.getElementById('boss-bar');
+    const bossNameEl = document.getElementById('boss-name');
+    const bossWarning = document.getElementById('boss-warning');
+    const waveNotice = document.getElementById('wave-notice');
+    const enemyStatsEl = document.getElementById('enemy-stats');
+    const talentSelectEl = document.getElementById('talent-select');
+    const talentCardsEl = document.getElementById('talent-cards');
+    const rerollBtn = document.getElementById('reroll-btn');
+    const startBtn = document.getElementById('start-btn');
+    const activeTalentsEl = document.getElementById('active-talents');
+
+    let score = 0;
+    let frameCount = 0;
+    let gameTime = 0; // 游戏时间（秒）
+    let isGameOver = false;
+    let isPaused = false;
+    let currentBoss = null;
+    let bossDefeated = 0;
+    let rerollsLeft = 3;
+    let selectedTalents = [];
+    let activeTalents = []; // 当前生效的天赋
+
+    // === 天赋系统定义 ===
+    const allTalents = [
+        // 🟢 普通天赋
+        { id: 'swift', name: '疾风', icon: '💨', desc: '移速+30%', rarity: 'common', apply: () => { player.speed *= 1.3; } },
+        { id: 'tough', name: '坚韧', icon: '🛡️', desc: '最大HP+50', rarity: 'common', apply: () => { player.maxHp += 50; player.hp += 50; hpEl.innerText = Math.floor(player.hp); } },
+        { id: 'magnet', name: '磁力', icon: '🧲', desc: '拾取范围+100', rarity: 'common', apply: () => { player.pickupRange += 100; } },
+        { id: 'lucky', name: '幸运儿', icon: '🍀', desc: '升级选项+1', rarity: 'common', apply: () => { player.upgradeChoices = 5; } },
+        { id: 'bigshot', name: '大号弹药', icon: '🔮', desc: '子弹体积+50%', rarity: 'common', apply: () => { player.bulletSizeBonus = 1.5; } },
+        
+        // 🔵 稀有天赋
+        { id: 'vampire', name: '吸血本能', icon: '🩸', desc: '击杀回复1HP', rarity: 'rare', apply: () => { player.lifestealOnKill = 1; } },
+        { id: 'berserker', name: '狂战士', icon: '🔥', desc: 'HP越低伤害越高(最高+100%)', rarity: 'rare', apply: () => { player.berserker = true; } },
+        { id: 'glass', name: '玻璃大炮', icon: '💎', desc: '伤害+50%，但最大HP-30', rarity: 'rare', apply: () => { player.damageBonus = 1.5; player.maxHp -= 30; player.hp = Math.min(player.hp, player.maxHp); hpEl.innerText = Math.floor(player.hp); } },
+        { id: 'duelist', name: '决斗者', icon: '⚔️', desc: '对Boss伤害+80%', rarity: 'rare', apply: () => { player.bossDamageBonus = 1.8; } },
+        { id: 'treasure', name: '寻宝者', icon: '💰', desc: '经验获取+50%', rarity: 'rare', apply: () => { player.expBonus = 1.5; } },
+        { id: 'dodge', name: '幻影', icon: '👤', desc: '30%几率闪避伤害', rarity: 'rare', apply: () => { player.dodgeChance = 0.3; } },
+        
+        // 🟣 史诗天赋
+        { id: 'orbital', name: '卫星启动', icon: '🛸', desc: '开局获得环绕护盾', rarity: 'epic', apply: () => { weapons.orbit.owned = true; weapons.orbit.level = 1; initOrbitals(); } },
+        { id: 'summon', name: '灵魂契约', icon: '👻', desc: '开局获得幽灵召唤', rarity: 'epic', apply: () => { weapons.summon.owned = true; weapons.summon.level = 1; spawnSummon(); } },
+        { id: 'explosive', name: '爆破专家', icon: '💥', desc: '开局获得爆裂魔法', rarity: 'epic', apply: () => { weapons.explosion.owned = true; weapons.explosion.level = 1; } },
+        { id: 'giant', name: '巨人化', icon: '🦣', desc: '体型+80%，HP+100，移速-20%', rarity: 'epic', apply: () => { player.radius *= 1.8; player.maxHp += 100; player.hp += 100; player.speed *= 0.8; hpEl.innerText = Math.floor(player.hp); } },
+        { id: 'tiny', name: '迷你化', icon: '🐜', desc: '体型-50%，移速+40%，HP-20', rarity: 'epic', apply: () => { player.radius *= 0.5; player.speed *= 1.4; player.maxHp -= 20; player.hp = Math.min(player.hp, player.maxHp); hpEl.innerText = Math.floor(player.hp); } },
+        { id: 'crit', name: '致命打击', icon: '🎯', desc: '暴击率+25%，暴击伤害+50%', rarity: 'epic', apply: () => { player.critChance += 0.25; player.critDamage += 0.5; } },
+        
+        // 🟠 传说天赋
+        { id: 'oneshot', name: '一击必杀', icon: '⚡', desc: '5%几率秒杀普通敌人', rarity: 'legendary', apply: () => { player.instakillChance = 0.05; } },
+        { id: 'phoenix', name: '凤凰涅槃', icon: '🔥', desc: '死亡时复活一次(50%HP)', rarity: 'legendary', apply: () => { player.revive = true; } },
+        { id: 'lightning', name: '雷神之力', icon: '⚡', desc: '开局获得连锁闪电', rarity: 'legendary', apply: () => { weapons.lightning.owned = true; weapons.lightning.level = 1; } },
+        { id: 'slowmo', name: '时间减速', icon: '⏱️', desc: '敌人移速-25%', rarity: 'legendary', apply: () => { player.slowEnemies = 0.75; } },
+        { id: 'multishot', name: '多重射击', icon: '🎆', desc: '开局子弹+2，穿透+2', rarity: 'legendary', apply: () => { weapons.bullet.count += 2; weapons.bullet.pierce += 2; } },
+        { id: 'regen', name: '超级回复', icon: '💚', desc: '每秒回复2HP', rarity: 'legendary', apply: () => { player.hpRegen = 2; } }
+    ];
+
+    // 天赋随机选择
+    function rollTalents() {
+        const shuffled = [...allTalents].sort(() => Math.random() - 0.5);
+        // 加权：传说更少出现
+        const weighted = shuffled.sort((a, b) => {
+            const order = { common: 0, rare: 1, epic: 2, legendary: 3 };
+            return order[a.rarity] - order[b.rarity] + (Math.random() - 0.5) * 2;
+        });
+        return weighted.slice(0, 6);
+    }
+
+    function renderTalentCards(talents) {
+        talentCardsEl.innerHTML = '';
+        talents.forEach(t => {
+            const card = document.createElement('div');
+            card.className = 'talent-card';
+            card.dataset.id = t.id;
+            if (selectedTalents.includes(t.id)) card.classList.add('selected');
+            card.innerHTML = `
+                <div class="talent-icon">${t.icon}</div>
+                <div class="talent-name">${t.name}</div>
+                <div class="talent-desc">${t.desc}</div>
+                <div class="talent-rarity rarity-${t.rarity}">${{common:'普通',rare:'稀有',epic:'史诗',legendary:'传说'}[t.rarity]}</div>
+            `;
+            card.onclick = () => toggleTalent(t.id);
+            talentCardsEl.appendChild(card);
+        });
+    }
+
+    function toggleTalent(id) {
+        if (selectedTalents.includes(id)) {
+            selectedTalents = selectedTalents.filter(t => t !== id);
+        } else if (selectedTalents.length < 3) {
+            selectedTalents.push(id);
+        }
+        updateTalentUI();
+    }
+
+    function updateTalentUI() {
+        document.querySelectorAll('.talent-card').forEach(card => {
+            card.classList.toggle('selected', selectedTalents.includes(card.dataset.id));
+        });
+        startBtn.disabled = selectedTalents.length === 0;
+        startBtn.innerText = selectedTalents.length === 0 ? '请选择天赋' : `开始游戏 (已选 ${selectedTalents.length}/3)`;
+    }
+
+    // 初始化天赋选择
+    let currentTalentPool = rollTalents();
+    renderTalentCards(currentTalentPool);
+
+    rerollBtn.onclick = () => {
+        if (rerollsLeft > 0) {
+            rerollsLeft--;
+            selectedTalents = [];
+            currentTalentPool = rollTalents();
+            renderTalentCards(currentTalentPool);
+            updateTalentUI();
+            rerollBtn.innerText = `🎲 重新随机 (剩余 ${rerollsLeft} 次)`;
+            if (rerollsLeft === 0) { rerollBtn.disabled = true; rerollBtn.style.opacity = 0.5; }
+        }
+    };
+
+    startBtn.onclick = () => {
+        // 应用天赋
+        selectedTalents.forEach(id => {
+            const talent = allTalents.find(t => t.id === id);
+            if (talent) {
+                talent.apply();
+                activeTalents.push(talent);
+            }
+        });
+        // 显示激活的天赋
+        updateActiveTalentsDisplay();
+        // 隐藏选择界面，开始游戏
+        talentSelectEl.style.display = 'none';
+        gameLoop();
+    };
+
+    function updateActiveTalentsDisplay() {
+        if (activeTalents.length > 0) {
+            activeTalentsEl.innerText = '天赋: ' + activeTalents.map(t => `${t.icon}${t.name}`).join(' ');
+        }
+    }
+
+    // --- 敌人类型定义 ---
+    const enemyTypes = {
+        slime: { name: '史莱姆', color: '#44dd44', radius: 10, baseHp: 15, baseSpeed: 1.2, expDrop: 1, behavior: 'normal', shape: 'slime', weight: 30, unlock: 0 },
+        zombie: { name: '僵尸', color: '#668866', radius: 12, baseHp: 25, baseSpeed: 0.8, expDrop: 2, behavior: 'normal', shape: 'humanoid', weight: 25, unlock: 0 },
+        skeleton: { name: '骷髅战士', color: '#ddddcc', radius: 11, baseHp: 20, baseSpeed: 1.5, expDrop: 2, behavior: 'zigzag', shape: 'skeleton', weight: 20, unlock: 30 },
+        bat: { name: '蝙蝠', color: '#8855aa', radius: 8, baseHp: 10, baseSpeed: 2.5, expDrop: 1, behavior: 'swoop', shape: 'bat', weight: 25, unlock: 30 },
+        ghost: { name: '幽灵', color: 'rgba(200,200,255,0.7)', radius: 13, baseHp: 30, baseSpeed: 1.0, expDrop: 3, behavior: 'phase', shape: 'ghost', weight: 15, unlock: 60 },
+        imp: { name: '小恶魔', color: '#ff6644', radius: 9, baseHp: 18, baseSpeed: 1.8, expDrop: 2, behavior: 'dash', shape: 'imp', weight: 20, unlock: 60 },
+        werewolf: { name: '狼人', color: '#775544', radius: 14, baseHp: 50, baseSpeed: 2.0, expDrop: 4, behavior: 'charge', shape: 'werewolf', weight: 12, unlock: 90 },
+        mage: { name: '黑暗法师', color: '#6633aa', radius: 11, baseHp: 25, baseSpeed: 1.0, expDrop: 5, behavior: 'ranged', shape: 'mage', weight: 10, unlock: 90 },
+        golem: { name: '石魔像', color: '#888888', radius: 20, baseHp: 120, baseSpeed: 0.5, expDrop: 8, behavior: 'tank', shape: 'golem', weight: 8, unlock: 120 },
+        banshee: { name: '女妖', color: '#aaddff', radius: 12, baseHp: 35, baseSpeed: 1.3, expDrop: 5, behavior: 'scream', shape: 'banshee', weight: 10, unlock: 120 },
+        vampire: { name: '吸血鬼', color: '#aa2222', radius: 13, baseHp: 60, baseSpeed: 1.6, expDrop: 6, behavior: 'lifesteal', shape: 'vampire', weight: 8, unlock: 180 },
+        necro: { name: '死灵法师', color: '#333366', radius: 12, baseHp: 45, baseSpeed: 0.8, expDrop: 8, behavior: 'summon', shape: 'necro', weight: 5, unlock: 180 },
+        dragon: { name: '幼龙', color: '#ff4400', radius: 18, baseHp: 100, baseSpeed: 1.2, expDrop: 12, behavior: 'breath', shape: 'dragon', weight: 5, unlock: 240 },
+        knight: { name: '死亡骑士', color: '#222244', radius: 16, baseHp: 150, baseSpeed: 1.0, expDrop: 15, behavior: 'aura', shape: 'knight', weight: 3, unlock: 240 }
+    };
+
+    let enemyProjectiles = []; // 敌人的远程攻击
+
+    // --- 玩家 ---
+    const player = {
+        x: canvas.width / 2, y: canvas.height / 2,
+        radius: 15, speed: 3.5, hp: 100, maxHp: 100, color: '#00e5ff',
+        level: 1, exp: 0, maxExp: 10,
+        pickupRange: 80,
+        critChance: 0.05, critDamage: 1.5, // 暴击
+        // 天赋相关属性
+        upgradeChoices: 4, // 升级时的选项数
+        bulletSizeBonus: 1, // 子弹大小倍数
+        lifestealOnKill: 0, // 击杀回血
+        berserker: false, // 狂战士模式
+        damageBonus: 1, // 伤害加成
+        bossDamageBonus: 1, // Boss伤害加成
+        expBonus: 1, // 经验加成
+        dodgeChance: 0, // 闪避几率
+        instakillChance: 0, // 秒杀几率
+        revive: false, // 复活
+        reviveUsed: false, // 是否已用复活
+        slowEnemies: 1, // 敌人减速倍率
+        hpRegen: 0 // 每秒回血
+    };
+
+    // --- 武器系统 ---
+    const weapons = {
+        bullet: { owned: true, level: 1, maxLevel: 8, cooldown: 35, currentCooldown: 0, count: 1, pierce: 1, damage: 20, range: 300, icon: '🔫', name: '弹射' },
+        orbit: { owned: false, level: 0, maxLevel: 8, count: 2, damage: 15, radius: 80, speed: 0.03, icon: '🔵', name: '环绕护盾' },
+        explosion: { owned: false, level: 0, maxLevel: 8, cooldown: 120, currentCooldown: 0, damage: 40, radius: 100, icon: '💥', name: '爆裂魔法' },
+        summon: { owned: false, level: 0, maxLevel: 8, count: 1, damage: 10, speed: 4, icon: '👻', name: '幽灵召唤' },
+        // 特殊武器
+        lightning: { owned: false, level: 0, maxLevel: 5, cooldown: 90, currentCooldown: 0, damage: 50, chains: 3, icon: '⚡', name: '连锁闪电', special: true },
+        laser: { owned: false, level: 0, maxLevel: 5, cooldown: 0, currentCooldown: 0, damage: 2, width: 8, icon: '🔴', name: '死亡射线', special: true },
+        blackhole: { owned: false, level: 0, maxLevel: 5, cooldown: 300, currentCooldown: 0, damage: 100, radius: 120, duration: 180, icon: '🕳️', name: '黑洞', special: true },
+        meteor: { owned: false, level: 0, maxLevel: 5, cooldown: 200, currentCooldown: 0, damage: 80, count: 3, radius: 60, icon: '☄️', name: '陨石雨', special: true }
+    };
+
+    let enemies = [];
+    let bullets = [];
+    let gems = [];
+    let orbitals = [];
+    let explosions = [];
+    let summons = [];
+    let lightnings = [];
+    let blackholes = [];
+    let meteors = [];
+
+    const keys = { w: false, a: false, s: false, d: false };
+
+    window.addEventListener('keydown', (e) => { const key = e.key.toLowerCase(); if (key in keys) keys[key] = true; });
+    window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (key in keys) keys[key] = false; });
+
+    function getDistance(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
+    function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+    // --- Boss 定义 ---
+    const bossTypes = [
+        { name: '🔥 炎魔领主', color: '#ff4400', radius: 40, hpMult: 50, speed: 1.2, pattern: 'charge', expDrop: 50 },
+        { name: '💀 骷髅王', color: '#aaaaaa', radius: 35, hpMult: 40, speed: 0.8, pattern: 'summon', expDrop: 60 },
+        { name: '🐙 深渊触手', color: '#6600aa', radius: 45, hpMult: 60, speed: 1.0, pattern: 'tentacle', expDrop: 70 },
+        { name: '⚡ 雷霆巨人', color: '#ffff00', radius: 50, hpMult: 80, speed: 0.6, pattern: 'lightning', expDrop: 100 }
+    ];
+
+    function spawnBoss() {
+        const typeIdx = Math.min(bossDefeated, bossTypes.length - 1);
+        const type = bossTypes[typeIdx];
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        switch(side) {
+            case 0: x = -60; y = canvas.height / 2; break;
+            case 1: x = canvas.width + 60; y = canvas.height / 2; break;
+            case 2: x = canvas.width / 2; y = -60; break;
+            case 3: x = canvas.width / 2; y = canvas.height + 60; break;
+        }
+        
+        const bossHp = type.hpMult * (10 + player.level * 5);
+        currentBoss = {
+            x, y, radius: type.radius, speed: type.speed,
+            hp: bossHp, maxHp: bossHp,
+            color: type.color, name: type.name,
+            pattern: type.pattern, expDrop: type.expDrop,
+            actionTimer: 0, phase: 0
+        };
+        
+        // 显示警告
+        bossWarning.style.display = 'block';
+        setTimeout(() => { bossWarning.style.display = 'none'; }, 2000);
+        bossBarContainer.style.display = 'block';
+        bossNameEl.innerText = type.name;
+    }
+
+    // --- 升级池 ---
+    function getUpgradePool() {
+        const pool = [];
+        
+        // 基础武器升级
+        const basicWeapons = ['bullet', 'orbit', 'explosion', 'summon'];
+        basicWeapons.forEach(key => {
+            const w = weapons[key];
+            if (w.level < w.maxLevel) {
+                pool.push(createWeaponUpgrade(key, w));
+            }
+        });
+
+        // 特殊武器（等级5+或击败Boss后解锁）
+        if (player.level >= 5 || bossDefeated > 0) {
+            const specialWeapons = ['lightning', 'laser', 'blackhole', 'meteor'];
+            specialWeapons.forEach(key => {
+                const w = weapons[key];
+                if (w.level < w.maxLevel) {
+                    pool.push(createWeaponUpgrade(key, w, true));
+                }
+            });
+        }
+
+        // 通用升级
+        pool.push(
+            { name: '动力鞋', type: '被动', desc: '移速+15%', apply: () => player.speed *= 1.15 },
+            { name: '磁铁', type: '被动', desc: '拾取范围+50', apply: () => player.pickupRange += 50 },
+            { name: '生命回复', type: '被动', desc: '恢复40HP', apply: () => { player.hp = Math.min(player.maxHp, player.hp + 40); hpEl.innerText = Math.floor(player.hp); }},
+            { name: '暴击精通', type: '被动', desc: '暴击率+5%', apply: () => player.critChance += 0.05 },
+            { name: '致命一击', type: '被动', desc: '暴击伤害+25%', apply: () => player.critDamage += 0.25 }
+        );
+
+        return pool;
+    }
+
+    function createWeaponUpgrade(key, w, isSpecial = false) {
+        const upgrades = {
+            bullet: { desc: w.level % 2 === 0 ? '子弹+1，穿透+1' : '伤害+10，射速+15%', apply: () => {
+                w.owned = true; w.level++;
+                if (w.level % 2 === 0) { w.count++; w.pierce++; }
+                else { w.damage += 10; w.cooldown = Math.max(15, w.cooldown * 0.85); }
+            }},
+            orbit: { desc: !w.owned ? '获得2个环绕护盾' : '护盾+1，伤害+5', apply: () => {
+                if (!w.owned) { w.owned = true; initOrbitals(); }
+                w.level++; w.count++; w.damage += 5; w.radius += 8; initOrbitals();
+            }},
+            explosion: { desc: !w.owned ? '周期性范围爆炸' : '伤害+25，范围+15', apply: () => {
+                w.owned = true; w.level++; w.damage += 25; w.radius += 15; w.cooldown = Math.max(60, w.cooldown * 0.9);
+            }},
+            summon: { desc: !w.owned ? '召唤1个幽灵' : '召唤物+1，伤害+8', apply: () => {
+                if (!w.owned) { w.owned = true; spawnSummon(); }
+                w.level++; w.count++; w.damage += 8; w.speed += 0.5;
+                while (summons.length < w.count) spawnSummon();
+            }},
+            lightning: { desc: !w.owned ? '释放连锁闪电' : '伤害+30，连锁+1', apply: () => {
+                w.owned = true; w.level++; w.damage += 30; w.chains++; w.cooldown = Math.max(50, w.cooldown - 10);
+            }},
+            laser: { desc: !w.owned ? '持续射线攻击' : '伤害+1，宽度+3', apply: () => {
+                w.owned = true; w.level++; w.damage += 1; w.width += 3;
+            }},
+            blackhole: { desc: !w.owned ? '生成黑洞吸引敌人' : '伤害+50，范围+20', apply: () => {
+                w.owned = true; w.level++; w.damage += 50; w.radius += 20; w.duration += 30;
+            }},
+            meteor: { desc: !w.owned ? '召唤陨石轰炸' : '陨石+1，伤害+30', apply: () => {
+                w.owned = true; w.level++; w.damage += 30; w.count++;
+            }}
+        };
+
+        const u = upgrades[key];
+        return {
+            name: w.name, type: w.owned ? `Lv.${w.level + 1}` : '新武器',
+            desc: u.desc, isNew: !w.owned, isSpecial,
+            apply: () => { u.apply(); updateWeaponDisplay(); }
+        };
+    }
+
+    function initOrbitals() {
+        orbitals = [];
+        for (let i = 0; i < weapons.orbit.count; i++) {
+            orbitals.push({ angle: (Math.PI * 2 / weapons.orbit.count) * i, hitCooldown: 0 });
+        }
+    }
+
+    function spawnSummon() {
+        summons.push({ x: player.x, y: player.y, targetEnemy: null, attackCooldown: 0 });
+    }
+
+    // 显示波次通知
+    function showWaveNotice(text) {
+        waveNotice.innerText = text;
+        waveNotice.style.display = 'block';
+        setTimeout(() => { waveNotice.style.display = 'none'; }, 2000);
+    }
+
+    // 选择敌人类型
+    function selectEnemyType() {
+        const available = Object.entries(enemyTypes).filter(([k, t]) => gameTime >= t.unlock);
+        const totalWeight = available.reduce((sum, [k, t]) => sum + t.weight, 0);
+        let random = Math.random() * totalWeight;
+        for (const [key, type] of available) {
+            random -= type.weight;
+            if (random <= 0) return { key, ...type };
+        }
+        return { key: 'slime', ...enemyTypes.slime };
+    }
+
+    function spawnEnemy() {
+        const type = selectEnemyType();
+        let x, y;
+        if (Math.random() < 0.5) { x = Math.random() < 0.5 ? -30 : canvas.width + 30; y = Math.random() * canvas.height; }
+        else { x = Math.random() * canvas.width; y = Math.random() < 0.5 ? -30 : canvas.height + 30; }
+        const hpMult = 1 + (gameTime * 0.01) + (player.level * 0.1);
+        const speedMult = (1 + (gameTime * 0.002)) * player.slowEnemies; // 应用减速天赋
+        enemies.push({
+            x, y, radius: type.radius, speed: type.baseSpeed * speedMult, baseSpeed: type.baseSpeed * speedMult,
+            hp: type.baseHp * hpMult, maxHp: type.baseHp * hpMult, color: type.color, type: type.key,
+            behavior: type.behavior, shape: type.shape, expDrop: type.expDrop,
+            behaviorTimer: 0, phase: 0, alpha: 1, dashAngle: 0, dashTimer: 0, chargeAngle: 0, chargeTimer: 0
+        });
+    }
+
+    function calcDamage(baseDamage, isBoss = false) {
+        let damage = baseDamage * player.damageBonus;
+        // 狂战士：HP越低伤害越高
+        if (player.berserker) {
+            const hpPercent = player.hp / player.maxHp;
+            damage *= 1 + (1 - hpPercent); // 最高 +100%
+        }
+        // Boss 伤害加成
+        if (isBoss) damage *= player.bossDamageBonus;
+        // 暴击
+        if (Math.random() < player.critChance) {
+            return { damage: damage * player.critDamage, crit: true };
+        }
+        return { damage, crit: false };
+    }
+
+    // --- 武器逻辑 ---
+    function fireBullets() {
+        const w = weapons.bullet;
+        if (!w.owned || w.currentCooldown > 0) { w.currentCooldown--; return; }
+        let nearest = null, minDist = w.range;
+        enemies.concat(currentBoss ? [currentBoss] : []).forEach(e => {
+            const dist = getDistance(player.x, player.y, e.x, e.y);
+            if (dist < minDist) { minDist = dist; nearest = e; }
+        });
+        if (nearest) {
+            const baseAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+            for (let i = 0; i < w.count; i++) {
+                const offset = (i - (w.count - 1) / 2) * 0.15;
+                const angle = baseAngle + offset;
+                bullets.push({ x: player.x, y: player.y, radius: 5 * player.bulletSizeBonus, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, damage: w.damage, pierceLeft: w.pierce, hitEnemies: new Set() });
+            }
+            w.currentCooldown = w.cooldown;
+        }
+    }
+
+    function fireExplosion() {
+        const w = weapons.explosion;
+        if (!w.owned) return;
+        if (w.currentCooldown > 0) { w.currentCooldown--; return; }
+        let best = null, maxNearby = 0;
+        enemies.forEach(e => {
+            let nearby = enemies.filter(o => getDistance(e.x, e.y, o.x, o.y) < w.radius).length;
+            if (nearby > maxNearby) { maxNearby = nearby; best = e; }
+        });
+        if (best) {
+            explosions.push({ x: best.x, y: best.y, radius: 0, maxRadius: w.radius, damage: w.damage, hasDamaged: false, alpha: 1 });
+            w.currentCooldown = w.cooldown;
+        }
+    }
+
+    function fireLightning() {
+        const w = weapons.lightning;
+        if (!w.owned || w.currentCooldown > 0) { w.currentCooldown--; return; }
+        if (enemies.length === 0 && !currentBoss) return;
+        
+        let targets = [...enemies];
+        if (currentBoss) targets.push(currentBoss);
+        targets.sort((a, b) => getDistance(player.x, player.y, a.x, a.y) - getDistance(player.x, player.y, b.x, b.y));
+        
+        if (targets.length > 0) {
+            let chain = [{ x: player.x, y: player.y }];
+            let hit = new Set();
+            for (let i = 0; i < w.chains && targets.length > 0; i++) {
+                let last = chain[chain.length - 1];
+                let nearest = null, minDist = 300;
+                targets.forEach(t => {
+                    if (!hit.has(t)) {
+                        const dist = getDistance(last.x, last.y, t.x, t.y);
+                        if (dist < minDist) { minDist = dist; nearest = t; }
+                    }
+                });
+                if (nearest) {
+                    chain.push({ x: nearest.x, y: nearest.y, target: nearest });
+                    hit.add(nearest);
+                    const dmg = calcDamage(w.damage);
+                    nearest.hp -= dmg.damage;
+                }
+            }
+            lightnings.push({ chain, alpha: 1 });
+            w.currentCooldown = w.cooldown;
+        }
+    }
+
+    function fireLaser() {
+        const w = weapons.laser;
+        if (!w.owned) return;
+        
+        let targets = [...enemies];
+        if (currentBoss) targets.push(currentBoss);
+        if (targets.length === 0) return;
+        
+        targets.sort((a, b) => getDistance(player.x, player.y, a.x, a.y) - getDistance(player.x, player.y, b.x, b.y));
+        const target = targets[0];
+        const angle = Math.atan2(target.y - player.y, target.x - player.x);
+        const length = 500;
+        
+        // 绘制激光
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 50, 50, 0.8)`;
+        ctx.lineWidth = w.width;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ff0000';
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(player.x + Math.cos(angle) * length, player.y + Math.sin(angle) * length);
+        ctx.stroke();
+        ctx.restore();
+        
+        // 伤害判定
+        targets.forEach(e => {
+            const dist = pointToLineDistance(e.x, e.y, player.x, player.y, angle, length);
+            if (dist < e.radius + w.width / 2) {
+                e.hp -= w.damage;
+            }
+        });
+    }
+
+    function pointToLineDistance(px, py, lx, ly, angle, length) {
+        const ex = lx + Math.cos(angle) * length;
+        const ey = ly + Math.sin(angle) * length;
+        const A = px - lx, B = py - ly, C = ex - lx, D = ey - ly;
+        const dot = A * C + B * D;
+        const len_sq = C * C + D * D;
+        let param = dot / len_sq;
+        param = Math.max(0, Math.min(1, param));
+        const xx = lx + param * C, yy = ly + param * D;
+        return getDistance(px, py, xx, yy);
+    }
+
+    function fireBlackhole() {
+        const w = weapons.blackhole;
+        if (!w.owned || w.currentCooldown > 0) { w.currentCooldown--; return; }
+        if (enemies.length < 3) return;
+        
+        // 在敌人密集处生成
+        let best = null, maxNearby = 0;
+        enemies.forEach(e => {
+            let nearby = enemies.filter(o => getDistance(e.x, e.y, o.x, o.y) < 200).length;
+            if (nearby > maxNearby) { maxNearby = nearby; best = e; }
+        });
+        
+        if (best) {
+            blackholes.push({ x: best.x, y: best.y, radius: w.radius, damage: w.damage, duration: w.duration, hitEnemies: new Set() });
+            w.currentCooldown = w.cooldown;
+        }
+    }
+
+    function fireMeteor() {
+        const w = weapons.meteor;
+        if (!w.owned || w.currentCooldown > 0) { w.currentCooldown--; return; }
+        
+        for (let i = 0; i < w.count; i++) {
+            const targetX = player.x + randomInRange(-200, 200);
+            const targetY = player.y + randomInRange(-200, 200);
+            meteors.push({
+                x: targetX, y: targetY - 400, targetX, targetY,
+                radius: w.radius, damage: w.damage, speed: 8, landed: false
+            });
+        }
+        w.currentCooldown = w.cooldown;
+    }
+
+    function updateOrbitals() {
+        if (!weapons.orbit.owned) return;
+        const w = weapons.orbit;
+        orbitals.forEach(orb => {
+            orb.angle += w.speed;
+            if (orb.hitCooldown > 0) orb.hitCooldown--;
+            const ox = player.x + Math.cos(orb.angle) * w.radius;
+            const oy = player.y + Math.sin(orb.angle) * w.radius;
+            
+            ctx.beginPath();
+            ctx.arc(ox, oy, 12, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, 12);
+            grad.addColorStop(0, 'rgba(100, 200, 255, 0.9)');
+            grad.addColorStop(1, 'rgba(50, 150, 255, 0.3)');
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            if (orb.hitCooldown <= 0) {
+                enemies.concat(currentBoss ? [currentBoss] : []).forEach(e => {
+                    if (getDistance(ox, oy, e.x, e.y) < 12 + e.radius) {
+                        e.hp -= w.damage;
+                        orb.hitCooldown = 15;
+                    }
+                });
+            }
+        });
+    }
+
+    function updateSummons() {
+        if (!weapons.summon.owned) return;
+        const w = weapons.summon;
+        while (summons.length < w.count) spawnSummon();
+        
+        summons.forEach(s => {
+            let targets = [...enemies];
+            if (currentBoss) targets.push(currentBoss);
+            
+            if (!s.targetEnemy || !targets.includes(s.targetEnemy)) {
+                let minDist = Infinity;
+                targets.forEach(e => {
+                    const dist = getDistance(s.x, s.y, e.x, e.y);
+                    if (dist < minDist) { minDist = dist; s.targetEnemy = e; }
+                });
+            }
+            
+            let tx = player.x, ty = player.y;
+            if (s.targetEnemy) { tx = s.targetEnemy.x; ty = s.targetEnemy.y; }
+            
+            const angle = Math.atan2(ty - s.y, tx - s.x);
+            s.x += Math.cos(angle) * w.speed;
+            s.y += Math.sin(angle) * w.speed;
+            
+            // 绘制
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(180, 100, 255, 0.8)';
+            ctx.shadowBlur = 15; ctx.shadowColor = '#aa66ff';
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(s.x - 3, s.y - 2, 2, 0, Math.PI * 2);
+            ctx.arc(s.x + 3, s.y - 2, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            if (s.attackCooldown > 0) s.attackCooldown--;
+            if (s.targetEnemy && s.attackCooldown <= 0 && getDistance(s.x, s.y, s.targetEnemy.x, s.targetEnemy.y) < 25) {
+                s.targetEnemy.hp -= w.damage;
+                s.attackCooldown = 20;
+            }
+        });
+    }
+
+    function updateExplosions() {
+        for (let i = explosions.length - 1; i >= 0; i--) {
+            const exp = explosions[i];
+            if (exp.radius < exp.maxRadius) exp.radius += exp.maxRadius / 8;
+            if (!exp.hasDamaged && exp.radius >= exp.maxRadius * 0.5) {
+                enemies.concat(currentBoss ? [currentBoss] : []).forEach(e => {
+                    if (getDistance(exp.x, exp.y, e.x, e.y) < exp.maxRadius) {
+                        const dmg = calcDamage(exp.damage);
+                        e.hp -= dmg.damage;
+                    }
+                });
+                exp.hasDamaged = true;
+            }
+            const grad = ctx.createRadialGradient(exp.x, exp.y, 0, exp.x, exp.y, exp.radius);
+            grad.addColorStop(0, `rgba(255, 200, 50, ${exp.alpha})`);
+            grad.addColorStop(0.5, `rgba(255, 100, 50, ${exp.alpha * 0.7})`);
+            grad.addColorStop(1, 'rgba(255, 50, 50, 0)');
+            ctx.beginPath();
+            ctx.arc(exp.x, exp.y, exp.radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            exp.alpha -= 0.04;
+            if (exp.alpha <= 0) explosions.splice(i, 1);
+        }
+    }
+
+    function updateLightnings() {
+        for (let i = lightnings.length - 1; i >= 0; i--) {
+            const l = lightnings[i];
+            ctx.strokeStyle = `rgba(150, 200, 255, ${l.alpha})`;
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#88ccff';
+            ctx.beginPath();
+            for (let j = 0; j < l.chain.length - 1; j++) {
+                ctx.moveTo(l.chain[j].x, l.chain[j].y);
+                // 锯齿效果
+                const mid1x = (l.chain[j].x + l.chain[j+1].x) / 2 + randomInRange(-10, 10);
+                const mid1y = (l.chain[j].y + l.chain[j+1].y) / 2 + randomInRange(-10, 10);
+                ctx.lineTo(mid1x, mid1y);
+                ctx.lineTo(l.chain[j+1].x, l.chain[j+1].y);
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            l.alpha -= 0.1;
+            if (l.alpha <= 0) lightnings.splice(i, 1);
+        }
+    }
+
+    function updateBlackholes() {
+        for (let i = blackholes.length - 1; i >= 0; i--) {
+            const bh = blackholes[i];
+            
+            // 绘制黑洞
+            const grad = ctx.createRadialGradient(bh.x, bh.y, 0, bh.x, bh.y, bh.radius);
+            grad.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+            grad.addColorStop(0.5, 'rgba(80, 0, 120, 0.6)');
+            grad.addColorStop(1, 'rgba(150, 50, 200, 0)');
+            ctx.beginPath();
+            ctx.arc(bh.x, bh.y, bh.radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // 吸引并伤害敌人
+            enemies.forEach(e => {
+                const dist = getDistance(bh.x, bh.y, e.x, e.y);
+                if (dist < bh.radius * 2) {
+                    const angle = Math.atan2(bh.y - e.y, bh.x - e.x);
+                    const pull = (bh.radius * 2 - dist) / bh.radius * 2;
+                    e.x += Math.cos(angle) * pull;
+                    e.y += Math.sin(angle) * pull;
+                }
+                if (dist < bh.radius && !bh.hitEnemies.has(e)) {
+                    e.hp -= bh.damage;
+                    bh.hitEnemies.add(e);
+                }
+            });
+            
+            bh.duration--;
+            if (bh.duration <= 0) blackholes.splice(i, 1);
+        }
+    }
+
+    function updateMeteors() {
+        for (let i = meteors.length - 1; i >= 0; i--) {
+            const m = meteors[i];
+            
+            if (!m.landed) {
+                // 下落
+                m.y += m.speed;
+                
+                // 绘制阴影
+                ctx.beginPath();
+                ctx.ellipse(m.targetX, m.targetY, m.radius * 0.5, m.radius * 0.2, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fill();
+                
+                // 绘制陨石
+                ctx.beginPath();
+                ctx.arc(m.x, m.y, 15, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff6600';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ff3300';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                if (m.y >= m.targetY) {
+                    m.landed = true;
+                    // 爆炸
+                    explosions.push({ x: m.targetX, y: m.targetY, radius: 0, maxRadius: m.radius, damage: m.damage, hasDamaged: false, alpha: 1 });
+                }
+            } else {
+                meteors.splice(i, 1);
+            }
+        }
+    }
+
+    // --- 绘制敌人外观 ---
+    function drawEnemy(e) {
+        ctx.save();
+        ctx.globalAlpha = e.alpha || 1;
+        const bounce = Math.sin(frameCount * 0.1) * 2;
+        const floatY = Math.sin(frameCount * 0.05) * 3;
+        
+        switch(e.shape) {
+            case 'slime':
+                ctx.beginPath();
+                ctx.ellipse(e.x, e.y + bounce, e.radius, e.radius * 0.8 + bounce * 0.2, 0, 0, Math.PI * 2);
+                ctx.fillStyle = e.color; ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 3, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - 2, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 1.5, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - 2, 1.5, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'skeleton':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.arc(e.x, e.y - 3, e.radius * 0.7, 0, Math.PI * 2); ctx.fill();
+                ctx.fillRect(e.x - 3, e.y + e.radius * 0.3, 6, e.radius * 0.8);
+                ctx.fillStyle = '#333';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - 5, 2, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - 5, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'bat':
+                const wingAngle = Math.sin(frameCount * 0.3) * 0.5;
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.ellipse(e.x, e.y, e.radius * 0.6, e.radius * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x - 3, e.y);
+                ctx.quadraticCurveTo(e.x - 15, e.y - 10 * (1 + wingAngle), e.x - 12, e.y + 5); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x + 3, e.y);
+                ctx.quadraticCurveTo(e.x + 15, e.y - 10 * (1 + wingAngle), e.x + 12, e.y + 5); ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath(); ctx.arc(e.x - 2, e.y - 2, 1.5, 0, Math.PI * 2); ctx.arc(e.x + 2, e.y - 2, 1.5, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'ghost':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.arc(e.x, e.y + floatY - 3, e.radius * 0.8, Math.PI, 0);
+                ctx.lineTo(e.x + e.radius * 0.8, e.y + floatY + e.radius * 0.5);
+                for (let i = 0; i < 4; i++) { ctx.lineTo(e.x + e.radius * 0.8 - (i + 1) * (e.radius * 0.4), e.y + floatY + e.radius * 0.5 + Math.sin(frameCount * 0.1 + i) * 3); }
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.beginPath(); ctx.arc(e.x - 4, e.y + floatY - 5, 3, 0, Math.PI * 2); ctx.arc(e.x + 4, e.y + floatY - 5, 3, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'imp':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x - 5, e.y - 6); ctx.lineTo(e.x - 8, e.y - 14); ctx.lineTo(e.x - 2, e.y - 8); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x + 5, e.y - 6); ctx.lineTo(e.x + 8, e.y - 14); ctx.lineTo(e.x + 2, e.y - 8); ctx.fill();
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 2, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - 2, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'werewolf':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x - 8, e.y - 8); ctx.lineTo(e.x - 12, e.y - 18); ctx.lineTo(e.x - 4, e.y - 10); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x + 8, e.y - 8); ctx.lineTo(e.x + 12, e.y - 18); ctx.lineTo(e.x + 4, e.y - 10); ctx.fill();
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath(); ctx.arc(e.x - 5, e.y - 4, 2, 0, Math.PI * 2); ctx.arc(e.x + 5, e.y - 4, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'mage':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.moveTo(e.x, e.y - e.radius); ctx.lineTo(e.x + e.radius, e.y + e.radius); ctx.lineTo(e.x - e.radius, e.y + e.radius); ctx.closePath(); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x, e.y - e.radius * 0.5, e.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#aa44ff'; ctx.shadowBlur = 10; ctx.shadowColor = '#aa44ff';
+                ctx.beginPath(); ctx.arc(e.x + e.radius, e.y - 5, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                break;
+            case 'golem':
+                ctx.fillStyle = e.color;
+                ctx.fillRect(e.x - e.radius * 0.6, e.y - e.radius * 0.4, e.radius * 1.2, e.radius * 1.2);
+                ctx.fillRect(e.x - e.radius * 0.4, e.y - e.radius, e.radius * 0.8, e.radius * 0.6);
+                ctx.fillStyle = '#ff8800';
+                ctx.fillRect(e.x - 6, e.y - e.radius * 0.8, 4, 4); ctx.fillRect(e.x + 2, e.y - e.radius * 0.8, 4, 4);
+                break;
+            case 'banshee':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.arc(e.x, e.y + floatY - 5, e.radius * 0.6, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x - e.radius * 0.6, e.y + floatY - 5);
+                ctx.quadraticCurveTo(e.x - e.radius * 1.2, e.y + floatY + 10, e.x - e.radius * 0.8, e.y + floatY + e.radius);
+                ctx.lineTo(e.x + e.radius * 0.8, e.y + floatY + e.radius);
+                ctx.quadraticCurveTo(e.x + e.radius * 1.2, e.y + floatY + 10, e.x + e.radius * 0.6, e.y + floatY - 5); ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y + floatY - 6, 2, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y + floatY - 6, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'vampire':
+                ctx.fillStyle = '#220000';
+                ctx.beginPath(); ctx.moveTo(e.x, e.y - e.radius);
+                ctx.quadraticCurveTo(e.x - e.radius * 1.5, e.y, e.x - e.radius * 0.8, e.y + e.radius);
+                ctx.lineTo(e.x + e.radius * 0.8, e.y + e.radius);
+                ctx.quadraticCurveTo(e.x + e.radius * 1.5, e.y, e.x, e.y - e.radius); ctx.fill();
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.arc(e.x, e.y - e.radius * 0.3, e.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - e.radius * 0.4, 2, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - e.radius * 0.4, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'necro':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.moveTo(e.x, e.y - e.radius); ctx.lineTo(e.x + e.radius, e.y + e.radius); ctx.lineTo(e.x - e.radius, e.y + e.radius); ctx.closePath(); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x, e.y - e.radius * 0.4, e.radius * 0.6, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 8; ctx.shadowColor = '#00ff00';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - e.radius * 0.3, 2, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - e.radius * 0.3, 2, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                break;
+            case 'dragon':
+                ctx.fillStyle = e.color;
+                ctx.beginPath(); ctx.ellipse(e.x, e.y, e.radius, e.radius * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+                const dWing = Math.sin(frameCount * 0.15) * 0.3;
+                ctx.beginPath(); ctx.moveTo(e.x - 5, e.y - 3);
+                ctx.quadraticCurveTo(e.x - 25, e.y - 20 * (1 + dWing), e.x - 20, e.y + 5); ctx.lineTo(e.x - 5, e.y); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.x + 5, e.y - 3);
+                ctx.quadraticCurveTo(e.x + 25, e.y - 20 * (1 + dWing), e.x + 20, e.y + 5); ctx.lineTo(e.x + 5, e.y); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(e.x, e.y - e.radius * 0.5, e.radius * 0.5, e.radius * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath(); ctx.arc(e.x - 4, e.y - e.radius * 0.6, 2, 0, Math.PI * 2); ctx.arc(e.x + 4, e.y - e.radius * 0.6, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'knight':
+                ctx.fillStyle = e.color;
+                ctx.fillRect(e.x - e.radius * 0.7, e.y - e.radius * 0.3, e.radius * 1.4, e.radius * 1.2);
+                ctx.beginPath(); ctx.arc(e.x, e.y - e.radius * 0.5, e.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ff0000'; ctx.fillRect(e.x - 6, e.y - e.radius * 0.55, 12, 3);
+                ctx.fillStyle = '#aaaaaa'; ctx.fillRect(e.x + e.radius * 0.5, e.y - e.radius, 4, e.radius * 1.5);
+                ctx.strokeStyle = 'rgba(100, 0, 150, 0.3)'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * 2, 0, Math.PI * 2); ctx.stroke();
+                break;
+            default:
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                ctx.fillStyle = e.color; ctx.fill();
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 2, 0, Math.PI * 2); ctx.arc(e.x + 3, e.y - 2, 2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    // --- 敌人行为更新 ---
+    function updateEnemyBehavior(e) {
+        e.behaviorTimer++;
+        const dist = getDistance(player.x, player.y, e.x, e.y);
+        const baseAngle = Math.atan2(player.y - e.y, player.x - e.x);
+        
+        switch(e.behavior) {
+            case 'normal': case 'tank': case 'lifesteal':
+                e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed;
+                break;
+            case 'zigzag':
+                const zigzag = Math.sin(e.behaviorTimer * 0.1) * 0.8;
+                e.x += Math.cos(baseAngle + zigzag) * e.speed; e.y += Math.sin(baseAngle + zigzag) * e.speed;
+                break;
+            case 'swoop':
+                if (e.phase === 0) {
+                    const circleAngle = e.behaviorTimer * 0.05;
+                    const tx = player.x + Math.cos(circleAngle) * 150, ty = player.y + Math.sin(circleAngle) * 150;
+                    const toTarget = Math.atan2(ty - e.y, tx - e.x);
+                    e.x += Math.cos(toTarget) * e.speed; e.y += Math.sin(toTarget) * e.speed;
+                    if (e.behaviorTimer % 120 === 0 && Math.random() < 0.5) { e.phase = 1; e.targetX = player.x; e.targetY = player.y; }
+                } else {
+                    const swoopAngle = Math.atan2(e.targetY - e.y, e.targetX - e.x);
+                    e.x += Math.cos(swoopAngle) * e.speed * 2; e.y += Math.sin(swoopAngle) * e.speed * 2;
+                    if (getDistance(e.x, e.y, e.targetX, e.targetY) < 20) e.phase = 0;
+                }
+                break;
+            case 'phase':
+                e.alpha = 0.5 + Math.sin(e.behaviorTimer * 0.1) * 0.3;
+                e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed;
+                if (e.behaviorTimer % 180 === 0) { e.x += (Math.random() - 0.5) * 80; e.y += (Math.random() - 0.5) * 80; }
+                break;
+            case 'dash':
+                if (e.phase === 0) {
+                    e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed;
+                    if (e.behaviorTimer % 90 === 0 && dist < 200) { e.phase = 1; e.dashAngle = baseAngle; e.dashTimer = 15; }
+                } else {
+                    e.x += Math.cos(e.dashAngle) * e.speed * 3; e.y += Math.sin(e.dashAngle) * e.speed * 3;
+                    e.dashTimer--; if (e.dashTimer <= 0) e.phase = 0;
+                }
+                break;
+            case 'charge':
+                if (e.phase === 0) {
+                    e.x += Math.cos(baseAngle) * e.speed * 0.5; e.y += Math.sin(baseAngle) * e.speed * 0.5;
+                    if (e.behaviorTimer % 150 === 0 && dist < 250) { e.phase = 1; e.chargeTimer = 30; }
+                } else if (e.phase === 1) {
+                    e.chargeTimer--;
+                    ctx.strokeStyle = 'rgba(255, 100, 0, 0.5)'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 5 + (30 - e.chargeTimer), 0, Math.PI * 2); ctx.stroke();
+                    if (e.chargeTimer <= 0) { e.phase = 2; e.chargeAngle = baseAngle; e.chargeTimer = 20; }
+                } else {
+                    e.x += Math.cos(e.chargeAngle) * e.speed * 4; e.y += Math.sin(e.chargeAngle) * e.speed * 4;
+                    e.chargeTimer--; if (e.chargeTimer <= 0) e.phase = 0;
+                }
+                break;
+            case 'ranged':
+                if (dist > 200) { e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed; }
+                else if (dist < 150) { e.x -= Math.cos(baseAngle) * e.speed * 0.5; e.y -= Math.sin(baseAngle) * e.speed * 0.5; }
+                if (e.behaviorTimer % 90 === 0 && dist < 350) {
+                    enemyProjectiles.push({ x: e.x, y: e.y, vx: Math.cos(baseAngle) * 4, vy: Math.sin(baseAngle) * 4, radius: 6, color: '#aa44ff', damage: 10 });
+                }
+                break;
+            case 'scream':
+                e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed;
+                if (e.behaviorTimer % 180 === 0 && dist < 150) {
+                    ctx.strokeStyle = 'rgba(170, 220, 255, 0.5)'; ctx.lineWidth = 3;
+                    for (let r = 20; r < 100; r += 20) { ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, Math.PI * 2); ctx.stroke(); }
+                }
+                break;
+            case 'summon':
+                if (dist > 250) { e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed; }
+                if (e.behaviorTimer % 240 === 0 && enemies.length < 50) {
+                    for (let i = 0; i < 2; i++) {
+                        const type = enemyTypes.skeleton;
+                        enemies.push({ x: e.x + randomInRange(-30, 30), y: e.y + randomInRange(-30, 30), radius: type.radius, speed: type.baseSpeed, baseSpeed: type.baseSpeed, hp: type.baseHp, maxHp: type.baseHp, color: type.color, type: 'skeleton', behavior: 'zigzag', shape: 'skeleton', expDrop: 1, behaviorTimer: 0, phase: 0, alpha: 1, dashAngle: 0, dashTimer: 0, chargeAngle: 0, chargeTimer: 0 });
+                    }
+                }
+                break;
+            case 'breath':
+                e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed;
+                if (e.behaviorTimer % 120 === 0 && dist < 300) {
+                    for (let i = -2; i <= 2; i++) {
+                        const breathAngle = baseAngle + i * 0.15;
+                        enemyProjectiles.push({ x: e.x, y: e.y, vx: Math.cos(breathAngle) * 5, vy: Math.sin(breathAngle) * 5, radius: 8, color: '#ff4400', damage: 8, life: 60 });
+                    }
+                }
+                break;
+            case 'aura':
+                e.x += Math.cos(baseAngle) * e.speed; e.y += Math.sin(baseAngle) * e.speed;
+                enemies.forEach(other => { if (other !== e && getDistance(e.x, e.y, other.x, other.y) < 100) other.speed = other.baseSpeed * 1.3; });
+                break;
+        }
+        e.x = Math.max(e.radius, Math.min(canvas.width - e.radius, e.x));
+        e.y = Math.max(e.radius, Math.min(canvas.height - e.radius, e.y));
+    }
+
+    // --- 更新敌人投射物 ---
+    function updateEnemyProjectiles() {
+        for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+            const p = enemyProjectiles[i];
+            p.x += p.vx; p.y += p.vy;
+            if (p.life !== undefined) { p.life--; if (p.life <= 0) { enemyProjectiles.splice(i, 1); continue; } }
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color; ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.fill(); ctx.shadowBlur = 0;
+            if (getDistance(player.x, player.y, p.x, p.y) < player.radius + p.radius) {
+                player.hp -= p.damage; hpEl.innerText = Math.max(0, Math.floor(player.hp));
+                enemyProjectiles.splice(i, 1); continue;
+            }
+            if (p.x < -50 || p.x > canvas.width + 50 || p.y < -50 || p.y > canvas.height + 50) enemyProjectiles.splice(i, 1);
+        }
+    }
+
+    function updateBoss() {
+        if (!currentBoss) return;
+        const b = currentBoss;
+        
+        // 移动向玩家
+        const angle = Math.atan2(player.y - b.y, player.x - b.x);
+        b.x += Math.cos(angle) * b.speed;
+        b.y += Math.sin(angle) * b.speed;
+        
+        // Boss 特殊攻击
+        b.actionTimer++;
+        if (b.pattern === 'charge' && b.actionTimer % 120 === 0) {
+            b.speed = 4; // 冲刺
+            setTimeout(() => { if (currentBoss) currentBoss.speed = 1.2; }, 500);
+        }
+        if (b.pattern === 'summon' && b.actionTimer % 180 === 0) {
+            for (let i = 0; i < 3; i++) spawnEnemy();
+        }
+        
+        // 绘制 Boss
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = b.color;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = b.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        
+        // Boss 眼睛
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(b.x - 10, b.y - 5, 6, 0, Math.PI * 2);
+        ctx.arc(b.x + 10, b.y - 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(b.x - 10, b.y - 5, 3, 0, Math.PI * 2);
+        ctx.arc(b.x + 10, b.y - 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 更新血条
+        bossBar.style.width = (b.hp / b.maxHp) * 100 + '%';
+        
+        // 碰撞玩家
+        if (getDistance(player.x, player.y, b.x, b.y) < player.radius + b.radius) {
+            player.hp -= 1;
+            hpEl.innerText = Math.max(0, Math.floor(player.hp));
+        }
+        
+        // Boss 死亡
+        if (b.hp <= 0) {
+            for (let i = 0; i < 10; i++) {
+                gems.push({ x: b.x + randomInRange(-30, 30), y: b.y + randomInRange(-30, 30), val: b.expDrop / 10 });
+            }
+            bossDefeated++;
+            score += 50;
+            scoreEl.innerText = score;
+            currentBoss = null;
+            bossBarContainer.style.display = 'none';
+        }
+    }
+
+    function gainExp(amount) {
+        player.exp += amount * player.expBonus;
+        if (player.exp >= player.maxExp) {
+            player.level++;
+            player.exp -= player.maxExp;
+            player.maxExp = Math.floor(player.maxExp * 1.35);
+            levelEl.innerText = player.level;
+            triggerLevelUp();
+        }
+        expBar.style.width = (player.exp / player.maxExp) * 100 + '%';
+    }
+
+    function triggerLevelUp() {
+        isPaused = true;
+        levelUpMenu.style.display = 'block';
+        cardsContainer.innerHTML = '';
+        
+        const pool = getUpgradePool();
+        let shuffled = pool.sort(() => 0.5 - Math.random());
+        shuffled.sort((a, b) => {
+            if (a.isSpecial && !b.isSpecial) return -1;
+            if (!a.isSpecial && b.isSpecial) return 1;
+            if (a.isNew && !b.isNew) return -1;
+            if (!a.isNew && b.isNew) return 1;
+            return 0;
+        });
+        let choices = shuffled.slice(0, player.upgradeChoices);
+
+        choices.forEach(choice => {
+            const card = document.createElement('div');
+            card.className = 'card' + (choice.isNew ? ' card-new' : '') + (choice.isSpecial ? ' card-special' : '');
+            card.innerHTML = `<div class="type">${choice.type || ''}</div><h3>${choice.name}</h3><p>${choice.desc}</p>`;
+            card.onclick = () => {
+                choice.apply();
+                levelUpMenu.style.display = 'none';
+                isPaused = false;
+                gameLoop();
+            };
+            cardsContainer.appendChild(card);
+        });
+    }
+
+    function updateWeaponDisplay() {
+        let display = '';
+        Object.entries(weapons).forEach(([key, w]) => {
+            if (w.owned) display += `${w.icon}${w.name[0]}${w.level} `;
+        });
+        weaponListEl.innerHTML = display || '无';
+    }
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // --- 主循环 ---
+    function gameLoop() {
+        if (isGameOver || isPaused) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frameCount++;
+        
+        // 更新游戏时间
+        if (frameCount % 60 === 0) {
+            gameTime++;
+            timerEl.innerText = formatTime(gameTime);
+            
+            // HP回复天赋
+            if (player.hpRegen > 0) {
+                player.hp = Math.min(player.maxHp, player.hp + player.hpRegen);
+                hpEl.innerText = Math.floor(player.hp);
+            }
+            
+            // 新敌人类型解锁通知
+            Object.entries(enemyTypes).forEach(([key, type]) => {
+                if (gameTime === type.unlock && type.unlock > 0) {
+                    showWaveNotice(`⚠️ 新敌人出现: ${type.name}!`);
+                }
+            });
+            
+            // Boss 生成（每60秒）
+            if (gameTime > 0 && gameTime % 60 === 0 && !currentBoss) {
+                spawnBoss();
+            }
+        }
+
+        // 玩家移动
+        if (keys.w && player.y - player.radius > 0) player.y -= player.speed;
+        if (keys.s && player.y + player.radius < canvas.height) player.y += player.speed;
+        if (keys.a && player.x - player.radius > 0) player.x -= player.speed;
+        if (keys.d && player.x + player.radius < canvas.width) player.x += player.speed;
+
+        // 所有武器
+        fireBullets();
+        fireExplosion();
+        fireLightning();
+        fireLaser();
+        fireBlackhole();
+        fireMeteor();
+        updateOrbitals();
+        updateSummons();
+        updateExplosions();
+        updateLightnings();
+        updateBlackholes();
+        updateMeteors();
+        updateEnemyProjectiles();
+
+        // 刷怪
+        const spawnRate = Math.max(10, 45 - Math.floor(gameTime / 10));
+        if (frameCount % spawnRate === 0) spawnEnemy();
+
+        // 绘制拾取范围
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.pickupRange, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 229, 255, 0.05)';
+        ctx.fill();
+
+        // 绘制玩家
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        // 狂战士模式视觉效果
+        if (player.berserker && player.hp < player.maxHp * 0.5) {
+            const rage = 1 - (player.hp / player.maxHp);
+            player.color = `rgb(${Math.floor(255 * rage)}, ${Math.floor(229 * (1 - rage))}, ${Math.floor(255 * (1 - rage))})`;
+            ctx.shadowBlur = 20 + rage * 20;
+            ctx.shadowColor = '#ff0000';
+        } else {
+            player.color = '#00e5ff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = player.color;
+        }
+        ctx.fillStyle = player.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 经验宝石
+        for (let i = gems.length - 1; i >= 0; i--) {
+            let g = gems[i];
+            const dist = getDistance(player.x, player.y, g.x, g.y);
+            if (dist < player.pickupRange) {
+                const angle = Math.atan2(player.y - g.y, player.x - g.x);
+                g.x += Math.cos(angle) * 8;
+                g.y += Math.sin(angle) * 8;
+            }
+            if (dist < player.radius + 5) { gainExp(g.val); gems.splice(i, 1); continue; }
+            ctx.beginPath();
+            ctx.arc(g.x, g.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#00ffaa';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#00ffaa';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // 子弹
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            let b = bullets[i];
+            b.x += b.vx;
+            b.y += b.vy;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffff00';
+            ctx.fill();
+            if (b.x < -50 || b.x > canvas.width + 50 || b.y < -50 || b.y > canvas.height + 50) bullets.splice(i, 1);
+        }
+
+        // 敌人
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            
+            // 使用行为系统更新敌人移动
+            updateEnemyBehavior(e);
+            
+            // 使用外观系统绘制敌人
+            drawEnemy(e);
+            
+            // 血条
+            if (e.hp < e.maxHp) {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(e.x - 15, e.y - 20, 30, 4);
+                ctx.fillStyle = e.color;
+                ctx.fillRect(e.x - 15, e.y - 20, 30 * (e.hp / e.maxHp), 4);
+            }
+            
+            // 死亡处理
+            if (e.hp <= 0) {
+                gems.push({ x: e.x, y: e.y, val: e.expDrop || 2 });
+                enemies.splice(i, 1);
+                score++;
+                scoreEl.innerText = score;
+                // 击杀回血天赋
+                if (player.lifestealOnKill > 0) {
+                    player.hp = Math.min(player.maxHp, player.hp + player.lifestealOnKill);
+                    hpEl.innerText = Math.floor(player.hp);
+                }
+                continue;
+            }
+            
+            // 碰撞玩家
+            // 碰撞玩家
+            if (getDistance(player.x, player.y, e.x, e.y) < player.radius + e.radius) {
+                // 闪避检测
+                if (player.dodgeChance > 0 && Math.random() < player.dodgeChance) {
+                    // 闪避成功，显示效果
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillText('闪避!', player.x, player.y - 30);
+                } else {
+                    player.hp -= 0.5;
+                    // 吸血鬼吸血
+                    if (e.behavior === 'lifesteal') {
+                        e.hp = Math.min(e.maxHp, e.hp + 0.3);
+                    }
+                    hpEl.innerText = Math.max(0, Math.floor(player.hp));
+                }
+                if (player.hp <= 0) {
+                    // 复活天赋
+                    if (player.revive && !player.reviveUsed) {
+                        player.reviveUsed = true;
+                        player.hp = player.maxHp * 0.5;
+                        hpEl.innerText = Math.floor(player.hp);
+                        showWaveNotice('🔥 凤凰涅槃！');
+                    } else {
+                        isGameOver = true;
+                        const talentNames = activeTalents.map(t => t.name).join(', ') || '无';
+                        alert(`💀 被击溃！\n存活时间: ${formatTime(gameTime)}\n等级: Lv.${player.level}\n击杀: ${score}\nBoss击败: ${bossDefeated}\n天赋: ${talentNames}`);
+                        location.reload();
+                    }
+                }
+            }
+            
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                let b = bullets[j];
+                if (!b.hitEnemies.has(e) && getDistance(e.x, e.y, b.x, b.y) < e.radius + b.radius) {
+                    // 秒杀天赋（只对非Boss生效）
+                    if (player.instakillChance > 0 && Math.random() < player.instakillChance) {
+                        e.hp = 0;
+                    } else {
+                        const dmg = calcDamage(b.damage);
+                        e.hp -= dmg.damage;
+                    }
+                    b.hitEnemies.add(e);
+                    b.pierceLeft--;
+                    if (b.pierceLeft <= 0) bullets.splice(j, 1);
+                }
+            }
+        }
+
+        // Boss
+        updateBoss();
+        
+        // Boss 受弹判定
+        if (currentBoss) {
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                let b = bullets[j];
+                if (!b.hitEnemies.has(currentBoss) && getDistance(currentBoss.x, currentBoss.y, b.x, b.y) < currentBoss.radius + b.radius) {
+                    const dmg = calcDamage(b.damage, true); // Boss伤害加成
+                    currentBoss.hp -= dmg.damage;
+                    b.hitEnemies.add(currentBoss);
+                    b.pierceLeft--;
+                    if (b.pierceLeft <= 0) bullets.splice(j, 1);
+                }
+            }
+        }
+
+        // 敌人统计
+        if (frameCount % 30 === 0) {
+            const types = {};
+            enemies.forEach(e => { types[e.type] = (types[e.type] || 0) + 1; });
+            let stats = '敌人: ';
+            Object.entries(types).slice(0, 5).forEach(([type, count]) => {
+                const t = enemyTypes[type];
+                if (t) stats += `${t.name}×${count} `;
+            });
+            if (Object.keys(types).length > 5) stats += '...';
+            enemyStatsEl.innerText = stats;
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    updateWeaponDisplay();
+    // 游戏在选择天赋后启动
+</script>
+</body>
+</html>
