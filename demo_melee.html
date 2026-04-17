@@ -462,9 +462,14 @@ const keys = { w: false, a: false, s: false, d: false };
 window.addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; });
 window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
-// === 虚拟摇杆 ===
-let joystickActive = false, joystickTouchId = null, joystickInput = { x: 0, y: 0 };
-const joystickMaxDistance = 45;
+// === 虚拟摇杆 V2：手感优化 ===
+let joystickActive = false, joystickTouchId = null;
+let joystickRawInput = { x: 0, y: 0 };   // 原始输入
+let joystickInput = { x: 0, y: 0 };       // 平滑后输入
+const joystickMaxDistance = 60;             // 拇指有效范围增大（底盘半径70，留10px边距）
+const joystickDeadzone = 0.18;              // 死区提高，防手指微抖
+const joystickResponseCurve = 1.6;          // 非线性响应：<1更灵敏，>1更精确（推荐1.5-2）
+const joystickSmoothFactor = 0.35;          // 输入平滑系数（0=无平滑，1=瞬间响应）
 const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 function resizeCanvas() {
@@ -485,7 +490,8 @@ function handleJoystickStart(e) {
     e.preventDefault();
     const t = e.changedTouches[0], rect = joystickContainer.getBoundingClientRect();
     const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-    if (Math.hypot(t.clientX-cx, t.clientY-cy) < 120) {
+    // 放宽触发范围——整个控制区底部都可以开始拖
+    if (Math.hypot(t.clientX-cx, t.clientY-cy) < 150) {
         joystickActive = true; joystickTouchId = t.identifier;
         updateJoystickPos(t.clientX, t.clientY, rect);
     }
@@ -502,8 +508,10 @@ function handleJoystickMove(e) {
 function handleJoystickEnd(e) {
     for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === joystickTouchId) {
-            joystickActive = false; joystickTouchId = null; joystickInput = {x:0,y:0};
+            joystickActive = false; joystickTouchId = null;
+            joystickRawInput = {x:0, y:0};
             joystickStick.style.left = '40px'; joystickStick.style.top = '40px';
+            // 不要立刻清零 joystickInput，让平滑逻辑自然回落
             break;
         }
     }
@@ -513,8 +521,31 @@ function updateJoystickPos(tx, ty, rect) {
     let dx = tx-cx, dy = ty-cy;
     const d = Math.hypot(dx,dy);
     if (d > joystickMaxDistance) { dx = dx/d*joystickMaxDistance; dy = dy/d*joystickMaxDistance; }
+    // 视觉：摇杆球位置
     joystickStick.style.left = (40+dx)+'px'; joystickStick.style.top = (40+dy)+'px';
-    joystickInput = { x: dx/joystickMaxDistance, y: dy/joystickMaxDistance };
+    // 原始归一化输入
+    let nx = dx/joystickMaxDistance, ny = dy/joystickMaxDistance;
+    let mag = Math.hypot(nx, ny);
+    // 死区处理
+    if (mag < joystickDeadzone) {
+        joystickRawInput = { x: 0, y: 0 };
+    } else {
+        // 重新映射：死区外的范围映射到 0-1
+        const remapped = (mag - joystickDeadzone) / (1 - joystickDeadzone);
+        // 非线性响应曲线
+        const curved = Math.pow(Math.min(remapped, 1), joystickResponseCurve);
+        const dir_x = nx / mag, dir_y = ny / mag;
+        joystickRawInput = { x: dir_x * curved, y: dir_y * curved };
+    }
+}
+// 每帧平滑摇杆输入（在 game loop 中调用）
+function smoothJoystickInput() {
+    const factor = joystickActive ? joystickSmoothFactor : 0.5; // 松手时回落更快
+    joystickInput.x += (joystickRawInput.x - joystickInput.x) * factor;
+    joystickInput.y += (joystickRawInput.y - joystickInput.y) * factor;
+    // 极小值归零，避免永远微漂移
+    if (Math.abs(joystickInput.x) < 0.01) joystickInput.x = 0;
+    if (Math.abs(joystickInput.y) < 0.01) joystickInput.y = 0;
 }
 if (isTouchDevice) {
     joystickContainer.addEventListener('touchstart', handleJoystickStart, {passive:false});
@@ -1942,14 +1973,15 @@ function gameLoop() {
         }
     }
     
-    // 移动 — V3: 武器移速修正 + 前摇锁定
+    // 移动 — V3: 武器移速修正 + 前摇锁定 | V5: 摇杆平滑
+    smoothJoystickInput(); // 每帧平滑摇杆输入
     let mx = 0, my = 0;
     // V3: 巨斧前摇期间不能移动
     const canMove = !player.isWindup;
     if (canMove) {
         if (keys.w) my -= 1; if (keys.s) my += 1;
         if (keys.a) mx -= 1; if (keys.d) mx += 1;
-        if (joystickActive && (Math.abs(joystickInput.x) > 0.1 || Math.abs(joystickInput.y) > 0.1)) {
+        if (Math.abs(joystickInput.x) > 0.02 || Math.abs(joystickInput.y) > 0.02) {
             mx = joystickInput.x; my = joystickInput.y;
         }
     }
@@ -1961,11 +1993,11 @@ function gameLoop() {
     if (nx > player.radius && nx < canvas.width-player.radius) player.x = nx;
     if (ny > player.radius && ny < canvas.height-player.radius) player.y = ny;
     
-    // 朝向
+    // 朝向 — V5: 提高转向跟手度
     let angleDiff = player.targetAngle - player.angle;
     while (angleDiff > Math.PI) angleDiff -= Math.PI*2;
     while (angleDiff < -Math.PI) angleDiff += Math.PI*2;
-    player.angle += angleDiff * 0.25;
+    player.angle += angleDiff * 0.45;
     
     if (player.isSlashing) {
         player.slashFrame++;
