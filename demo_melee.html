@@ -438,8 +438,39 @@ let quakeWaves = [];     // 地震波
 let holyBursts = [];     // 圣光爆
 let boomerangs = [];     // 回旋斧
 
-let enemies = [], gems = [];
+let enemies = [], gems = [], drops = [];   // V14: drops = 地面掉落道具
 let slashEffects = [], damageNumbers = [], deathEffects = [];
+
+// V14: 掉落道具系统
+const DROP_TYPES = {
+    heal: {
+        icon: '❤️', name: '回血药水',
+        dropChance: 0.05,           // 5% 掉落率
+        color: '#ff4466',
+        glowColor: '#ff2244',
+        radius: 7,
+        onPickup: () => {
+            const healAmt = Math.floor(player.maxHp * 0.15);
+            const actual = Math.min(healAmt, player.maxHp - player.hp);
+            player.hp = Math.min(player.maxHp, player.hp + healAmt);
+            hpEl.innerText = Math.floor(player.hp);
+            // 治愈数字（绿色，向上飘）
+            damageNumbers.push({
+                x: player.x, y: player.y - 20,
+                text: '+' + actual, color: '#44ff66',
+                life: 40, maxLife: 40, isCrit: false, isHeal: true,
+                scale: 1.4, vx: 0, vy: -2
+            });
+            // 治愈光圈特效
+            holyBursts.push({
+                x: player.x, y: player.y, radius: 0,
+                maxRadius: 35, damage: 0,
+                hasDamaged: true, alpha: 0.8,
+                healEffect: true   // 标记为治愈（用绿色）
+            });
+        }
+    }
+};
 
 // ========================================
 //  Boss 系统
@@ -1045,7 +1076,12 @@ function updateProjectiles() {
         ctx.save(); ctx.globalAlpha = h.alpha;
         ctx.beginPath(); ctx.arc(h.x,h.y,h.radius,0,Math.PI*2);
         const g = ctx.createRadialGradient(h.x,h.y,0,h.x,h.y,h.radius);
-        g.addColorStop(0,'rgba(255,255,200,0.8)'); g.addColorStop(0.5,'rgba(255,200,100,0.4)'); g.addColorStop(1,'rgba(255,150,50,0)');
+        if (h.healEffect) {
+            // V14: 治愈光圈 — 绿色
+            g.addColorStop(0,'rgba(100,255,150,0.8)'); g.addColorStop(0.5,'rgba(50,255,100,0.4)'); g.addColorStop(1,'rgba(0,200,50,0)');
+        } else {
+            g.addColorStop(0,'rgba(255,255,200,0.8)'); g.addColorStop(0.5,'rgba(255,200,100,0.4)'); g.addColorStop(1,'rgba(255,150,50,0)');
+        }
         ctx.fillStyle = g; ctx.fill(); ctx.restore();
         h.alpha -= 0.06;
         if (h.alpha <= 0) holyBursts.splice(i,1);
@@ -2233,6 +2269,59 @@ function gameLoop() {
         ctx.fill(); ctx.shadowBlur = 0;
     }
     
+    // V14: 掉落道具（回血等）
+    for (let i = drops.length - 1; i >= 0; i--) {
+        const dr = drops[i];
+        const def = DROP_TYPES[dr.type];
+        if (!def) { drops.splice(i, 1); continue; }
+        
+        // 磁铁吸引
+        const dd = dist(player.x, player.y, dr.x, dr.y);
+        if (dd < player.pickupRange) {
+            const a = Math.atan2(player.y - dr.y, player.x - dr.x);
+            dr.x += Math.cos(a) * 6; dr.y += Math.sin(a) * 6;
+        }
+        
+        // 拾取
+        if (dd < player.radius + 8) {
+            def.onPickup();
+            drops.splice(i, 1);
+            continue;
+        }
+        
+        // 绘制 — 浮动爱心
+        const age = frameCount - dr.spawnFrame;
+        const floatY = Math.sin(age * 0.08) * 3;   // 上下浮动
+        const pulse = 1 + Math.sin(age * 0.12) * 0.15; // 缩放脉冲
+        
+        ctx.save();
+        ctx.translate(dr.x, dr.y + floatY);
+        ctx.scale(pulse, pulse);
+        
+        // 外部光晕
+        ctx.beginPath(); ctx.arc(0, 0, def.radius + 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,68,102,${0.15 + Math.sin(age * 0.1) * 0.1})`;
+        ctx.fill();
+        
+        // 爱心形状
+        ctx.fillStyle = def.color;
+        ctx.shadowBlur = 10; ctx.shadowColor = def.glowColor;
+        ctx.beginPath();
+        const s = def.radius * 0.65;
+        ctx.moveTo(0, s * 0.4);
+        ctx.bezierCurveTo(-s, -s * 0.3, -s * 0.5, -s * 1.2, 0, -s * 0.5);
+        ctx.bezierCurveTo(s * 0.5, -s * 1.2, s, -s * 0.3, 0, s * 0.4);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        
+        // 十字高光
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillRect(-1, -s * 0.6, 2, s * 0.5);
+        ctx.fillRect(-s * 0.25, -s * 0.45, s * 0.5, 2);
+        
+        ctx.restore();
+    }
+    
     // 敌人
     for (let i = enemies.length-1; i >= 0; i--) {
         let e = enemies[i];
@@ -2258,6 +2347,13 @@ function gameLoop() {
         if (e.hp <= 0) {
             spawnDeathEffect(e.x, e.y, e.color, e.radius);
             gems.push({ x: e.x, y: e.y, val: e.expDrop });
+            // V14: 低概率掉落回血道具
+            if (Math.random() < DROP_TYPES.heal.dropChance) {
+                drops.push({
+                    x: e.x + rng(-8, 8), y: e.y + rng(-8, 8),
+                    type: 'heal', spawnFrame: frameCount
+                });
+            }
             enemies.splice(i,1);
             score++; scoreEl.innerText = score;
             // 击杀震动（小）
