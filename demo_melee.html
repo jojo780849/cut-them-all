@@ -89,10 +89,11 @@
         #controls {
             width: 100%; height: 180px; min-height: 180px;
             background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.7));
+            touch-action: none; /* 防止浏览器接管触控手势 */
             display: flex; justify-content: center; align-items: center;
             position: relative; padding: 10px;
         }
-        #joystick-container { width: 140px; height: 140px; position: relative; }
+        #joystick-container { width: 140px; height: 140px; position: absolute; left: 20px; top: 20px; pointer-events: none; transition: opacity 0.15s; }
         #joystick-base {
             position: absolute; width: 140px; height: 140px;
             background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
@@ -486,71 +487,106 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
+// === 浮动摇杆 V3：手指按哪出现在哪，滑出不丢失 ===
+let joystickOriginX = 0, joystickOriginY = 0; // 按下时的触点=摇杆中心
+const controlsEl = document.getElementById('controls');
+
 function handleJoystickStart(e) {
     e.preventDefault();
-    const t = e.changedTouches[0], rect = joystickContainer.getBoundingClientRect();
-    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-    // 放宽触发范围——整个控制区底部都可以开始拖
-    if (Math.hypot(t.clientX-cx, t.clientY-cy) < 150) {
-        joystickActive = true; joystickTouchId = t.identifier;
-        updateJoystickPos(t.clientX, t.clientY, rect);
-    }
+    if (joystickActive) return; // 已经有摇杆在用
+    const t = e.changedTouches[0];
+    const ctrlRect = controlsEl.getBoundingClientRect();
+    // 检查触点是否在控制区内
+    if (t.clientY < ctrlRect.top || t.clientY > ctrlRect.bottom) return;
+    if (t.clientX < ctrlRect.left || t.clientX > ctrlRect.right) return;
+    
+    joystickActive = true;
+    joystickTouchId = t.identifier;
+    // 按下位置 = 摇杆中心
+    joystickOriginX = t.clientX;
+    joystickOriginY = t.clientY;
+    // 移动摇杆容器到按下位置
+    const localX = t.clientX - ctrlRect.left;
+    const localY = t.clientY - ctrlRect.top;
+    joystickContainer.style.left = (localX - 70) + 'px'; // 70 = 容器宽度一半
+    joystickContainer.style.top = (localY - 70) + 'px';
+    joystickContainer.style.opacity = '1';
+    // 摇杆球归中
+    joystickStick.style.left = '40px';
+    joystickStick.style.top = '40px';
+    joystickRawInput = {x:0, y:0};
 }
+
 function handleJoystickMove(e) {
-    if (!joystickActive) return; e.preventDefault();
+    if (!joystickActive) return;
+    e.preventDefault();
     for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === joystickTouchId) {
-            updateJoystickPos(e.changedTouches[i].clientX, e.changedTouches[i].clientY, joystickContainer.getBoundingClientRect());
+            const t = e.changedTouches[i];
+            updateJoystickFromOrigin(t.clientX, t.clientY);
             break;
         }
     }
 }
+
 function handleJoystickEnd(e) {
     for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === joystickTouchId) {
-            joystickActive = false; joystickTouchId = null;
+            joystickActive = false;
+            joystickTouchId = null;
             joystickRawInput = {x:0, y:0};
-            joystickStick.style.left = '40px'; joystickStick.style.top = '40px';
-            // 不要立刻清零 joystickInput，让平滑逻辑自然回落
+            // 视觉复位
+            joystickStick.style.left = '40px';
+            joystickStick.style.top = '40px';
+            joystickContainer.style.opacity = '0.5';
+            // 复位到默认位置
+            joystickContainer.style.left = '20px';
+            joystickContainer.style.top = '20px';
             break;
         }
     }
 }
-function updateJoystickPos(tx, ty, rect) {
-    const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
-    let dx = tx-cx, dy = ty-cy;
-    const d = Math.hypot(dx,dy);
-    if (d > joystickMaxDistance) { dx = dx/d*joystickMaxDistance; dy = dy/d*joystickMaxDistance; }
-    // 视觉：摇杆球位置
-    joystickStick.style.left = (40+dx)+'px'; joystickStick.style.top = (40+dy)+'px';
-    // 原始归一化输入
-    let nx = dx/joystickMaxDistance, ny = dy/joystickMaxDistance;
-    let mag = Math.hypot(nx, ny);
+
+function updateJoystickFromOrigin(tx, ty) {
+    // 以按下点为原点计算偏移
+    let dx = tx - joystickOriginX;
+    let dy = ty - joystickOriginY;
+    const d = Math.hypot(dx, dy);
+    // 钳制到最大距离（视觉）
+    const clampedDx = d > joystickMaxDistance ? dx/d*joystickMaxDistance : dx;
+    const clampedDy = d > joystickMaxDistance ? dy/d*joystickMaxDistance : dy;
+    // 视觉：摇杆球位置（相对容器中心）
+    joystickStick.style.left = (40 + clampedDx) + 'px';
+    joystickStick.style.top = (40 + clampedDy) + 'px';
+    // 归一化输入（允许超过1，但曲线映射会钳制）
+    const rawMag = d / joystickMaxDistance;
     // 死区处理
-    if (mag < joystickDeadzone) {
+    if (rawMag < joystickDeadzone) {
         joystickRawInput = { x: 0, y: 0 };
     } else {
-        // 重新映射：死区外的范围映射到 0-1
-        const remapped = (mag - joystickDeadzone) / (1 - joystickDeadzone);
-        // 非线性响应曲线
+        const remapped = (Math.min(rawMag, 1.5) - joystickDeadzone) / (1 - joystickDeadzone);
         const curved = Math.pow(Math.min(remapped, 1), joystickResponseCurve);
-        const dir_x = nx / mag, dir_y = ny / mag;
+        const dir_x = dx / d, dir_y = dy / d;
         joystickRawInput = { x: dir_x * curved, y: dir_y * curved };
     }
 }
+
 // 每帧平滑摇杆输入（在 game loop 中调用）
 function smoothJoystickInput() {
-    const factor = joystickActive ? joystickSmoothFactor : 0.5; // 松手时回落更快
+    const factor = joystickActive ? joystickSmoothFactor : 0.5;
     joystickInput.x += (joystickRawInput.x - joystickInput.x) * factor;
     joystickInput.y += (joystickRawInput.y - joystickInput.y) * factor;
-    // 极小值归零，避免永远微漂移
     if (Math.abs(joystickInput.x) < 0.01) joystickInput.x = 0;
     if (Math.abs(joystickInput.y) < 0.01) joystickInput.y = 0;
 }
+
 if (isTouchDevice) {
-    joystickContainer.addEventListener('touchstart', handleJoystickStart, {passive:false});
+    // 关键：touchstart 绑在 controls 区域，move 和 end 绑在 document（手指滑出也能追踪）
+    controlsEl.addEventListener('touchstart', handleJoystickStart, {passive:false});
     document.addEventListener('touchmove', handleJoystickMove, {passive:false});
     document.addEventListener('touchend', handleJoystickEnd);
+    document.addEventListener('touchcancel', handleJoystickEnd); // 处理触控被系统中断
+    joystickContainer.style.opacity = '0.5'; // 初始半透明，按下时才全亮
 }
 if (!isTouchDevice) document.getElementById('controls').style.display = 'none';
 
