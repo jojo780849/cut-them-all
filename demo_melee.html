@@ -421,7 +421,12 @@ const player = {
     // V3: 连击系统（匕首用）
     comboTarget: null, comboCount: 0, comboDecay: 0,
     // V3: 前摇系统（巨斧用）
-    isWindup: false, windupFrame: 0, windupMaxFrames: 0, windupAngle: 0
+    isWindup: false, windupFrame: 0, windupMaxFrames: 0, windupAngle: 0,
+    // V12: 无敌帧系统
+    iframeTimer: 0,           // 当前无敌剩余帧数（>0 时无敌）
+    iframeDuration: 45,       // 默认无敌帧数（45帧≈0.75秒）
+    iframeFlash: false,       // 闪烁状态（绘制用）
+    knockbackVx: 0, knockbackVy: 0  // 击退速度
 };
 
 // 武器专属技能状态
@@ -1316,13 +1321,7 @@ function updateBoss() {
                 const d = dist(player.x, player.y, boss.aoeX, boss.aoeY);
                 if (d < boss.aoeRadius) {
                     const dmg = 15 + boss.phaseIndex * 8;
-                    player.hp -= dmg;
-                    screenShake = 15;
-                    damageNumbers.push({
-                        x: player.x, y: player.y - 20,
-                        text: dmg.toString(), color: '#ff4444',
-                        life: 40, isCrit: false, scale: 1.5, vx: 0, vy: -2
-                    });
+                    damagePlayer(dmg, boss.aoeX, boss.aoeY, 12);
                 }
             }
             if (boss.stateTimer <= 0) {
@@ -1350,22 +1349,10 @@ function updateBoss() {
                 x: boss.x, y: boss.y, radius: boss.radius,
                 alpha: 0.6, color: '#ff4400'
             });
-            // 冲刺碰撞判定
+            // 冲刺碰撞判定 — V12: 走 damagePlayer
             if (dist(player.x, player.y, boss.x, boss.y) < player.radius + boss.radius + 10) {
                 const dmg = 20 + boss.phaseIndex * 10;
-                player.hp -= dmg;
-                screenShake = 12;
-                damageNumbers.push({
-                    x: player.x, y: player.y - 20,
-                    text: dmg.toString(), color: '#ff2222',
-                    life: 40, isCrit: false, scale: 1.8, vx: rng(-2,2), vy: -3
-                });
-                // 击飞玩家
-                const kbA = Math.atan2(player.y - boss.y, player.x - boss.x);
-                player.x += Math.cos(kbA) * 30;
-                player.y += Math.sin(kbA) * 30;
-                player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-                player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+                damagePlayer(dmg, boss.x, boss.y, 15); // 强击退
             }
             // 碰墙或时间到 → 眩晕
             if (boss.stateTimer <= 0 || boss.x < -20 || boss.x > canvas.width + 20 || 
@@ -1420,10 +1407,11 @@ function updateBoss() {
         }
     }
     
-    // Boss 碰撞伤害（chase 状态才有）
+    // Boss 碰撞伤害（chase 状态才有）— V12: 走 damagePlayer
     if (boss.state === 'chase') {
         if (dist(player.x, player.y, boss.x, boss.y) < player.radius + boss.radius) {
-            player.hp -= boss.contactDmg * (1 + boss.phaseIndex * 0.5);
+            const dmg = boss.contactDmg * (1 + boss.phaseIndex * 0.5) * 15; // 单次伤害
+            damagePlayer(dmg, boss.x, boss.y, 10);
         }
     }
     
@@ -1480,13 +1468,7 @@ function updateBossBullets() {
         
         // 碰撞玩家
         if (dist(b.x, b.y, player.x, player.y) < player.radius + b.radius) {
-            player.hp -= b.damage;
-            screenShake = Math.max(screenShake, 3);
-            damageNumbers.push({
-                x: player.x + rng(-5, 5), y: player.y - 15,
-                text: b.damage.toString(), color: '#ff6600',
-                life: 30, isCrit: false, scale: 1.0, vx: rng(-0.5, 0.5), vy: -1.5
-            });
+            damagePlayer(b.damage, b.x, b.y, 5);
             bossBullets.splice(i, 1);
             continue;
         }
@@ -1714,6 +1696,12 @@ function drawBoss() {
 //  绘制角色
 // ========================================
 function drawPlayer() {
+    // V12: 无敌帧闪烁——闪的那几帧半透明
+    if (player.iframeTimer > 0 && player.iframeFlash) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+    }
+    
     ctx.save();
     // V3: 前摇震动效果
     let drawX = player.x, drawY = player.y;
@@ -1801,6 +1789,11 @@ function drawPlayer() {
         ctx.globalAlpha = 1;
     }
     ctx.restore();
+    
+    // V12: 关闭闪烁透明
+    if (player.iframeTimer > 0 && player.iframeFlash) {
+        ctx.restore();
+    }
 }
 
 // ========================================
@@ -1970,6 +1963,71 @@ function generateUpgradeOptions() {
     return result.slice(0,3);
 }
 
+// ========================================
+// V12: 统一受伤入口 — 无敌帧 + 击退 + 闪烁
+// ========================================
+function damagePlayer(dmg, knockbackFromX, knockbackFromY, knockbackForce) {
+    // 无敌帧期间免疫所有伤害
+    if (player.iframeTimer > 0) return false;
+    
+    player.hp -= dmg;
+    hpEl.innerText = Math.max(0, Math.floor(player.hp));
+    
+    // 触发无敌帧
+    player.iframeTimer = player.iframeDuration;
+    
+    // 击退
+    if (knockbackForce > 0 && knockbackFromX !== undefined) {
+        const kbAngle = Math.atan2(player.y - knockbackFromY, player.x - knockbackFromX);
+        player.knockbackVx = Math.cos(kbAngle) * knockbackForce;
+        player.knockbackVy = Math.sin(kbAngle) * knockbackForce;
+    }
+    
+    // 屏幕震动反馈
+    screenShake = Math.max(screenShake, Math.min(dmg * 0.8, 12));
+    
+    // 受伤数字
+    damageNumbers.push({
+        x: player.x + rng(-8, 8), y: player.y - 20,
+        text: Math.floor(dmg).toString(), color: '#ff3333',
+        life: 30, isCrit: false, scale: 1.1, vx: rng(-0.5, 0.5), vy: -1.8
+    });
+    
+    // 死亡检查
+    if (player.hp <= 0) {
+        isGameOver = true;
+        alert(`💀 被击溃！\n存活: ${formatTime(gameTime)} | Lv.${player.level} | 击杀: ${score}`);
+        location.reload();
+    }
+    
+    return true; // 成功造成伤害
+}
+
+// V12: 更新无敌帧 & 击退（每帧调用）
+function updatePlayerIframes() {
+    // 无敌帧倒数 + 闪烁
+    if (player.iframeTimer > 0) {
+        player.iframeTimer--;
+        player.iframeFlash = (Math.floor(player.iframeTimer / 3) % 2 === 0); // 每3帧交替闪烁
+    } else {
+        player.iframeFlash = false;
+    }
+    
+    // 击退衰减
+    if (Math.abs(player.knockbackVx) > 0.1 || Math.abs(player.knockbackVy) > 0.1) {
+        player.x += player.knockbackVx;
+        player.y += player.knockbackVy;
+        player.knockbackVx *= 0.85; // 快速衰减
+        player.knockbackVy *= 0.85;
+        // 边界钳制
+        player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+        player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+    } else {
+        player.knockbackVx = 0;
+        player.knockbackVy = 0;
+    }
+}
+
 function updateDisplays() {
     hpEl.innerText = Math.floor(player.hp); maxhpEl.innerText = player.maxHp;
     const w = player.meleeWeapon;
@@ -2008,6 +2066,9 @@ function gameLoop() {
             hpEl.innerText = Math.floor(player.hp);
         }
     }
+    
+    // V12: 更新无敌帧 & 击退
+    updatePlayerIframes();
     
     // 移动 — V3: 武器移速修正 + 前摇锁定 | V5: 摇杆平滑
     smoothJoystickInput(); // 每帧平滑摇杆输入
@@ -2127,15 +2188,11 @@ function gameLoop() {
             continue;
         }
         
-        // 碰撞 — V3: 提高碰撞伤害让走位更重要
+        // 碰撞 — V12: 通过 damagePlayer 统一处理（含无敌帧+击退）
         if (dist(player.x,player.y,e.x,e.y) < player.radius+e.radius) {
-            const contactDmg = 0.8 + gameTime * 0.01; // 随时间增加
-            player.hp -= contactDmg;
-            hpEl.innerText = Math.max(0,Math.floor(player.hp));
-            if (player.hp <= 0) {
-                isGameOver = true;
-                alert(`💀 被击溃！\n存活: ${formatTime(gameTime)} | Lv.${player.level} | 击杀: ${score}`);
-                location.reload();
+            const contactDmg = 8 + gameTime * 0.15; // 单次伤害（不再是每帧）
+            damagePlayer(contactDmg, e.x, e.y, 6);
+            if (isGameOver) {
             }
         }
     }
