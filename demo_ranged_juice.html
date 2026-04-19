@@ -237,6 +237,33 @@
 </div>
 
 <script>
+// === 全局错误捕获：在画面上显示错误信息 ===
+(function(){
+    const errBox = document.createElement('div');
+    errBox.id = 'debug-err';
+    errBox.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(255,0,0,0.9);color:#fff;font:12px monospace;padding:8px;display:none;max-height:40vh;overflow:auto;word-break:break-all;';
+    document.body.appendChild(errBox);
+    let errCount = 0;
+    function showErr(msg) {
+        errCount++;
+        errBox.style.display = 'block';
+        errBox.innerHTML = '<b>ERRORS ('+errCount+'):</b><br>' + errBox.innerHTML.replace(/<b>.*?<\/b><br>/,'') + msg + '<br>';
+    }
+    window.onerror = function(msg, src, line, col, err) {
+        showErr('[L'+line+':'+col+'] ' + msg);
+        return false;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showErr('[Promise] ' + (e.reason||''));
+    });
+    // 启动确认信息
+    const infoBox = document.createElement('div');
+    infoBox.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99998;background:rgba(0,128,0,0.8);color:#fff;font:11px monospace;padding:4px 8px;';
+    infoBox.textContent = 'JUICE v2 loaded | ' + new Date().toLocaleTimeString();
+    document.body.appendChild(infoBox);
+    setTimeout(function(){ infoBox.style.display = 'none'; }, 5000);
+})();
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const hpEl = document.getElementById('hp');
