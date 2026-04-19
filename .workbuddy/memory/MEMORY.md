@@ -4,10 +4,10 @@
 
 ### 技术栈
 - 纯 HTML5 Canvas + 原生 JavaScript
-- 多个单文件原型并行推进（`demo_melee.html` / `demo_ranged_juice.html` / `demo_ranged.html` / `game.html`）
+- 多个单文件原型并行推进（`demo_melee.html` / `demo_ranged_juice.html` / `juice.html` / `demo_ranged.html` / `game.html`）
 - 无需构建工具，双击即可运行
 
-### 已实现功能（主线 V15 + 远程爽感实验线 V3 - 截至 2026-04-18）
+### 已实现功能（主线 V15 + 远程爽感实验线 V3 - 截至 2026-04-19）
 
 
 #### game.html（远程射击版）
@@ -27,6 +27,7 @@
 3. **6 套 JUICE 系统**：慢动作、连杀里程碑奖励、大字幕与白闪、暴击数字强化、子弹与 Boss 冲刺拖尾、Web Audio SFX
 4. **连杀奖励峰值**：脉冲清场、短时极速射击、清屏核爆、短暂无敌
 5. **基础框架**：手机竖版布局、升级选择、Boss UI 与战斗流程均可独立试玩
+6. **调试与分享补充**：当前构建保留画面内错误诊断 overlay，且新增 `juice.html` 作为同内容短路径入口，便于手机端排错与外部分享
 
 #### demo_melee.html（近战版 - 当前主力开发线）
 1. **核心战斗模型**：主近战+副远攻混合型（方案C），近战为唯一攻击动作自动挥砍，远程武器变被动技能槽自动触发，单摇杆操控
@@ -50,6 +51,7 @@
 - **在线游戏链接（远程版旧主线）**：https://jojo780849.github.io/https-github.com-/game.html
 - **在线游戏链接（近战版主线）**：https://jojo780849.github.io/https-github.com-/demo_melee.html
 - **在线游戏链接（远程爽感实验线）**：https://jojo780849.github.io/https-github.com-/demo_ranged_juice.html
+- **在线游戏链接（远程爽感短路径）**：https://jojo780849.github.io/https-github.com-/juice.html
 
 
 ### 协作与跨设备同步约定
@@ -84,4 +86,7 @@
   - 新增 `demo_ranged_juice.html`，形成远程射击 V3 极致爽感版
   - 聚焦 6 套 JUICE 系统：慢动作、连杀里程碑奖励、大字幕/白闪、暴击数字强化、拖尾、Web Audio SFX
   - 期间插入一次全局报错诊断提交，最终在工作底稿上完整重建全部爽感增强
+- 2026-04-19：补记远程爽感实验线当日已提交成果：
+  - `demo_ranged_juice.html` 当前构建保留画面内错误诊断 overlay，便于手机端试玩时直接回传运行时异常
+  - 新增 `juice.html` 作为与 `demo_ranged_juice.html` 同内容的短路径镜像，便于外部分享和快速打开
 

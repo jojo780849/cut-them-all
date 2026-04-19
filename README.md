@@ -8,7 +8,7 @@
 
 ## 当前技术栈
 - 纯 HTML5 Canvas + 原生 JavaScript
-- 多个单文件原型并行推进：`demo_melee.html` / `demo_ranged_juice.html` / `game.html`
+- 多个单文件原型并行推进：`demo_melee.html` / `demo_ranged_juice.html` / `juice.html` / `demo_ranged.html` / `game.html`
 - 无需构建工具，双击即可运行
 
 ## 跨电脑协作结构
@@ -18,7 +18,8 @@
 
 ## 当前关键文件
 - `demo_melee.html`：**近战版主力开发线（当前最新 V15）**
-- `demo_ranged_juice.html`：**远程爽感实验线（V3，6 套 JUICE 系统）**
+- `demo_ranged_juice.html`：**远程爽感实验线（V3，6 套 JUICE 系统 + 画面内错误诊断 overlay）**
+- `juice.html`：`demo_ranged_juice.html` 的短路径镜像，方便外部分享与试玩
 - `demo_ranged.html`：远程版基础验证线
 - `game.html`：远程射击正式版旧主线
 - `割一波_玩法设计进度表.xlsx`：项目进度表
@@ -30,6 +31,7 @@
 ## 在线体验
 - **近战版（主力）**：https://jojo780849.github.io/https-github.com-/demo_melee.html
 - **远程爽感实验线**：https://jojo780849.github.io/https-github.com-/demo_ranged_juice.html
+- **远程爽感短路径**：https://jojo780849.github.io/https-github.com-/juice.html
 - **远程版旧主线**：https://jojo780849.github.io/https-github.com-/game.html
 
 ## 近战版当前功能 (V15)
@@ -47,6 +49,7 @@
 - 6 套 JUICE 系统：慢动作、连杀里程碑奖励、大字幕与白闪、暴击数字强化、子弹/冲刺拖尾、Web Audio SFX
 - 连杀奖励会触发脉冲清场、短时极速射击、清屏核爆、短暂无敌等反馈峰值
 - 保留手机竖版布局、Boss 战与升级面板，用作爽感模块回灌前的独立对照样机
+- 当前构建保留画面内错误诊断 overlay，且同步提供 `juice.html` 短路径镜像，方便手机端试玩排错与外部分享
 
 ## 自动同步
 
