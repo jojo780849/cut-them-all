@@ -131,7 +131,7 @@
     </div>
   </div>
 
-  <div id="hint">按住螢幕移動｜隊友自動開火｜3碎片自動升隊伍</div>
+  <div id="hint">左下區域按住即出現虛擬搖桿｜隊友自動開火｜3碎片自動升隊伍</div>
 
   <div id="pick">
     <div class="pickCard">
@@ -183,36 +183,75 @@
   window.addEventListener('resize', resize);
   resize();
 
+  const JOY = { maxR: 56, dead: 0.14 };
   const input = {
-    pointer: { active: false, x: 0, y: 0, id: null },
+    joy: {
+      active: false,
+      id: null,
+      cx: 0,
+      cy: 0,
+      dx: 0,
+      dy: 0,
+      nx: 0,
+      ny: 0,
+      mag: 0
+    },
     keys: new Set()
   };
 
-  function screenToWorld(sx, sy, cam) {
-    return { x: cam.x - W / 2 + sx, y: cam.y - H / 2 + sy };
+  function resetJoy() {
+    input.joy.active = false;
+    input.joy.id = null;
+    input.joy.dx = 0;
+    input.joy.dy = 0;
+    input.joy.nx = 0;
+    input.joy.ny = 0;
+    input.joy.mag = 0;
+  }
+
+  function updateJoyFromPoint(clientX, clientY) {
+    const j = input.joy;
+    let dx = clientX - j.cx;
+    let dy = clientY - j.cy;
+    const len = Math.hypot(dx, dy) || 1;
+    const clamped = Math.min(JOY.maxR, len);
+    dx = dx / len * clamped;
+    dy = dy / len * clamped;
+    j.dx = dx;
+    j.dy = dy;
+    j.nx = dx / JOY.maxR;
+    j.ny = dy / JOY.maxR;
+    j.mag = clamped / JOY.maxR;
   }
 
   canvas.addEventListener('pointerdown', (e) => {
     if (state.pausePick || state.gameOver) return;
-    input.pointer.active = true;
-    input.pointer.x = e.clientX;
-    input.pointer.y = e.clientY;
-    input.pointer.id = e.pointerId;
+    const inControlArea = e.clientX <= W * 0.78 && e.clientY >= H * 0.22;
+    if (!inControlArea) return;
+    const j = input.joy;
+    j.active = true;
+    j.id = e.pointerId;
+    j.cx = clamp(e.clientX, 62, W * 0.72);
+    j.cy = clamp(e.clientY, H * 0.38, H - 62);
+    updateJoyFromPoint(e.clientX, e.clientY);
   });
+
   canvas.addEventListener('pointermove', (e) => {
-    if (!input.pointer.active) return;
-    if (input.pointer.id !== null && input.pointer.id !== e.pointerId) return;
-    input.pointer.x = e.clientX;
-    input.pointer.y = e.clientY;
+    const j = input.joy;
+    if (!j.active) return;
+    if (j.id !== null && j.id !== e.pointerId) return;
+    updateJoyFromPoint(e.clientX, e.clientY);
   });
+
   function stopPointer(e) {
-    if (!input.pointer.active) return;
-    if (input.pointer.id !== null && input.pointer.id !== e.pointerId) return;
-    input.pointer.active = false;
-    input.pointer.id = null;
+    const j = input.joy;
+    if (!j.active) return;
+    if (j.id !== null && j.id !== e.pointerId) return;
+    resetJoy();
   }
   canvas.addEventListener('pointerup', stopPointer);
   canvas.addEventListener('pointercancel', stopPointer);
+
 
   window.addEventListener('keydown', (e) => input.keys.add(e.key.toLowerCase()));
   window.addEventListener('keyup', (e) => input.keys.delete(e.key.toLowerCase()));
@@ -354,16 +393,10 @@
     const p = state.player;
     let vx = 0, vy = 0;
 
-    if (input.pointer.active) {
-      const cam = { x: p.x, y: p.y };
-      const t = screenToWorld(input.pointer.x, input.pointer.y, cam);
-      const dx = t.x - p.x;
-      const dy = t.y - p.y;
-      const len = Math.hypot(dx, dy);
-      if (len > 6) {
-        vx += dx / len;
-        vy += dy / len;
-      }
+    if (input.joy.active && input.joy.mag > JOY.dead) {
+      const power = (input.joy.mag - JOY.dead) / (1 - JOY.dead);
+      vx += input.joy.nx * power;
+      vy += input.joy.ny * power;
     }
 
     if (input.keys.has('w') || input.keys.has('arrowup')) vy -= 1;
@@ -382,6 +415,7 @@
     p.y = clamp(p.y, p.r, world.h - p.r);
     p.hurtCD = Math.max(0, p.hurtCD - dt);
   }
+
 
   function updateSquad(dt) {
     const p = state.player;
@@ -593,6 +627,29 @@
     ctx.fill();
   }
 
+  function drawJoystick() {
+    const j = input.joy;
+    if (!j.active) return;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(j.cx, j.cy, JOY.maxR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    const knobR = 24;
+    ctx.fillStyle = 'rgba(185, 224, 255, 0.32)';
+    ctx.strokeStyle = 'rgba(185, 224, 255, 0.85)';
+    ctx.beginPath();
+    ctx.arc(j.cx + j.dx, j.cy + j.dy, knobR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function draw() {
     ctx.clearRect(0, 0, W, H);
     const camX = state.player.x;
@@ -603,6 +660,7 @@
     drawGrid(camX, camY);
 
     for (const c of state.crates) {
+
       const sx = toScreenX(c.x);
       const sy = toScreenY(c.y);
       ctx.fillStyle = '#6a5b42';
@@ -652,7 +710,10 @@
       ctx.fillText(f.text, sx, sy);
       ctx.globalAlpha = 1;
     }
+
+    drawJoystick();
   }
+
 
   function updateHud() {
     hpEl.textContent = 'HP ' + Math.max(0, Math.round(state.player.hp));
