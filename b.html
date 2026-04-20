@@ -257,9 +257,25 @@
   window.addEventListener('keyup', (e) => input.keys.delete(e.key.toLowerCase()));
 
   const ROLE_CFG = {
-    blade: { name: '斬擊手', icon: '⚔', color: '#8ef2c3', range: 118, fireGap: 0.34, dmg: 10, bulletR: 4, pierce: 0, speedMul: 1.02 },
-    gunner: { name: '射手', icon: '✦', color: '#9bceff', range: 260, fireGap: 0.26, dmg: 8, bulletR: 4, pierce: 1, speedMul: 1 },
-    bomber: { name: '爆破手', icon: '✹', color: '#ffc680', range: 230, fireGap: 0.58, dmg: 15, bulletR: 6, pierce: 2, speedMul: 0.9 }
+    blade: {
+      name: '斬擊手', icon: '⚔', color: '#8ef2c3',
+      range: 104, fireGap: 0.96, dmg: 16,
+      bulletR: 0, pierce: 0, speedMul: 1,
+      melee: true, cleaveR: 62
+    },
+    gunner: {
+      name: '射手', icon: '✦', color: '#9bceff',
+      range: 290, fireGap: 0.44, dmg: 7,
+      bulletR: 3, pierce: 1, speedMul: 1.22,
+      melee: false, cleaveR: 0
+    },
+    bomber: {
+      name: '爆破手', icon: '✹', color: '#ffc680',
+      range: 255, fireGap: 1.18, dmg: 24,
+      bulletR: 7, pierce: 1, speedMul: 0.78,
+      melee: false, cleaveR: 0,
+      aoe: 56
+    }
   };
   const ROLE_KEYS = ['blade', 'gunner', 'bomber'];
 
@@ -282,7 +298,7 @@
       score: 0,
       level: 1,
       nextLevelKills: 20,
-      buffs: { dmg: 1, rate: 1, speed: 1, pierce: 0, magnet: 1, move: 1, open: 1 },
+      buffs: { dmg: 1, rate: 0.78, speed: 1, pierce: 0, magnet: 1, move: 1, open: 1 },
       logCD: 0,
       logText: '主角開箱拿同類碎片，集滿3個升級對應隊員'
     };
@@ -418,11 +434,40 @@
       r: spec.r,
       color: spec.color,
       icon: spec.icon,
+      role: spec.role,
       dmg: spec.dmg,
       pierce: spec.pierce,
+      aoe: spec.aoe || 0,
       life: 1.1
     });
   }
+
+  function killEnemyAt(index, e) {
+    state.kills++;
+    state.score += 1;
+    if (Math.random() < 0.45) {
+      state.drops.push({ x: e.x + rand(-8, 8), y: e.y + rand(-8, 8), t: 'score', v: 1, r: 6, color: '#ffe078', icon: '✶' });
+    }
+    addFx(e.x, e.y - 16, '+1', '#ffd27b');
+    state.enemies.splice(index, 1);
+  }
+
+  function splashDamage(x, y, radius, dmg) {
+    const r2 = radius * radius;
+    for (let j = state.enemies.length - 1; j >= 0; j--) {
+      const e = state.enemies[j];
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > r2) continue;
+      const ratio = 1 - Math.sqrt(d2) / radius;
+      const dealt = dmg * (0.42 + ratio * 0.58);
+      e.hp -= dealt;
+      if (e.hp <= 0) killEnemyAt(j, e);
+    }
+    addFx(x, y - 10, '爆', '#ffc680');
+  }
+
 
 
   function updatePlayer(dt) {
@@ -489,23 +534,45 @@
 
       u.fireCD -= dt;
       if (u.fireCD <= 0) {
-        const target = nearestEnemy(ux, uy, cfg.range + u.level * 14);
+        const range = cfg.range + u.level * 16;
+        const target = nearestEnemy(ux, uy, range);
         if (target) {
-          const lvMul = 1 + (u.level - 1) * 0.35;
-          shoot(ux, uy, target.x, target.y, {
-            r: cfg.bulletR + Math.min(2, u.level - 1),
-            color: cfg.color,
-            icon: cfg.icon,
-            dmg: (cfg.dmg + state.time * 0.03) * state.buffs.dmg * lvMul,
-            pierce: cfg.pierce + state.buffs.pierce,
-            speedMul: cfg.speedMul
-          });
-          const fireBase = (cfg.fireGap / state.buffs.rate) * (1 - (u.level - 1) * 0.06);
-          u.fireCD = Math.max(0.07, fireBase + rand(-0.03, 0.03));
+          const lvMul = 1 + (u.level - 1) * 0.46;
+          const scaledDmg = (cfg.dmg + state.time * 0.03) * state.buffs.dmg * lvMul;
+
+          if (cfg.melee) {
+            const hitR = cfg.cleaveR + u.level * 4;
+            const r2 = hitR * hitR;
+            for (let j = state.enemies.length - 1; j >= 0; j--) {
+              const e = state.enemies[j];
+              const dx = e.x - ux;
+              const dy = e.y - uy;
+              if (dx * dx + dy * dy > r2) continue;
+              e.hp -= scaledDmg;
+              if (e.hp <= 0) killEnemyAt(j, e);
+            }
+            addFx(ux, uy - 8, '斬', cfg.color);
+          } else {
+            shoot(ux, uy, target.x, target.y, {
+              role: u.role,
+              r: cfg.bulletR + Math.min(2, u.level - 1),
+              color: cfg.color,
+              icon: cfg.icon,
+              dmg: scaledDmg,
+              pierce: cfg.pierce + state.buffs.pierce,
+              speedMul: cfg.speedMul,
+              aoe: cfg.aoe || 0
+            });
+          }
+
+          const growth = 1 - (u.level - 1) * 0.14;
+          const fireBase = (cfg.fireGap / state.buffs.rate) * Math.max(0.42, growth);
+          u.fireCD = Math.max(0.16, fireBase + rand(-0.04, 0.04));
         }
       }
     }
   }
+
 
 
   function updateEnemies(dt) {
@@ -548,19 +615,13 @@
         if (dx * dx + dy * dy <= hit * hit) {
           e.hp -= b.dmg;
           b.pierce--;
-          if (e.hp <= 0) {
-            state.kills++;
-            state.score += 1;
-            if (Math.random() < 0.45) {
-              state.drops.push({ x: e.x + rand(-8, 8), y: e.y + rand(-8, 8), t: 'score', v: 1, r: 6, color: '#ffe078', icon: '✶' });
-            }
-            addFx(e.x, e.y - 16, '+1', '#ffd27b');
-            state.enemies.splice(j, 1);
-          }
+          if (b.aoe > 0) splashDamage(b.x, b.y, b.aoe, b.dmg * 0.75);
+          if (e.hp <= 0) killEnemyAt(j, e);
         }
       }
     }
   }
+
 
 
   function updateDrops(dt) {
@@ -609,7 +670,7 @@
 
   const allBuffs = [
     { key: 'dmg', name: '火力強化', desc: '隊員輸出 +25%', apply: () => state.buffs.dmg *= 1.25 },
-    { key: 'rate', name: '急速射擊', desc: '隊員射速 +20%', apply: () => state.buffs.rate *= 1.2 },
+    { key: 'rate', name: '急速射擊', desc: '隊員射速 +35%', apply: () => state.buffs.rate *= 1.35 },
     { key: 'move', name: '疾走', desc: '移動速度 +12%', apply: () => state.buffs.move *= 1.12 },
     { key: 'open', name: '拆箱專精', desc: '主角開箱效率 +28%', apply: () => state.buffs.open *= 1.28 },
     { key: 'pierce', name: '穿透彈', desc: '子彈穿透 +1', apply: () => state.buffs.pierce += 1 },
