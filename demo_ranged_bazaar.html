@@ -614,9 +614,9 @@ function sfxPlayerHurt() { playTone(150, 0.15, 'sawtooth', 0.12); playTone(80, 0
 
 const player = {
     x: 225, y: 300, radius: 14, speed: 3.5,
-    hp: 200, maxHp: 200, level: 1, exp: 0, maxExp: 10,
+    hp: 120, maxHp: 120, level: 1, exp: 0, maxExp: 10,
     pickupRange: 70, critChance: 0.05, critDamage: 1.5,
-    damageBonus: 1, hpRegen: 0, angle: 0, targetAngle: 0,
+    damageBonus: 0.7, hpRegen: 0, angle: 0, targetAngle: 0,
     rangedWeapon: null, shootCooldown: 0,
     walkFrame: 0,
     // 击杀连续数（远程版连杀系统）
@@ -751,9 +751,11 @@ function formatWaveInfo() {
 }
 
 function getWaveBudget(wave) {
-    // 每波敌人总量（越后越多）— 提高难度
+    // 每波敌人总量：开局缓慢，后期陡增
     if (BOSS_WAVES.includes(wave)) return Math.floor(35 + wave * 5);
-    return Math.floor(25 + wave * 4.5);
+    // 前 3 波：缓；4+ 波正常加速
+    if (wave <= 3) return 8 + wave * 4;        // 第1波12，第2波16，第3波20
+    return Math.floor(12 + wave * 4.5);          // 第4波30，第10波57
 }
 
 function showWaveBanner(text, color) {
@@ -1176,8 +1178,8 @@ function spawnEnemy(forceType) {
     let x, y;
     if (Math.random() < 0.5) { x = Math.random()<0.5 ? -20 : canvas.width+20; y = Math.random()*canvas.height; }
     else { x = Math.random()*canvas.width; y = Math.random()<0.5 ? -20 : canvas.height+20; }
-    const hpM = 1 + gameTime*0.008 + player.level*0.08 + wave*0.30;
-    const spM = 1 + gameTime*0.002 + wave*0.04;
+    const hpM = 1 + gameTime*0.008 + player.level*0.08 + Math.max(0, wave-1)*0.22;
+    const spM = 1 + gameTime*0.002 + Math.max(0, wave-1)*0.03;
     enemies.push({
         x, y, radius: chosen.radius, speed: chosen.baseSpeed*spM,
         hp: chosen.baseHp*hpM, maxHp: chosen.baseHp*hpM,
@@ -3215,27 +3217,29 @@ function gameLoop() {
     if (waveState === 'battle') {
         const waveElapsed = gameTime - waveStartTime;
         const isBossWave = BOSS_WAVES.includes(currentWave);
-        // 刷怪更密集：第1波每 0.4 秒 1 只，到 20 波每 0.1 秒 1 只
-        const baseRate = Math.max(4, 24 - currentWave * 1.0);
+        // 开局刷怪慢：第1波 50帧/只 (~0.83s)；第5波 28帧；第20波 4帧
+        let baseRate;
+        if (currentWave <= 3) {
+            baseRate = 60 - currentWave * 5;    // 55 / 50 / 45
+        } else {
+            baseRate = Math.max(4, 32 - currentWave * 1.2);
+        }
         const rate = boss ? baseRate * 2 : baseRate;
         // 仅在预算未耗尽 & 敌人数未爆炸时刷
         if (waveEnemyBudget > 0 && enemies.length < 60 && frameCount % Math.floor(rate) === 0) {
             spawnEnemy();
             waveEnemyBudget--;
         }
-        // 每 6 秒冲一波小高潮（施压点）
-        if (!boss && !isBossWave && waveElapsed > 0 && waveElapsed % 6 === 0 && frameCount % 60 === 0 && waveEnemyBudget >= 6) {
-            const burst = 6 + Math.floor(currentWave/3);
+        // 小高潮冲波：前 3 波不触发，第 4 波起每 6 秒一次
+        if (!boss && !isBossWave && currentWave >= 4 && waveElapsed > 0 && waveElapsed % 6 === 0 && frameCount % 60 === 0 && waveEnemyBudget >= 6) {
+            const burst = 4 + Math.floor(currentWave/3);
             for (let i = 0; i < burst; i++) { spawnEnemy(); waveEnemyBudget--; }
         }
         // === 波次结束条件 ===
-        // 1) 普通波次：时间到 + 场上敌人清完
-        // 2) Boss 波次：Boss 被击败（下面 Boss 系统会 set boss = null）
         if (!isBossWave && waveElapsed >= WAVE_DURATION && waveEnemyBudget <= 0 && enemies.length <= 2) {
             endWave();
         }
         if (isBossWave && bossSpawned && !boss) {
-            // Boss 已击败
             endWave();
             bossSpawned = false;
             if (bossBarEl) bossBarEl.style.display = 'none';
