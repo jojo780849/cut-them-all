@@ -3,574 +3,731 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>Block Combat Mobile Demo</title>
+  <title>割草 x 破壞小隊 Lite</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: #0d0f16; color: #eef3ff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
-    .app { max-width: 560px; margin: 0 auto; min-height: 100vh; padding: max(12px, env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
-    .panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.13); border-radius: 12px; padding: 8px 10px; }
-    .top { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
-    .enemyBar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.15); overflow: hidden; margin-top: 6px; }
-    .enemyFill { height: 100%; background: linear-gradient(90deg, #ff6b6b, #ffb36b); width: 100%; }
-    .boardWrap { position: relative; }
-    .board {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 4px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      padding: 6px;
-      touch-action: manipulation;
-    }
-    .cell {
-      aspect-ratio: 1 / 1;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
-      transition: transform .05s ease;
-    }
-    .cell.preview { outline: 2px solid rgba(255,255,255,0.5); }
-    .cell.bad { outline: 2px solid rgba(255,100,100,0.7); }
-    .c-r { background: #ff5b67; }
-    .c-b { background: #4da6ff; }
-    .c-g { background: #44df94; }
-    .hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; }
-    .chipRow { display: flex; gap: 6px; }
-    .chip { border-radius: 999px; padding: 2px 8px; font-weight: 700; font-size: 12px; }
-    .r { background: rgba(255,91,103,0.25); color: #ff9ca4; }
-    .b { background: rgba(77,166,255,0.25); color: #9bceff; }
-    .g { background: rgba(68,223,148,0.25); color: #aef4d0; }
-    .hand { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .piece {
-      border: 1px solid rgba(255,255,255,0.16);
-      border-radius: 10px;
-      padding: 8px;
-      min-height: 84px;
-      display: grid;
-      place-items: center;
-      background: rgba(255,255,255,0.04);
-      position: relative;
-      touch-action: none;
-      user-select: none;
-    }
-    .piece.sel { outline: 2px solid #ffd36a; background: rgba(255,211,106,0.13); }
-    .piece.dragging { opacity: 0.45; }
-    .dragGhost {
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #080b12; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif; color: #eef3ff; }
+    #app { position: fixed; inset: 0; }
+    canvas { width: 100%; height: 100%; display: block; background: radial-gradient(120% 90% at 50% 0%, #15233b 0%, #0b1220 45%, #080b12 100%); touch-action: none; }
+
+    .hud {
       position: fixed;
-      left: 0;
-      top: 0;
-      transform: translate(-9999px, -9999px);
+      left: 10px;
+      right: 10px;
+      top: max(10px, env(safe-area-inset-top));
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
       pointer-events: none;
-      z-index: 9999;
-      background: rgba(0,0,0,0.45);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 10px;
-      padding: 8px;
+    }
+    .panel {
+      background: rgba(7, 10, 18, 0.62);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 12px;
+      padding: 8px 10px;
+      backdrop-filter: blur(4px);
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px 10px; font-size: 12px; }
+    .title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+    .chip { border-radius: 999px; padding: 2px 8px; font-weight: 700; font-size: 12px; }
+    .chip.good { background: rgba(73, 225, 151, 0.2); color: #8ef2c3; }
+    .chip.warn { background: rgba(255, 194, 87, 0.2); color: #ffd58a; }
+    .chip.bad { background: rgba(255, 111, 111, 0.2); color: #ffb0b0; }
+
+    #hint {
+      position: fixed;
+      left: 50%;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      background: rgba(7, 10, 18, 0.68);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      white-space: nowrap;
+      pointer-events: none;
     }
 
-    .pieceGrid {
-      display: grid;
-      grid-template-columns: repeat(4, 13px);
-      grid-template-rows: repeat(4, 13px);
-      gap: 2px;
+    #pick {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.55);
+      padding: 16px;
+      z-index: 5;
     }
-    .dot { width: 13px; height: 13px; border-radius: 3px; background: rgba(255,255,255,0.1); }
-    .dot.on.c-r { background: #ff5b67; }
-    .dot.on.c-b { background: #4da6ff; }
-    .dot.on.c-g { background: #44df94; }
-    .pieceName { position: absolute; right: 6px; bottom: 4px; font-size: 10px; opacity: .75; }
-    .log { font-size: 12px; opacity: .92; min-height: 18px; }
-    .btnRow { display: flex; gap: 8px; }
-    button { flex: 1; border: 1px solid rgba(255,255,255,0.18); color: #fff; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; font-size: 13px; }
+    .pickCard {
+      width: min(640px, 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(8, 12, 22, 0.95);
+      padding: 14px;
+    }
+    .pickTitle { font-size: 16px; font-weight: 800; margin-bottom: 10px; }
+    .pickGrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .optBtn {
+      width: 100%;
+      text-align: left;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: #eef3ff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    #gameOver {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+      z-index: 6;
+      padding: 16px;
+    }
+    .goCard {
+      width: min(420px, 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(8, 12, 22, 0.95);
+      padding: 16px;
+    }
+    .goTitle { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+    .goBtn {
+      margin-top: 12px;
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 11px;
+      font-size: 15px;
+    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="panel top">
-      <div>
-        <div id="enemyTitle">Enemy Lv1 | 距離 6</div>
-        <div class="enemyBar"><div id="enemyFill" class="enemyFill"></div></div>
-      </div>
-      <div id="hp">HP 100</div>
-    </div>
+  <div id="app">
+    <canvas id="game"></canvas>
+  </div>
 
-    <div class="panel hud">
-      <div>回合內放置：<b id="moves">3</b></div>
-      <div>分數：<b id="score">0</b></div>
-      <div>盾：<b id="shield">0</b></div>
-    </div>
-
+  <div class="hud">
     <div class="panel">
-      <div class="chipRow">
-        <span class="chip r">R <span id="er">0</span>/6</span>
-        <span class="chip b">B <span id="eb">0</span>/6</span>
-        <span class="chip g">G <span id="eg">0</span>/6</span>
+      <div class="title">割草 x 破壞小隊 Lite</div>
+      <div class="row">
+        <span id="hp" class="chip good">HP 100</span>
+        <span id="squad" class="chip">隊伍 1</span>
+        <span id="shard" class="chip warn">碎片 0/3</span>
+        <span id="kills" class="chip">擊殺 0</span>
+        <span id="timer" class="chip">00:00</span>
       </div>
     </div>
-
-    <div class="panel boardWrap">
-      <div id="board" class="board"></div>
-    </div>
-
-    <div class="panel">
-      <div id="hand" class="hand"></div>
-      <div class="log" id="log">選一個拼塊，再點棋盤放置。</div>
-    </div>
-
-    <div class="btnRow">
-      <button id="resetBtn">重開</button>
+    <div class="panel" style="min-width:98px;text-align:right;">
+      <div style="font-size:11px;opacity:.8;">下一升級</div>
+      <div id="nextLv" style="font-size:18px;font-weight:800;">20</div>
     </div>
   </div>
-  <div id="dragGhost" class="dragGhost"></div>
 
+  <div id="hint">按住螢幕移動｜隊友自動開火｜3碎片自動升隊伍</div>
+
+  <div id="pick">
+    <div class="pickCard">
+      <div class="pickTitle">選 1 個強化</div>
+      <div id="pickGrid" class="pickGrid"></div>
+    </div>
+  </div>
+
+  <div id="gameOver">
+    <div class="goCard">
+      <div class="goTitle">你倒下了</div>
+      <div id="goStats" style="opacity:.9;line-height:1.6"></div>
+      <button id="restart" class="goBtn">再來一局</button>
+    </div>
+  </div>
 
 <script>
 (() => {
-  const N = 8;
-  const boardEl = document.getElementById('board');
-  const handEl = document.getElementById('hand');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
   const hpEl = document.getElementById('hp');
-  const enemyTitleEl = document.getElementById('enemyTitle');
-  const enemyFillEl = document.getElementById('enemyFill');
-  const movesEl = document.getElementById('moves');
-  const scoreEl = document.getElementById('score');
-  const shieldEl = document.getElementById('shield');
-  const erEl = document.getElementById('er');
-  const ebEl = document.getElementById('eb');
-  const egEl = document.getElementById('eg');
-  const logEl = document.getElementById('log');
-  const resetBtn = document.getElementById('resetBtn');
-  const dragGhostEl = document.getElementById('dragGhost');
+  const squadEl = document.getElementById('squad');
+  const shardEl = document.getElementById('shard');
+  const killsEl = document.getElementById('kills');
+  const timerEl = document.getElementById('timer');
+  const nextLvEl = document.getElementById('nextLv');
+  const hintEl = document.getElementById('hint');
+  const pickEl = document.getElementById('pick');
+  const pickGridEl = document.getElementById('pickGrid');
+  const gameOverEl = document.getElementById('gameOver');
+  const goStatsEl = document.getElementById('goStats');
+  const restartBtn = document.getElementById('restart');
 
+  const world = { w: 2200, h: 2200 };
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  const COLORS = ['r','b','g'];
-  const SHAPES = [
-    { name: 'I3', cells: [[0,0],[1,0],[2,0]] },
-    { name: 'I4', cells: [[0,0],[1,0],[2,0],[3,0]] },
-    { name: 'L3', cells: [[0,0],[0,1],[1,1]] },
-    { name: 'L4', cells: [[0,0],[0,1],[0,2],[1,2]] },
-    { name: 'T4', cells: [[0,0],[1,0],[2,0],[1,1]] },
-    { name: 'O4', cells: [[0,0],[1,0],[0,1],[1,1]] },
-    { name: 'Z4', cells: [[0,0],[1,0],[1,1],[2,1]] },
-    { name: 'J4', cells: [[1,0],[1,1],[1,2],[0,2]] },
-    { name: 'P5', cells: [[0,0],[1,0],[0,1],[1,1],[0,2]] }
-  ];
+  let W = 0, H = 0, DPR = 1;
+  function resize() {
+    DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
 
-  const state = {
-    board: Array.from({ length: N }, () => Array(N).fill(null)),
-    cells: [],
-    hand: [],
-    selected: -1,
-    preview: null,
-    drag: { active: false, handIndex: -1, pointerId: null },
-    hp: 100,
-
-    score: 0,
-    movesLeft: 3,
-    energy: { r: 0, b: 0, g: 0 },
-    shieldTurn: 0,
-    enemy: { lv: 1, hp: 90, maxHp: 90, atk: 12, distance: 6, stepBase: 6 },
-    gameOver: false
+  const input = {
+    pointer: { active: false, x: 0, y: 0, id: null },
+    keys: new Set()
   };
 
-  function randInt(max) { return (Math.random() * max) | 0; }
-  function pick(arr) { return arr[randInt(arr.length)]; }
-
-  function rotateCells(cells, times) {
-    let out = cells.map(([x,y]) => [x,y]);
-    for (let t = 0; t < times; t++) out = out.map(([x,y]) => [y, -x]);
-    const minX = Math.min(...out.map(c => c[0]));
-    const minY = Math.min(...out.map(c => c[1]));
-    out = out.map(([x,y]) => [x - minX, y - minY]);
-    return out;
+  function screenToWorld(sx, sy, cam) {
+    return { x: cam.x - W / 2 + sx, y: cam.y - H / 2 + sy };
   }
 
-  function normalize(cells) {
-    const sorted = [...cells].sort((a,b) => a[1]-b[1] || a[0]-b[0]);
-    return JSON.stringify(sorted);
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state.pausePick || state.gameOver) return;
+    input.pointer.active = true;
+    input.pointer.x = e.clientX;
+    input.pointer.y = e.clientY;
+    input.pointer.id = e.pointerId;
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!input.pointer.active) return;
+    if (input.pointer.id !== null && input.pointer.id !== e.pointerId) return;
+    input.pointer.x = e.clientX;
+    input.pointer.y = e.clientY;
+  });
+  function stopPointer(e) {
+    if (!input.pointer.active) return;
+    if (input.pointer.id !== null && input.pointer.id !== e.pointerId) return;
+    input.pointer.active = false;
+    input.pointer.id = null;
+  }
+  canvas.addEventListener('pointerup', stopPointer);
+  canvas.addEventListener('pointercancel', stopPointer);
+
+  window.addEventListener('keydown', (e) => input.keys.add(e.key.toLowerCase()));
+  window.addEventListener('keyup', (e) => input.keys.delete(e.key.toLowerCase()));
+
+  function makeState() {
+    return {
+      time: 0,
+      pausePick: false,
+      gameOver: false,
+      player: { x: world.w / 2, y: world.h / 2, r: 14, hp: 100, maxHp: 100, speed: 210, hurtCD: 0 },
+      squad: [{ angleBase: 0, fireCD: 0 }],
+      enemies: [],
+      bullets: [],
+      crates: [],
+      drops: [],
+      fx: [],
+      spawnEnemyCD: 0,
+      spawnCrateCD: 0,
+      kills: 0,
+      shards: 0,
+      score: 0,
+      level: 1,
+      nextLevelKills: 20,
+      buffs: { dmg: 1, rate: 1, speed: 1, pierce: 0, magnet: 1, move: 1 },
+      logCD: 0,
+      logText: '清怪、打箱、撿碎片，3碎片自動升隊伍'
+    };
   }
 
-  function uniqueRotations(shape) {
-    const seen = new Set();
-    const arr = [];
-    for (let r = 0; r < 4; r++) {
-      const c = rotateCells(shape.cells, r);
-      const key = normalize(c);
-      if (!seen.has(key)) { seen.add(key); arr.push(c); }
+  let state = makeState();
+
+  function addFx(x, y, text, c = '#ffffff') {
+    state.fx.push({ x, y, text, c, life: 0.8 });
+  }
+
+  function addSquadMember() {
+    if (state.squad.length >= 5) {
+      state.score += 25;
+      addFx(state.player.x, state.player.y - 30, '+25', '#ffd27b');
+      return;
     }
-    return arr;
+    state.squad.push({ angleBase: Math.random() * Math.PI * 2, fireCD: 0 });
+    addFx(state.player.x, state.player.y - 28, '隊伍+1', '#8ef2c3');
   }
 
-  const SHAPE_ROTS = SHAPES.map(s => ({ name: s.name, rots: uniqueRotations(s) }));
+  function spawnEnemy(elite = false) {
+    const side = Math.floor(Math.random() * 4);
+    const pad = 80;
+    const cam = state.player;
+    let x = cam.x, y = cam.y;
+    if (side === 0) { x = cam.x - W / 2 - pad; y = cam.y + rand(-H / 2, H / 2); }
+    if (side === 1) { x = cam.x + W / 2 + pad; y = cam.y + rand(-H / 2, H / 2); }
+    if (side === 2) { y = cam.y - H / 2 - pad; x = cam.x + rand(-W / 2, W / 2); }
+    if (side === 3) { y = cam.y + H / 2 + pad; x = cam.x + rand(-W / 2, W / 2); }
 
-  function makePiece() {
-    const base = pick(SHAPE_ROTS);
-    const cells = pick(base.rots);
-    const color = pick(COLORS);
-    return { name: base.name, cells, color };
-  }
+    const t = elite ? 1 : Math.random();
+    let hp = 16 + state.time * 0.22;
+    let spd = 55 + Math.min(85, state.time * 0.14);
+    let r = 10;
+    let color = '#ff6f7f';
 
-  function refillHand() {
-    while (state.hand.length < 3) state.hand.push(makePiece());
-    if (state.selected < 0 && state.hand.length > 0) state.selected = 0;
-  }
-
-  function canPlace(piece, gx, gy) {
-    for (const [dx,dy] of piece.cells) {
-      const x = gx + dx, y = gy + dy;
-      if (x < 0 || y < 0 || x >= N || y >= N) return false;
-      if (state.board[y][x]) return false;
-    }
-    return true;
-  }
-
-  function placePiece(piece, gx, gy) {
-    for (const [dx,dy] of piece.cells) state.board[gy + dy][gx + dx] = piece.color;
-  }
-
-  function collectClears() {
-    const rows = [];
-    const cols = [];
-    for (let y = 0; y < N; y++) if (state.board[y].every(Boolean)) rows.push(y);
-    for (let x = 0; x < N; x++) {
-      let full = true;
-      for (let y = 0; y < N; y++) if (!state.board[y][x]) { full = false; break; }
-      if (full) cols.push(x);
+    if (t > 0.86) {
+      hp *= 2.8;
+      spd *= 0.78;
+      r = 15;
+      color = '#ffad5e';
+    } else if (t < 0.26) {
+      hp *= 0.75;
+      spd *= 1.28;
+      r = 8;
+      color = '#ff7be1';
     }
 
-    const clearSet = new Set();
-    for (const y of rows) for (let x = 0; x < N; x++) clearSet.add(`${x},${y}`);
-    for (const x of cols) for (let y = 0; y < N; y++) clearSet.add(`${x},${y}`);
+    if (elite) {
+      hp *= 3.2;
+      r += 4;
+      color = '#c88dff';
+    }
 
-    const cleared = [];
-    for (const key of clearSet) {
-      const [x,y] = key.split(',').map(Number);
-      const c = state.board[y][x];
-      if (c) {
-        cleared.push({ x, y, c });
-        state.board[y][x] = null;
+    state.enemies.push({ x, y, r, hp, maxHp: hp, spd, color, hitCD: 0 });
+  }
+
+  function spawnCrate() {
+    if (state.crates.length >= 8) return;
+    const d = rand(240, 520);
+    const a = rand(0, Math.PI * 2);
+    const x = clamp(state.player.x + Math.cos(a) * d, 80, world.w - 80);
+    const y = clamp(state.player.y + Math.sin(a) * d, 80, world.h - 80);
+    state.crates.push({ x, y, r: 17, hp: 36 + state.time * 0.25 });
+  }
+
+  function nearestTarget(x, y) {
+    let best = null;
+    let bestD2 = Infinity;
+
+    for (const e of state.enemies) {
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        best = e;
+        bestD2 = d2;
       }
     }
 
-    return { lines: rows.length + cols.length, cleared };
-  }
+    if (best && bestD2 < 360 * 360) return best;
 
-  function dealDamage(lines) {
-    if (lines <= 0) return 0;
-    const map = { 1: 8, 2: 20, 3: 36, 4: 56, 5: 80, 6: 108 };
-    return map[lines] || (56 + (lines - 4) * 28);
-  }
-
-  function applyEnergy(cleared) {
-    for (const cell of cleared) state.energy[cell.c]++;
-  }
-
-  function triggerSkill(c) {
-    if (c === 'r') {
-      state.enemy.hp -= 30;
-      log(`R技能：爆發 30`);
-    } else if (c === 'b') {
-      state.shieldTurn = 1;
-      log('B技能：本回合護盾');
-    } else if (c === 'g') {
-      state.hp = Math.min(100, state.hp + 12);
-      log('G技能：回復 12');
-    }
-  }
-
-  function resolveSkills() {
-    let triggered = false;
-    for (const c of COLORS) {
-      while (state.energy[c] >= 6) {
-        state.energy[c] -= 6;
-        triggerSkill(c);
-        triggered = true;
+    for (const c of state.crates) {
+      const dx = c.x - x;
+      const dy = c.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        best = c;
+        bestD2 = d2;
       }
     }
-    return triggered;
+    if (best && bestD2 < 280 * 280) return best;
+    return null;
   }
 
-  function levelUpEnemy() {
-    state.enemy.lv++;
-    state.enemy.maxHp = Math.floor(90 + (state.enemy.lv - 1) * 32);
-    state.enemy.hp = state.enemy.maxHp;
-    state.enemy.atk = Math.floor(12 + (state.enemy.lv - 1) * 2.4);
-    state.enemy.stepBase = Math.max(3, 6 - Math.floor(state.enemy.lv / 3));
-    state.enemy.distance = state.enemy.stepBase;
-    state.score += 50;
-    log(`擊破！敵人升到 Lv${state.enemy.lv}`);
-  }
-
-  function enemyAct() {
-    state.enemy.distance -= 1;
-    if (state.enemy.distance <= 0) {
-      let dmg = state.enemy.atk;
-      if (state.shieldTurn > 0) dmg = Math.ceil(dmg * 0.3);
-      state.hp -= dmg;
-      state.enemy.distance = state.enemy.stepBase;
-      state.shieldTurn = 0;
-      log(`敵人出手 -${dmg}`);
-    } else {
-      if (state.shieldTurn > 0) state.shieldTurn = 0;
-      log(`敵人逼近，距離 ${state.enemy.distance}`);
-    }
-  }
-
-  function hasAnyMove() {
-    for (const piece of state.hand) {
-      for (let y = 0; y < N; y++) {
-        for (let x = 0; x < N; x++) {
-          if (canPlace(piece, x, y)) return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  function processAfterPlace(lines, clearedCount) {
-    const dmg = dealDamage(lines);
-    if (dmg > 0) {
-      state.enemy.hp -= dmg;
-      state.score += dmg;
-    }
-
-    if (lines > 0) log(`清 ${lines} 線，造成 ${dmg}`);
-    else log('未消線，先鋪版面。');
-
-    if (state.enemy.hp <= 0) levelUpEnemy();
-
-    resolveSkills();
-    if (state.enemy.hp <= 0) levelUpEnemy();
-
-    state.movesLeft--;
-    if (state.movesLeft <= 0) {
-      enemyAct();
-      state.movesLeft = 3;
-      refillHand();
-      if (!hasAnyMove()) {
-        state.gameOver = true;
-        log('無可放置位置，遊戲結束');
-      }
-    }
-
-    if (state.hp <= 0) {
-      state.gameOver = true;
-      log('你被擊倒了。');
-    }
-  }
-
-  function log(s) { logEl.textContent = s; }
-
-  function buildBoard() {
-    boardEl.innerHTML = '';
-    state.cells = [];
-    for (let y = 0; y < N; y++) {
-      const row = [];
-      for (let x = 0; x < N; x++) {
-        const d = document.createElement('div');
-        d.className = 'cell';
-        d.dataset.x = x;
-        d.dataset.y = y;
-        boardEl.appendChild(d);
-        row.push(d);
-      }
-      state.cells.push(row);
-    }
-  }
-
-  function drawBoard() {
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
-        const d = state.cells[y][x];
-        d.className = 'cell';
-        const c = state.board[y][x];
-        if (c) d.classList.add('c-' + c);
-      }
-    }
-
-    if (state.preview && state.selected >= 0 && state.hand[state.selected]) {
-      const piece = state.hand[state.selected];
-      const ok = canPlace(piece, state.preview.x, state.preview.y);
-      for (const [dx,dy] of piece.cells) {
-        const x = state.preview.x + dx;
-        const y = state.preview.y + dy;
-        if (x < 0 || y < 0 || x >= N || y >= N) continue;
-        state.cells[y][x].classList.add(ok ? 'preview' : 'bad');
-      }
-    }
-  }
-
-  function buildPieceGrid(piece) {
-    const g = document.createElement('div');
-    g.className = 'pieceGrid';
-    const set = new Set(piece.cells.map(c => `${c[0]},${c[1]}`));
-    for (let y = 0; y < 4; y++) {
-      for (let x = 0; x < 4; x++) {
-        const dot = document.createElement('div');
-        dot.className = 'dot';
-        if (set.has(`${x},${y}`)) dot.className = `dot on c-${piece.color}`;
-        g.appendChild(dot);
-      }
-    }
-    return g;
-  }
-
-  function drawHand() {
-    handEl.innerHTML = '';
-    state.hand.forEach((piece, idx) => {
-      const card = document.createElement('div');
-      const dragging = state.drag.active && state.drag.handIndex === idx;
-      card.className = 'piece' + (idx === state.selected ? ' sel' : '') + (dragging ? ' dragging' : '');
-
-      card.addEventListener('pointerdown', (e) => {
-        if (state.gameOver) return;
-        e.preventDefault();
-        state.selected = idx;
-        startDrag(idx, e.clientX, e.clientY, e.pointerId);
-      });
-
-      const g = buildPieceGrid(piece);
-      const name = document.createElement('div');
-      name.className = 'pieceName';
-      name.textContent = piece.name;
-
-      card.appendChild(g);
-      card.appendChild(name);
-      handEl.appendChild(card);
+  function shoot(fromX, fromY, tx, ty, scale = 1) {
+    const dx = tx - fromX;
+    const dy = ty - fromY;
+    const len = Math.hypot(dx, dy) || 1;
+    const speed = 470;
+    state.bullets.push({
+      x: fromX,
+      y: fromY,
+      vx: dx / len * speed,
+      vy: dy / len * speed,
+      r: 4,
+      dmg: (8 + state.time * 0.03) * state.buffs.dmg * scale,
+      pierce: 1 + state.buffs.pierce,
+      life: 1.1
     });
   }
 
-  function drawHud() {
-    hpEl.textContent = `HP ${Math.max(0, state.hp)}`;
-    enemyTitleEl.textContent = `Enemy Lv${state.enemy.lv} | 距離 ${state.enemy.distance}`;
-    enemyFillEl.style.width = `${Math.max(0, Math.min(100, (state.enemy.hp / state.enemy.maxHp) * 100))}%`;
-    movesEl.textContent = state.movesLeft;
-    scoreEl.textContent = state.score;
-    shieldEl.textContent = state.shieldTurn;
-    erEl.textContent = state.energy.r;
-    ebEl.textContent = state.energy.b;
-    egEl.textContent = state.energy.g;
+  function updatePlayer(dt) {
+    const p = state.player;
+    let vx = 0, vy = 0;
+
+    if (input.pointer.active) {
+      const cam = { x: p.x, y: p.y };
+      const t = screenToWorld(input.pointer.x, input.pointer.y, cam);
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 6) {
+        vx += dx / len;
+        vy += dy / len;
+      }
+    }
+
+    if (input.keys.has('w') || input.keys.has('arrowup')) vy -= 1;
+    if (input.keys.has('s') || input.keys.has('arrowdown')) vy += 1;
+    if (input.keys.has('a') || input.keys.has('arrowleft')) vx -= 1;
+    if (input.keys.has('d') || input.keys.has('arrowright')) vx += 1;
+
+    const len = Math.hypot(vx, vy) || 1;
+    const spd = p.speed * state.buffs.move;
+    if (Math.hypot(vx, vy) > 0.01) {
+      p.x += vx / len * spd * dt;
+      p.y += vy / len * spd * dt;
+    }
+
+    p.x = clamp(p.x, p.r, world.w - p.r);
+    p.y = clamp(p.y, p.r, world.h - p.r);
+    p.hurtCD = Math.max(0, p.hurtCD - dt);
+  }
+
+  function updateSquad(dt) {
+    const p = state.player;
+    const n = state.squad.length;
+    const baseR = 40 + n * 2;
+
+    for (let i = 0; i < n; i++) {
+      const u = state.squad[i];
+      const ang = state.time * (0.95 + i * 0.05) + u.angleBase + i * (Math.PI * 2 / n);
+      const ux = p.x + Math.cos(ang) * baseR;
+      const uy = p.y + Math.sin(ang) * baseR;
+      u.x = ux;
+      u.y = uy;
+
+      u.fireCD -= dt;
+      if (u.fireCD <= 0) {
+        const t = nearestTarget(ux, uy);
+        if (t) {
+          shoot(ux, uy, t.x, t.y, 1 + i * 0.04);
+          const fireBase = 0.34 / state.buffs.rate;
+          u.fireCD = Math.max(0.08, fireBase + rand(-0.03, 0.03));
+        }
+      }
+    }
+  }
+
+  function updateEnemies(dt) {
+    const p = state.player;
+    for (const e of state.enemies) {
+      const dx = p.x - e.x;
+      const dy = p.y - e.y;
+      const len = Math.hypot(dx, dy) || 1;
+      e.x += dx / len * e.spd * dt;
+      e.y += dy / len * e.spd * dt;
+      e.hitCD = Math.max(0, e.hitCD - dt);
+
+      const touch = e.r + p.r;
+      if (len < touch && p.hurtCD <= 0 && e.hitCD <= 0) {
+        const dmg = 5 + state.time * 0.015;
+        p.hp -= dmg;
+        p.hurtCD = 0.35;
+        e.hitCD = 0.45;
+        addFx(p.x, p.y - 20, '-' + Math.round(dmg), '#ffb0b0');
+      }
+    }
+  }
+
+  function updateBullets(dt) {
+    for (let i = state.bullets.length - 1; i >= 0; i--) {
+      const b = state.bullets[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      if (b.life <= 0 || b.x < -40 || b.y < -40 || b.x > world.w + 40 || b.y > world.h + 40) {
+        state.bullets.splice(i, 1);
+        continue;
+      }
+
+      for (let j = state.enemies.length - 1; j >= 0 && b.pierce > 0; j--) {
+        const e = state.enemies[j];
+        const dx = b.x - e.x;
+        const dy = b.y - e.y;
+        const hit = b.r + e.r;
+        if (dx * dx + dy * dy <= hit * hit) {
+          e.hp -= b.dmg;
+          b.pierce--;
+          if (e.hp <= 0) {
+            state.kills++;
+            state.score += 1;
+            if (Math.random() < 0.15) {
+              state.drops.push({ x: e.x, y: e.y, t: 'shard', v: 1, r: 8 });
+            }
+            if (Math.random() < 0.45) {
+              state.drops.push({ x: e.x + rand(-8, 8), y: e.y + rand(-8, 8), t: 'score', v: 1, r: 6 });
+            }
+            addFx(e.x, e.y - 16, '+1', '#ffd27b');
+            state.enemies.splice(j, 1);
+          }
+        }
+      }
+
+      for (let j = state.crates.length - 1; j >= 0 && b.pierce > 0; j--) {
+        const c = state.crates[j];
+        const dx = b.x - c.x;
+        const dy = b.y - c.y;
+        const hit = b.r + c.r;
+        if (dx * dx + dy * dy <= hit * hit) {
+          c.hp -= b.dmg;
+          b.pierce--;
+          if (c.hp <= 0) {
+            const reward = 2 + (Math.random() < 0.4 ? 1 : 0);
+            for (let k = 0; k < reward; k++) {
+              state.drops.push({ x: c.x + rand(-12, 12), y: c.y + rand(-12, 12), t: 'shard', v: 1, r: 8 });
+            }
+            addFx(c.x, c.y - 18, '爆箱+' + reward, '#8ef2c3');
+            state.crates.splice(j, 1);
+          }
+        }
+      }
+    }
+  }
+
+  function updateDrops(dt) {
+    const p = state.player;
+    const magnet = 88 * state.buffs.magnet;
+    const m2 = magnet * magnet;
+
+    for (let i = state.drops.length - 1; i >= 0; i--) {
+      const d = state.drops[i];
+      const dx = p.x - d.x;
+      const dy = p.y - d.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < m2) {
+        const len = Math.hypot(dx, dy) || 1;
+        const pull = 220;
+        d.x += dx / len * pull * dt;
+        d.y += dy / len * pull * dt;
+      }
+      if (d2 < (p.r + d.r + 8) * (p.r + d.r + 8)) {
+        if (d.t === 'shard') state.shards += d.v;
+        else state.score += d.v;
+        state.drops.splice(i, 1);
+      }
+    }
+
+    while (state.shards >= 3) {
+      state.shards -= 3;
+      addSquadMember();
+    }
+  }
+
+  function maybeLevelUp() {
+    if (state.kills < state.nextLevelKills || state.pausePick) return;
+    state.level++;
+    state.nextLevelKills += Math.floor(18 + state.level * 7.5);
+    openPick();
+  }
+
+  const allBuffs = [
+    { key: 'dmg', name: '火力強化', desc: '子彈傷害 +25%', apply: () => state.buffs.dmg *= 1.25 },
+    { key: 'rate', name: '急速射擊', desc: '射速 +20%', apply: () => state.buffs.rate *= 1.2 },
+    { key: 'move', name: '疾走', desc: '移動速度 +12%', apply: () => state.buffs.move *= 1.12 },
+    { key: 'pierce', name: '穿透彈', desc: '子彈穿透 +1', apply: () => state.buffs.pierce += 1 },
+    { key: 'magnet', name: '磁吸', desc: '撿取範圍 +20%', apply: () => state.buffs.magnet *= 1.2 },
+    { key: 'heal', name: '急救', desc: '立即回復 18 HP', apply: () => { state.player.hp = Math.min(state.player.maxHp, state.player.hp + 18); } },
+  ];
+
+  function pickRandomBuffs(n) {
+    const arr = [...allBuffs];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, n);
+  }
+
+  function openPick() {
+    state.pausePick = true;
+    const opts = pickRandomBuffs(3);
+    pickGridEl.innerHTML = '';
+    for (const o of opts) {
+      const b = document.createElement('button');
+      b.className = 'optBtn';
+      b.innerHTML = `<b>${o.name}</b><br><span style="opacity:.86">${o.desc}</span>`;
+      b.addEventListener('click', () => {
+        o.apply();
+        addFx(state.player.x, state.player.y - 30, o.name, '#9bceff');
+        state.pausePick = false;
+        pickEl.style.display = 'none';
+      });
+      pickGridEl.appendChild(b);
+    }
+    pickEl.style.display = 'flex';
+  }
+
+  function updateFx(dt) {
+    for (let i = state.fx.length - 1; i >= 0; i--) {
+      state.fx[i].life -= dt;
+      if (state.fx[i].life <= 0) state.fx.splice(i, 1);
+    }
+  }
+
+  function drawGrid(camX, camY) {
+    const step = 64;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+
+    const startX = -((camX - W / 2) % step);
+    const startY = -((camY - H / 2) % step);
+
+    for (let x = startX; x < W; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    for (let y = startY; y < H; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+  }
+
+  function drawCircle(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   function draw() {
-    drawBoard();
-    drawHand();
-    drawHud();
+    ctx.clearRect(0, 0, W, H);
+    const camX = state.player.x;
+    const camY = state.player.y;
+    const toScreenX = (x) => x - camX + W / 2;
+    const toScreenY = (y) => y - camY + H / 2;
+
+    drawGrid(camX, camY);
+
+    for (const c of state.crates) {
+      const sx = toScreenX(c.x);
+      const sy = toScreenY(c.y);
+      ctx.fillStyle = '#6a5b42';
+      ctx.fillRect(sx - c.r, sy - c.r, c.r * 2, c.r * 2);
+      ctx.strokeStyle = '#b99768';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx - c.r, sy - c.r, c.r * 2, c.r * 2);
+      const hpw = (c.hp / (36 + state.time * 0.25)) * c.r * 2;
+      ctx.fillStyle = '#ffd58a';
+      ctx.fillRect(sx - c.r, sy - c.r - 7, Math.max(0, hpw), 3);
+    }
+
+    for (const d of state.drops) {
+      const sx = toScreenX(d.x);
+      const sy = toScreenY(d.y);
+      drawCircle(sx, sy, d.r, d.t === 'shard' ? '#7fffd4' : '#ffe078');
+    }
+
+    for (const b of state.bullets) {
+      drawCircle(toScreenX(b.x), toScreenY(b.y), b.r, '#fff39b');
+    }
+
+    for (const e of state.enemies) {
+      const sx = toScreenX(e.x);
+      const sy = toScreenY(e.y);
+      drawCircle(sx, sy, e.r, e.color);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(sx - e.r, sy - e.r - 6, e.r * 2, 3);
+      ctx.fillStyle = '#ffd1d1';
+      ctx.fillRect(sx - e.r, sy - e.r - 6, (e.hp / e.maxHp) * e.r * 2, 3);
+    }
+
+    for (const u of state.squad) {
+      drawCircle(toScreenX(u.x), toScreenY(u.y), 8, '#8ef2c3');
+    }
+
+    const p = state.player;
+    drawCircle(toScreenX(p.x), toScreenY(p.y), p.r, p.hurtCD > 0 ? '#ff9fa8' : '#d7e7ff');
+
+    for (const f of state.fx) {
+      const sx = toScreenX(f.x);
+      const sy = toScreenY(f.y - (1 - f.life) * 32);
+      ctx.fillStyle = f.c;
+      ctx.globalAlpha = Math.max(0, f.life);
+      ctx.font = 'bold 13px -apple-system,Segoe UI,Roboto';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.text, sx, sy);
+      ctx.globalAlpha = 1;
+    }
   }
 
-  function boardCellFromClient(clientX, clientY) {
-    const rect = boardEl.getBoundingClientRect();
-    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
-    const cellW = rect.width / N;
-    const cellH = rect.height / N;
-    const x = Math.floor((clientX - rect.left) / cellW);
-    const y = Math.floor((clientY - rect.top) / cellH);
-    if (x < 0 || y < 0 || x >= N || y >= N) return null;
-    return { x, y };
+  function updateHud() {
+    hpEl.textContent = 'HP ' + Math.max(0, Math.round(state.player.hp));
+    hpEl.className = 'chip ' + (state.player.hp > 45 ? 'good' : (state.player.hp > 20 ? 'warn' : 'bad'));
+    squadEl.textContent = '隊伍 ' + state.squad.length;
+    shardEl.textContent = '碎片 ' + state.shards + '/3';
+    killsEl.textContent = '擊殺 ' + state.kills;
+    const t = Math.floor(state.time);
+    const mm = String(Math.floor(t / 60)).padStart(2, '0');
+    const ss = String(t % 60).padStart(2, '0');
+    timerEl.textContent = mm + ':' + ss;
+    nextLvEl.textContent = Math.max(0, state.nextLevelKills - state.kills);
   }
 
-  function updateGhost(piece, clientX, clientY) {
-    dragGhostEl.innerHTML = '';
-    dragGhostEl.appendChild(buildPieceGrid(piece));
-    dragGhostEl.style.transform = `translate(${clientX - 34}px, ${clientY - 34}px)`;
+  function showGameOver() {
+    state.gameOver = true;
+    goStatsEl.innerHTML =
+      '生存時間：<b>' + timerEl.textContent + '</b><br>' +
+      '擊殺：<b>' + state.kills + '</b><br>' +
+      '最終隊伍：<b>' + state.squad.length + '</b><br>' +
+      '分數：<b>' + state.score + '</b>';
+    gameOverEl.style.display = 'flex';
   }
 
-  function startDrag(handIndex, clientX, clientY, pointerId) {
-    const piece = state.hand[handIndex];
-    if (!piece) return;
-    state.drag.active = true;
-    state.drag.handIndex = handIndex;
-    state.drag.pointerId = pointerId;
-    state.preview = boardCellFromClient(clientX, clientY);
-    updateGhost(piece, clientX, clientY);
-    draw();
-  }
-
-  function moveDrag(clientX, clientY) {
-    if (!state.drag.active) return;
-    const piece = state.hand[state.drag.handIndex];
-    if (!piece) return;
-    state.preview = boardCellFromClient(clientX, clientY);
-    updateGhost(piece, clientX, clientY);
-    drawBoard();
-  }
-
-  function clearDrag() {
-    state.drag.active = false;
-    state.drag.handIndex = -1;
-    state.drag.pointerId = null;
-    state.preview = null;
-    dragGhostEl.style.transform = 'translate(-9999px, -9999px)';
-    dragGhostEl.innerHTML = '';
-  }
-
-  function placeFromHandIndex(handIndex, p) {
-    const piece = state.hand[handIndex];
-    if (!piece || !p) return false;
-    if (!canPlace(piece, p.x, p.y)) return false;
-
-    placePiece(piece, p.x, p.y);
-    state.hand.splice(handIndex, 1);
-    if (state.selected >= state.hand.length) state.selected = state.hand.length - 1;
-
-    const { lines, cleared } = collectClears();
-    applyEnergy(cleared);
-    processAfterPlace(lines, cleared.length);
-
-    if (state.hand.length === 0) refillHand();
-    if (state.selected < 0 && state.hand.length > 0) state.selected = 0;
-    return true;
-  }
-
-  window.addEventListener('pointermove', (e) => {
-    if (!state.drag.active) return;
-    if (state.drag.pointerId !== null && e.pointerId !== state.drag.pointerId) return;
-    e.preventDefault();
-    moveDrag(e.clientX, e.clientY);
-  }, { passive: false });
-
-  window.addEventListener('pointerup', (e) => {
-    if (!state.drag.active) return;
-    if (state.drag.pointerId !== null && e.pointerId !== state.drag.pointerId) return;
-    e.preventDefault();
-
-    const p = boardCellFromClient(e.clientX, e.clientY);
-    const ok = placeFromHandIndex(state.drag.handIndex, p);
-    if (!ok) log('拖到棋盤可放的位置再放開。');
-
-    clearDrag();
-    draw();
-  }, { passive: false });
-
-  window.addEventListener('pointercancel', () => {
-    if (!state.drag.active) return;
-    clearDrag();
-    draw();
+  restartBtn.addEventListener('click', () => {
+    state = makeState();
+    gameOverEl.style.display = 'none';
+    pickEl.style.display = 'none';
   });
 
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
 
-  function reset() {
-    state.board = Array.from({ length: N }, () => Array(N).fill(null));
-    state.hand = [];
-    state.selected = -1;
-    state.preview = null;
-    state.hp = 100;
-    state.score = 0;
-    state.movesLeft = 3;
-    state.energy = { r: 0, b: 0, g: 0 };
-    state.shieldTurn = 0;
-    state.enemy = { lv: 1, hp: 90, maxHp: 90, atk: 12, distance: 6, stepBase: 6 };
-    state.gameOver = false;
-    refillHand();
-    log('長按拼塊拖到棋盤後放開。');
+    if (!state.gameOver && !state.pausePick) {
+      state.time += dt;
+
+      state.spawnEnemyCD -= dt;
+      const spawnGap = Math.max(0.14, 0.45 - state.time * 0.0022);
+      if (state.spawnEnemyCD <= 0) {
+        spawnEnemy(false);
+        if (Math.random() < 0.08) spawnEnemy(false);
+        if (Math.random() < Math.min(0.24, state.time / 320)) spawnEnemy(true);
+        state.spawnEnemyCD = spawnGap;
+      }
+
+      state.spawnCrateCD -= dt;
+      if (state.spawnCrateCD <= 0) {
+        spawnCrate();
+        state.spawnCrateCD = 1.1;
+      }
+
+      updatePlayer(dt);
+      updateSquad(dt);
+      updateEnemies(dt);
+      updateBullets(dt);
+      updateDrops(dt);
+      updateFx(dt);
+
+      maybeLevelUp();
+
+      if (state.player.hp <= 0) showGameOver();
+      if (state.time > 0.8 && hintEl.style.opacity !== '0') {
+        const alpha = Math.max(0, 1 - state.time / 9);
+        hintEl.style.opacity = String(alpha);
+      }
+    }
+
     draw();
+    updateHud();
+    requestAnimationFrame(loop);
   }
 
-  resetBtn.addEventListener('click', reset);
-
-  buildBoard();
-  reset();
+  requestAnimationFrame(loop);
 })();
 </script>
 </body>
