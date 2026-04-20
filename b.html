@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <title>Block Combat Mobile Demo</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #0d0f16; color: #eef3ff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
+    .app { max-width: 560px; margin: 0 auto; min-height: 100vh; padding: max(12px, env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+    .panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.13); border-radius: 12px; padding: 8px 10px; }
+    .top { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+    .enemyBar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.15); overflow: hidden; margin-top: 6px; }
+    .enemyFill { height: 100%; background: linear-gradient(90deg, #ff6b6b, #ffb36b); width: 100%; }
+    .boardWrap { position: relative; }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 6px;
+      touch-action: manipulation;
+    }
+    .cell {
+      aspect-ratio: 1 / 1;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      transition: transform .05s ease;
+    }
+    .cell.preview { outline: 2px solid rgba(255,255,255,0.5); }
+    .cell.bad { outline: 2px solid rgba(255,100,100,0.7); }
+    .c-r { background: #ff5b67; }
+    .c-b { background: #4da6ff; }
+    .c-g { background: #44df94; }
+    .hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; }
+    .chipRow { display: flex; gap: 6px; }
+    .chip { border-radius: 999px; padding: 2px 8px; font-weight: 700; font-size: 12px; }
+    .r { background: rgba(255,91,103,0.25); color: #ff9ca4; }
+    .b { background: rgba(77,166,255,0.25); color: #9bceff; }
+    .g { background: rgba(68,223,148,0.25); color: #aef4d0; }
+    .hand { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .piece {
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 10px;
+      padding: 8px;
+      min-height: 84px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .piece.sel { outline: 2px solid #ffd36a; background: rgba(255,211,106,0.13); }
+    .pieceGrid {
+      display: grid;
+      grid-template-columns: repeat(4, 13px);
+      grid-template-rows: repeat(4, 13px);
+      gap: 2px;
+    }
+    .dot { width: 13px; height: 13px; border-radius: 3px; background: rgba(255,255,255,0.1); }
+    .dot.on.c-r { background: #ff5b67; }
+    .dot.on.c-b { background: #4da6ff; }
+    .dot.on.c-g { background: #44df94; }
+    .pieceName { position: absolute; right: 6px; bottom: 4px; font-size: 10px; opacity: .75; }
+    .log { font-size: 12px; opacity: .92; min-height: 18px; }
+    .btnRow { display: flex; gap: 8px; }
+    button { flex: 1; border: 1px solid rgba(255,255,255,0.18); color: #fff; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel top">
+      <div>
+        <div id="enemyTitle">Enemy Lv1 | 距離 6</div>
+        <div class="enemyBar"><div id="enemyFill" class="enemyFill"></div></div>
+      </div>
+      <div id="hp">HP 100</div>
+    </div>
+
+    <div class="panel hud">
+      <div>回合內放置：<b id="moves">3</b></div>
+      <div>分數：<b id="score">0</b></div>
+      <div>盾：<b id="shield">0</b></div>
+    </div>
+
+    <div class="panel">
+      <div class="chipRow">
+        <span class="chip r">R <span id="er">0</span>/6</span>
+        <span class="chip b">B <span id="eb">0</span>/6</span>
+        <span class="chip g">G <span id="eg">0</span>/6</span>
+      </div>
+    </div>
+
+    <div class="panel boardWrap">
+      <div id="board" class="board"></div>
+    </div>
+
+    <div class="panel">
+      <div id="hand" class="hand"></div>
+      <div class="log" id="log">選一個拼塊，再點棋盤放置。</div>
+    </div>
+
+    <div class="btnRow">
+      <button id="resetBtn">重開</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const N = 8;
+  const boardEl = document.getElementById('board');
+  const handEl = document.getElementById('hand');
+  const hpEl = document.getElementById('hp');
+  const enemyTitleEl = document.getElementById('enemyTitle');
+  const enemyFillEl = document.getElementById('enemyFill');
+  const movesEl = document.getElementById('moves');
+  const scoreEl = document.getElementById('score');
+  const shieldEl = document.getElementById('shield');
+  const erEl = document.getElementById('er');
+  const ebEl = document.getElementById('eb');
+  const egEl = document.getElementById('eg');
+  const logEl = document.getElementById('log');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const COLORS = ['r','b','g'];
+  const SHAPES = [
+    { name: 'I3', cells: [[0,0],[1,0],[2,0]] },
+    { name: 'I4', cells: [[0,0],[1,0],[2,0],[3,0]] },
+    { name: 'L3', cells: [[0,0],[0,1],[1,1]] },
+    { name: 'L4', cells: [[0,0],[0,1],[0,2],[1,2]] },
+    { name: 'T4', cells: [[0,0],[1,0],[2,0],[1,1]] },
+    { name: 'O4', cells: [[0,0],[1,0],[0,1],[1,1]] },
+    { name: 'Z4', cells: [[0,0],[1,0],[1,1],[2,1]] },
+    { name: 'J4', cells: [[1,0],[1,1],[1,2],[0,2]] },
+    { name: 'P5', cells: [[0,0],[1,0],[0,1],[1,1],[0,2]] }
+  ];
+
+  const state = {
+    board: Array.from({ length: N }, () => Array(N).fill(null)),
+    cells: [],
+    hand: [],
+    selected: -1,
+    preview: null,
+    hp: 100,
+    score: 0,
+    movesLeft: 3,
+    energy: { r: 0, b: 0, g: 0 },
+    shieldTurn: 0,
+    enemy: { lv: 1, hp: 90, maxHp: 90, atk: 12, distance: 6, stepBase: 6 },
+    gameOver: false
+  };
+
+  function randInt(max) { return (Math.random() * max) | 0; }
+  function pick(arr) { return arr[randInt(arr.length)]; }
+
+  function rotateCells(cells, times) {
+    let out = cells.map(([x,y]) => [x,y]);
+    for (let t = 0; t < times; t++) out = out.map(([x,y]) => [y, -x]);
+    const minX = Math.min(...out.map(c => c[0]));
+    const minY = Math.min(...out.map(c => c[1]));
+    out = out.map(([x,y]) => [x - minX, y - minY]);
+    return out;
+  }
+
+  function normalize(cells) {
+    const sorted = [...cells].sort((a,b) => a[1]-b[1] || a[0]-b[0]);
+    return JSON.stringify(sorted);
+  }
+
+  function uniqueRotations(shape) {
+    const seen = new Set();
+    const arr = [];
+    for (let r = 0; r < 4; r++) {
+      const c = rotateCells(shape.cells, r);
+      const key = normalize(c);
+      if (!seen.has(key)) { seen.add(key); arr.push(c); }
+    }
+    return arr;
+  }
+
+  const SHAPE_ROTS = SHAPES.map(s => ({ name: s.name, rots: uniqueRotations(s) }));
+
+  function makePiece() {
+    const base = pick(SHAPE_ROTS);
+    const cells = pick(base.rots);
+    const color = pick(COLORS);
+    return { name: base.name, cells, color };
+  }
+
+  function refillHand() {
+    while (state.hand.length < 3) state.hand.push(makePiece());
+    if (state.selected < 0 && state.hand.length > 0) state.selected = 0;
+  }
+
+  function canPlace(piece, gx, gy) {
+    for (const [dx,dy] of piece.cells) {
+      const x = gx + dx, y = gy + dy;
+      if (x < 0 || y < 0 || x >= N || y >= N) return false;
+      if (state.board[y][x]) return false;
+    }
+    return true;
+  }
+
+  function placePiece(piece, gx, gy) {
+    for (const [dx,dy] of piece.cells) state.board[gy + dy][gx + dx] = piece.color;
+  }
+
+  function collectClears() {
+    const rows = [];
+    const cols = [];
+    for (let y = 0; y < N; y++) if (state.board[y].every(Boolean)) rows.push(y);
+    for (let x = 0; x < N; x++) {
+      let full = true;
+      for (let y = 0; y < N; y++) if (!state.board[y][x]) { full = false; break; }
+      if (full) cols.push(x);
+    }
+
+    const clearSet = new Set();
+    for (const y of rows) for (let x = 0; x < N; x++) clearSet.add(`${x},${y}`);
+    for (const x of cols) for (let y = 0; y < N; y++) clearSet.add(`${x},${y}`);
+
+    const cleared = [];
+    for (const key of clearSet) {
+      const [x,y] = key.split(',').map(Number);
+      const c = state.board[y][x];
+      if (c) {
+        cleared.push({ x, y, c });
+        state.board[y][x] = null;
+      }
+    }
+
+    return { lines: rows.length + cols.length, cleared };
+  }
+
+  function dealDamage(lines) {
+    if (lines <= 0) return 0;
+    const map = { 1: 8, 2: 20, 3: 36, 4: 56, 5: 80, 6: 108 };
+    return map[lines] || (56 + (lines - 4) * 28);
+  }
+
+  function applyEnergy(cleared) {
+    for (const cell of cleared) state.energy[cell.c]++;
+  }
+
+  function triggerSkill(c) {
+    if (c === 'r') {
+      state.enemy.hp -= 30;
+      log(`R技能：爆發 30`);
+    } else if (c === 'b') {
+      state.shieldTurn = 1;
+      log('B技能：本回合護盾');
+    } else if (c === 'g') {
+      state.hp = Math.min(100, state.hp + 12);
+      log('G技能：回復 12');
+    }
+  }
+
+  function resolveSkills() {
+    let triggered = false;
+    for (const c of COLORS) {
+      while (state.energy[c] >= 6) {
+        state.energy[c] -= 6;
+        triggerSkill(c);
+        triggered = true;
+      }
+    }
+    return triggered;
+  }
+
+  function levelUpEnemy() {
+    state.enemy.lv++;
+    state.enemy.maxHp = Math.floor(90 + (state.enemy.lv - 1) * 32);
+    state.enemy.hp = state.enemy.maxHp;
+    state.enemy.atk = Math.floor(12 + (state.enemy.lv - 1) * 2.4);
+    state.enemy.stepBase = Math.max(3, 6 - Math.floor(state.enemy.lv / 3));
+    state.enemy.distance = state.enemy.stepBase;
+    state.score += 50;
+    log(`擊破！敵人升到 Lv${state.enemy.lv}`);
+  }
+
+  function enemyAct() {
+    state.enemy.distance -= 1;
+    if (state.enemy.distance <= 0) {
+      let dmg = state.enemy.atk;
+      if (state.shieldTurn > 0) dmg = Math.ceil(dmg * 0.3);
+      state.hp -= dmg;
+      state.enemy.distance = state.enemy.stepBase;
+      state.shieldTurn = 0;
+      log(`敵人出手 -${dmg}`);
+    } else {
+      if (state.shieldTurn > 0) state.shieldTurn = 0;
+      log(`敵人逼近，距離 ${state.enemy.distance}`);
+    }
+  }
+
+  function hasAnyMove() {
+    for (const piece of state.hand) {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          if (canPlace(piece, x, y)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function processAfterPlace(lines, clearedCount) {
+    const dmg = dealDamage(lines);
+    if (dmg > 0) {
+      state.enemy.hp -= dmg;
+      state.score += dmg;
+    }
+
+    if (lines > 0) log(`清 ${lines} 線，造成 ${dmg}`);
+    else log('未消線，先鋪版面。');
+
+    if (state.enemy.hp <= 0) levelUpEnemy();
+
+    resolveSkills();
+    if (state.enemy.hp <= 0) levelUpEnemy();
+
+    state.movesLeft--;
+    if (state.movesLeft <= 0) {
+      enemyAct();
+      state.movesLeft = 3;
+      refillHand();
+      if (!hasAnyMove()) {
+        state.gameOver = true;
+        log('無可放置位置，遊戲結束');
+      }
+    }
+
+    if (state.hp <= 0) {
+      state.gameOver = true;
+      log('你被擊倒了。');
+    }
+  }
+
+  function log(s) { logEl.textContent = s; }
+
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    state.cells = [];
+    for (let y = 0; y < N; y++) {
+      const row = [];
+      for (let x = 0; x < N; x++) {
+        const d = document.createElement('div');
+        d.className = 'cell';
+        d.dataset.x = x;
+        d.dataset.y = y;
+        boardEl.appendChild(d);
+        row.push(d);
+      }
+      state.cells.push(row);
+    }
+  }
+
+  function drawBoard() {
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const d = state.cells[y][x];
+        d.className = 'cell';
+        const c = state.board[y][x];
+        if (c) d.classList.add('c-' + c);
+      }
+    }
+
+    if (state.preview && state.selected >= 0 && state.hand[state.selected]) {
+      const piece = state.hand[state.selected];
+      const ok = canPlace(piece, state.preview.x, state.preview.y);
+      for (const [dx,dy] of piece.cells) {
+        const x = state.preview.x + dx;
+        const y = state.preview.y + dy;
+        if (x < 0 || y < 0 || x >= N || y >= N) continue;
+        state.cells[y][x].classList.add(ok ? 'preview' : 'bad');
+      }
+    }
+  }
+
+  function drawHand() {
+    handEl.innerHTML = '';
+    state.hand.forEach((piece, idx) => {
+      const card = document.createElement('div');
+      card.className = 'piece' + (idx === state.selected ? ' sel' : '');
+      card.addEventListener('click', () => {
+        if (state.gameOver) return;
+        state.selected = idx;
+        draw();
+      });
+
+      const g = document.createElement('div');
+      g.className = 'pieceGrid';
+      const set = new Set(piece.cells.map(c => `${c[0]},${c[1]}`));
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+          const dot = document.createElement('div');
+          dot.className = 'dot';
+          if (set.has(`${x},${y}`)) dot.className = `dot on c-${piece.color}`;
+          g.appendChild(dot);
+        }
+      }
+
+      const name = document.createElement('div');
+      name.className = 'pieceName';
+      name.textContent = piece.name;
+
+      card.appendChild(g);
+      card.appendChild(name);
+      handEl.appendChild(card);
+    });
+  }
+
+  function drawHud() {
+    hpEl.textContent = `HP ${Math.max(0, state.hp)}`;
+    enemyTitleEl.textContent = `Enemy Lv${state.enemy.lv} | 距離 ${state.enemy.distance}`;
+    enemyFillEl.style.width = `${Math.max(0, Math.min(100, (state.enemy.hp / state.enemy.maxHp) * 100))}%`;
+    movesEl.textContent = state.movesLeft;
+    scoreEl.textContent = state.score;
+    shieldEl.textContent = state.shieldTurn;
+    erEl.textContent = state.energy.r;
+    ebEl.textContent = state.energy.b;
+    egEl.textContent = state.energy.g;
+  }
+
+  function draw() {
+    drawBoard();
+    drawHand();
+    drawHud();
+  }
+
+  function pointerCell(e) {
+    const t = e.target.closest('.cell');
+    if (!t) return null;
+    return { x: Number(t.dataset.x), y: Number(t.dataset.y) };
+  }
+
+  boardEl.addEventListener('pointermove', (e) => {
+    const p = pointerCell(e);
+    if (!p || state.gameOver) return;
+    state.preview = p;
+    drawBoard();
+  });
+
+  boardEl.addEventListener('pointerleave', () => {
+    state.preview = null;
+    drawBoard();
+  });
+
+  boardEl.addEventListener('click', (e) => {
+    if (state.gameOver) return;
+    const p = pointerCell(e);
+    if (!p) return;
+    if (state.selected < 0 || !state.hand[state.selected]) return;
+
+    const piece = state.hand[state.selected];
+    if (!canPlace(piece, p.x, p.y)) {
+      log('這格放不下，換位置。');
+      return;
+    }
+
+    placePiece(piece, p.x, p.y);
+    state.hand.splice(state.selected, 1);
+    if (state.selected >= state.hand.length) state.selected = state.hand.length - 1;
+
+    const { lines, cleared } = collectClears();
+    applyEnergy(cleared);
+    processAfterPlace(lines, cleared.length);
+
+    if (state.hand.length === 0) refillHand();
+    if (state.selected < 0 && state.hand.length > 0) state.selected = 0;
+
+    draw();
+  });
+
+  function reset() {
+    state.board = Array.from({ length: N }, () => Array(N).fill(null));
+    state.hand = [];
+    state.selected = -1;
+    state.preview = null;
+    state.hp = 100;
+    state.score = 0;
+    state.movesLeft = 3;
+    state.energy = { r: 0, b: 0, g: 0 };
+    state.shieldTurn = 0;
+    state.enemy = { lv: 1, hp: 90, maxHp: 90, atk: 12, distance: 6, stepBase: 6 };
+    state.gameOver = false;
+    refillHand();
+    log('選一個拼塊，再點棋盤放置。');
+    draw();
+  }
+
+  resetBtn.addEventListener('click', reset);
+
+  buildBoard();
+  reset();
+})();
+</script>
+</body>
+</html>
