@@ -51,8 +51,24 @@
       place-items: center;
       background: rgba(255,255,255,0.04);
       position: relative;
+      touch-action: none;
+      user-select: none;
     }
     .piece.sel { outline: 2px solid #ffd36a; background: rgba(255,211,106,0.13); }
+    .piece.dragging { opacity: 0.45; }
+    .dragGhost {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-9999px, -9999px);
+      pointer-events: none;
+      z-index: 9999;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
     .pieceGrid {
       display: grid;
       grid-template-columns: repeat(4, 13px);
@@ -106,6 +122,8 @@
       <button id="resetBtn">重開</button>
     </div>
   </div>
+  <div id="dragGhost" class="dragGhost"></div>
+
 
 <script>
 (() => {
@@ -123,6 +141,8 @@
   const egEl = document.getElementById('eg');
   const logEl = document.getElementById('log');
   const resetBtn = document.getElementById('resetBtn');
+  const dragGhostEl = document.getElementById('dragGhost');
+
 
   const COLORS = ['r','b','g'];
   const SHAPES = [
@@ -143,7 +163,9 @@
     hand: [],
     selected: -1,
     preview: null,
+    drag: { active: false, handIndex: -1, pointerId: null },
     hp: 100,
+
     score: 0,
     movesLeft: 3,
     energy: { r: 0, b: 0, g: 0 },
@@ -379,29 +401,36 @@
     }
   }
 
+  function buildPieceGrid(piece) {
+    const g = document.createElement('div');
+    g.className = 'pieceGrid';
+    const set = new Set(piece.cells.map(c => `${c[0]},${c[1]}`));
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        if (set.has(`${x},${y}`)) dot.className = `dot on c-${piece.color}`;
+        g.appendChild(dot);
+      }
+    }
+    return g;
+  }
+
   function drawHand() {
     handEl.innerHTML = '';
     state.hand.forEach((piece, idx) => {
       const card = document.createElement('div');
-      card.className = 'piece' + (idx === state.selected ? ' sel' : '');
-      card.addEventListener('click', () => {
+      const dragging = state.drag.active && state.drag.handIndex === idx;
+      card.className = 'piece' + (idx === state.selected ? ' sel' : '') + (dragging ? ' dragging' : '');
+
+      card.addEventListener('pointerdown', (e) => {
         if (state.gameOver) return;
+        e.preventDefault();
         state.selected = idx;
-        draw();
+        startDrag(idx, e.clientX, e.clientY, e.pointerId);
       });
 
-      const g = document.createElement('div');
-      g.className = 'pieceGrid';
-      const set = new Set(piece.cells.map(c => `${c[0]},${c[1]}`));
-      for (let y = 0; y < 4; y++) {
-        for (let x = 0; x < 4; x++) {
-          const dot = document.createElement('div');
-          dot.className = 'dot';
-          if (set.has(`${x},${y}`)) dot.className = `dot on c-${piece.color}`;
-          g.appendChild(dot);
-        }
-      }
-
+      const g = buildPieceGrid(piece);
       const name = document.createElement('div');
       name.className = 'pieceName';
       name.textContent = piece.name;
@@ -430,38 +459,59 @@
     drawHud();
   }
 
-  function pointerCell(e) {
-    const t = e.target.closest('.cell');
-    if (!t) return null;
-    return { x: Number(t.dataset.x), y: Number(t.dataset.y) };
+  function boardCellFromClient(clientX, clientY) {
+    const rect = boardEl.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+    const cellW = rect.width / N;
+    const cellH = rect.height / N;
+    const x = Math.floor((clientX - rect.left) / cellW);
+    const y = Math.floor((clientY - rect.top) / cellH);
+    if (x < 0 || y < 0 || x >= N || y >= N) return null;
+    return { x, y };
   }
 
-  boardEl.addEventListener('pointermove', (e) => {
-    const p = pointerCell(e);
-    if (!p || state.gameOver) return;
-    state.preview = p;
-    drawBoard();
-  });
+  function updateGhost(piece, clientX, clientY) {
+    dragGhostEl.innerHTML = '';
+    dragGhostEl.appendChild(buildPieceGrid(piece));
+    dragGhostEl.style.transform = `translate(${clientX - 34}px, ${clientY - 34}px)`;
+  }
 
-  boardEl.addEventListener('pointerleave', () => {
+  function startDrag(handIndex, clientX, clientY, pointerId) {
+    const piece = state.hand[handIndex];
+    if (!piece) return;
+    state.drag.active = true;
+    state.drag.handIndex = handIndex;
+    state.drag.pointerId = pointerId;
+    state.preview = boardCellFromClient(clientX, clientY);
+    updateGhost(piece, clientX, clientY);
+    draw();
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!state.drag.active) return;
+    const piece = state.hand[state.drag.handIndex];
+    if (!piece) return;
+    state.preview = boardCellFromClient(clientX, clientY);
+    updateGhost(piece, clientX, clientY);
+    drawBoard();
+  }
+
+  function clearDrag() {
+    state.drag.active = false;
+    state.drag.handIndex = -1;
+    state.drag.pointerId = null;
     state.preview = null;
-    drawBoard();
-  });
+    dragGhostEl.style.transform = 'translate(-9999px, -9999px)';
+    dragGhostEl.innerHTML = '';
+  }
 
-  boardEl.addEventListener('click', (e) => {
-    if (state.gameOver) return;
-    const p = pointerCell(e);
-    if (!p) return;
-    if (state.selected < 0 || !state.hand[state.selected]) return;
-
-    const piece = state.hand[state.selected];
-    if (!canPlace(piece, p.x, p.y)) {
-      log('這格放不下，換位置。');
-      return;
-    }
+  function placeFromHandIndex(handIndex, p) {
+    const piece = state.hand[handIndex];
+    if (!piece || !p) return false;
+    if (!canPlace(piece, p.x, p.y)) return false;
 
     placePiece(piece, p.x, p.y);
-    state.hand.splice(state.selected, 1);
+    state.hand.splice(handIndex, 1);
     if (state.selected >= state.hand.length) state.selected = state.hand.length - 1;
 
     const { lines, cleared } = collectClears();
@@ -470,9 +520,35 @@
 
     if (state.hand.length === 0) refillHand();
     if (state.selected < 0 && state.hand.length > 0) state.selected = 0;
+    return true;
+  }
 
+  window.addEventListener('pointermove', (e) => {
+    if (!state.drag.active) return;
+    if (state.drag.pointerId !== null && e.pointerId !== state.drag.pointerId) return;
+    e.preventDefault();
+    moveDrag(e.clientX, e.clientY);
+  }, { passive: false });
+
+  window.addEventListener('pointerup', (e) => {
+    if (!state.drag.active) return;
+    if (state.drag.pointerId !== null && e.pointerId !== state.drag.pointerId) return;
+    e.preventDefault();
+
+    const p = boardCellFromClient(e.clientX, e.clientY);
+    const ok = placeFromHandIndex(state.drag.handIndex, p);
+    if (!ok) log('拖到棋盤可放的位置再放開。');
+
+    clearDrag();
+    draw();
+  }, { passive: false });
+
+  window.addEventListener('pointercancel', () => {
+    if (!state.drag.active) return;
+    clearDrag();
     draw();
   });
+
 
   function reset() {
     state.board = Array.from({ length: N }, () => Array(N).fill(null));
@@ -487,7 +563,7 @@
     state.enemy = { lv: 1, hp: 90, maxHp: 90, atk: 12, distance: 6, stepBase: 6 };
     state.gameOver = false;
     refillHand();
-    log('選一個拼塊，再點棋盤放置。');
+    log('長按拼塊拖到棋盤後放開。');
     draw();
   }
 
