@@ -536,39 +536,9 @@ function showKillstreakBanner(text, color) {
 }
 
 function applyStreakReward(type) {
-    switch(type) {
-        case 'pulse':
-            holyBursts.push({
-                x: player.x, y: player.y, radius: 0,
-                maxRadius: 200, damage: 30 + player.level * 5,
-                hasDamaged: false, alpha: 1.0, isStreakPulse: true
-            });
-            screenShake = Math.max(screenShake, 15);
-            triggerFlash(0.4);
-            setSlowMo(0.2, 12);
-            break;
-        case 'rapidfire':
-            streakRapidFireTimer = 180;
-            break;
-        case 'nuke':
-            enemies.forEach(e => {
-                e.hp = 0;
-                spawnDeathEffect(e.x, e.y, e.color, e.radius * 1.5);
-            });
-            screenShake = 25;
-            triggerFlash(0.7);
-            setSlowMo(0.1, 20);
-            for(let i = 0; i < 40; i++) {
-                const ax = rng(50, canvas.width-50), ay = rng(50, canvas.height-50);
-                spawnDeathEffect(ax, ay, ['#ff4400','#ffaa00','#ff00ff','#00ffff','#ffd700'][Math.floor(rng(0,5))], 15);
-            }
-            break;
-        case 'godmode':
-            streakInvincibleTimer = 180;
-            streakRapidFireTimer = 180;
-            player.iframeTimer = Math.max(player.iframeTimer, 180);
-            break;
-    }
+    // 方案B：连杀奖励全部关闭（用户反馈不要清场/无敌/极速这种突变爆发）
+    // 走暗黑路线：成长靠商店，不靠系统白送
+    return;
 }
 
 // ========================================
@@ -780,7 +750,7 @@ const WAVE_THEMES = {
     6:  { label:'火纸警告',    desc:'火纸自爆怪加入' },
     7:  { label:'混战',        desc:'全杂兵混合' },
     8:  { label:'阴魂突袭',    desc:'阴魂冲刺怪加入' },
-    9:  { label:'风暴前夕',    desc:'所有小怪高密度' },
+    9:  { label:'⚡ BOSS 将至', desc:'敌人变强 +50% HP', preBoss:true },
     10: { label:'⚠️ BOSS · 黑白无常', desc:'第一个 Boss 战' },
     11: { label:'复苏',        desc:'喘息后继续' },
     12: { label:'精英登场',    desc:'黑无常精英出现' },
@@ -790,7 +760,7 @@ const WAVE_THEMES = {
     16: { label:'三路夹击',    desc:'射/爆/冲 三种组合' },
     17: { label:'精英双咒',    desc:'多精英同场' },
     18: { label:'绝境',        desc:'全兵种最高密度' },
-    19: { label:'风暴眼',      desc:'Boss 前最后一波' },
+    19: { label:'⚡ 最终决战前', desc:'敌人变强 +50% HP', preBoss:true },
     20: { label:'⚠️ 最终 BOSS',desc:'决战时刻' }
 };
 
@@ -808,11 +778,12 @@ function startWave(n) {
     const isBoss = BOSS_WAVES.includes(n);
     const theme = getWaveTheme(n);
     if (waveProgressEl) {
-        waveProgressEl.innerText = isBoss ? '⚠️ BOSS 波次' : theme.label;
-        waveProgressEl.style.color = isBoss ? '#ff4444' : '#00ff88';
+        if (isBoss) { waveProgressEl.innerText = '⚠️ BOSS 波次'; waveProgressEl.style.color = '#ff4444'; }
+        else if (theme.preBoss) { waveProgressEl.innerText = theme.label; waveProgressEl.style.color = '#ff8844'; }
+        else { waveProgressEl.innerText = theme.label; waveProgressEl.style.color = '#00ff88'; }
     }
     showWaveBanner(isBoss ? `第 ${n} 波 · ${theme.label}` : `第 ${n} 波 · ${theme.label}`,
-                   isBoss ? '#ff2222' : '#FFB300');
+                   isBoss ? '#ff2222' : (theme.preBoss ? '#ff8844' : '#FFB300'));
     // 关卡事件：特定类型爆发刷
     if (theme.eventType === 'shooter_burst') {
         // 开局立刻刷一批射手
@@ -906,8 +877,16 @@ function rollBazaar() {
     function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
     const a = pick(commons);
     let b;
-    // 越后面波数越容易出稀有
-    const rareChance = Math.min(0.6, 0.15 + currentWave*0.03);
+    // 方案B·A：稀有概率阶梯式跳涨（暗黑式质变节点）
+    // 1-5 波：几乎不出（10%）学习期
+    // 6-10 波：25% 扩张期，玩家开始看到稀有
+    // 11-15 波：45% 考验期，稀有开始涌现
+    // 16-20 波：65% 高潮期，build 成型爆发
+    let rareChance;
+    if (currentWave <= 5) rareChance = 0.10;
+    else if (currentWave <= 10) rareChance = 0.25;
+    else if (currentWave <= 15) rareChance = 0.45;
+    else rareChance = 0.65;
     b = Math.random() < rareChance ? pick(rares) : pick(commons.filter(x=>x.id!==a.id));
     // 经济位：优先推 deposit（有金币时）或 heal（低血时）
     let c;
@@ -1178,7 +1157,9 @@ function spawnEnemy(forceType) {
     let x, y;
     if (Math.random() < 0.5) { x = Math.random()<0.5 ? -20 : canvas.width+20; y = Math.random()*canvas.height; }
     else { x = Math.random()*canvas.width; y = Math.random()<0.5 ? -20 : canvas.height+20; }
-    const hpM = 1 + gameTime*0.008 + player.level*0.08 + Math.max(0, wave-1)*0.22;
+    const theme = getWaveTheme(wave);
+    const preBossMult = theme.preBoss ? 1.5 : 1.0;  // Boss 前一波 HP ×1.5
+    const hpM = (1 + gameTime*0.008 + player.level*0.08 + Math.max(0, wave-1)*0.22) * preBossMult;
     const spM = 1 + gameTime*0.002 + Math.max(0, wave-1)*0.03;
     enemies.push({
         x, y, radius: chosen.radius, speed: chosen.baseSpeed*spM,
@@ -1367,11 +1348,9 @@ function rangedAttack(isMoving) {
     
     // V2: 精准模式射速加成（弹射枪站定1秒后）
     let cdMod = 1.0;
-    if (w.id === 'pistol' && player.precisionMode) {
-        cdMod = 0.55; // 射速+45%（CD缩短到55%）
-    } else if (w.id === 'shotgun' && !isMoving) {
-        cdMod = 0.80; // 站定散弹射速+20%
-    }
+    // 方案B：取消精准模式射速加成（不要越站射越快的突变感）
+    // 弹射枪/散弹枪站定 = 能开火，不再额外加速
+    // （散弹移动时仍 cdMod=1，不射击的规则由 isMoving 检查）
     
     // JUICE: 连杀极速射击 — CD 减半
     if (streakRapidFireTimer > 0) {
@@ -1392,27 +1371,20 @@ function fireBullets(baseAngle, isMoving) {
     let bulletSpeedMult = 1.0;
     
     // V2: 精准模式加成（弹射枪）
-    if (w.id === 'pistol' && player.precisionMode) {
-        dmgMult = 1.35;          // 伤害+35%
-        extraPierce = 1;          // 穿透+1
-        bulletSpeedMult = 1.2;    // 弹速+20%
-    }
+    // 方案B：取消精准模式伤害加成（成长靠商店，不靠站桩突变）
+    // if (w.id === 'pistol' && player.precisionMode) { ... } — 已移除
     
     // V2: 散弹移动射击 — 散射角增大、伤害微降
     if (w.id === 'shotgun' && isMoving) {
         spread = w.spread * 1.6;  // 散射角+60%
         dmgMult = 0.75;           // 伤害-25%
-    } else if (w.id === 'shotgun' && !isMoving) {
-        // 站定散弹：收窄散射、伤害加成
-        spread = w.spread * 0.7;  // 散射角-30%
-        dmgMult = 1.2;            // 伤害+20%
     }
+    // 站定散弹不再给伤害加成，保留"能开火"即可
     
-    // V2: 完美站位 — 金色子弹
+    // 方案B：完美站位只保留视觉，不给数值加成
     const isPerfect = player.perfectStandShots > 0;
     if (isPerfect) {
-        dmgMult *= 2.0;           // 伤害×2
-        extraPierce += 1;          // 穿透+1
+        // 原 dmgMult *= 2.0 / extraPierce += 1 已移除
         bulletColor = '#ffd700';
         bulletGlow = '#ffaa00';
         player.perfectStandShots = Math.max(0, player.perfectStandShots - 1);
@@ -1543,20 +1515,13 @@ function fireLaser(angle, isMoving) {
             }
         }
         
-        // V2: 伤害计算 — 移动减半，站定精准递增
+        // 方案B：激光伤害固定，不再站定越打越强
         let dmgMod = 1.0;
         if (isMoving) {
-            dmgMod = 0.5; // 移动中伤害减半
-        } else if (player.precisionMode) {
-            // 站定精准模式：伤害随时间递增，最高×2.5
-            const standBonus = Math.min(2.5, 1.0 + (player.standTimer - player.precisionThreshold) / 180);
-            dmgMod = standBonus;
+            dmgMod = 0.5; // 移动中伤害减半（保留：作为武器特性，逼站定瞄准）
         }
-        
-        // 完美站位加成
-        if (player.perfectStandShots > 0) {
-            dmgMod *= 2.0;
-        }
+        // 取消：站定精准模式伤害递增 ×2.5
+        // 取消：完美站位 ×2
         
         // 对命中目标造成伤害
         let dmg = w.damage * player.damageBonus * dmgMod;
