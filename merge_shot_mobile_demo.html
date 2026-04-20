@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <title>Merge Shot Mobile Demo</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; padding: 0; background: #0e0f14; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    .hud {
+      position: fixed; left: 10px; right: 10px; top: max(10px, env(safe-area-inset-top));
+      display: grid; grid-template-columns: 1fr auto; gap: 8px; pointer-events: none;
+      font-size: 12px;
+    }
+    .panel { background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; }
+    .chips { display: flex; gap: 6px; margin-top: 6px; }
+    .chip { width: 20px; height: 20px; border-radius: 99px; border: 2px solid rgba(255,255,255,0.25); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+    .r { background:#ff4d5a; }
+    .b { background:#4da6ff; }
+    .g { background:#4dff9b; color:#052014; }
+    .btn {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom));
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); color: #fff;
+      border-radius: 999px; padding: 10px 16px; font-size: 13px; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="hud">
+    <div class="panel" id="leftHud">HP 100 | Wave 1 | Score 0<div class="chips" id="combo"></div></div>
+    <div class="panel" id="rightHud">技能: -</div>
+  </div>
+  <div class="btn">單手拖曳瞄準，放開發射</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const leftHud = document.getElementById('leftHud');
+  const rightHud = document.getElementById('rightHud');
+  const comboEl = document.getElementById('combo');
+
+  const C = {
+    r: '#ff4d5a',
+    b: '#4da6ff',
+    g: '#4dff9b',
+    bg1: '#11131b',
+    bg2: '#171a25',
+    text: '#ecf2ff'
+  };
+
+  const state = {
+    w: 0,
+    h: 0,
+    t: 0,
+    hp: 100,
+    score: 0,
+    wave: 1,
+    nextSpawn: 0,
+    spawnGap: 1.2,
+    enemies: [],
+    bullets: [],
+    particles: [],
+    effects: [],
+    pointer: { down: false, x: 0, y: 0 },
+    player: { x: 0, y: 0, r: 14, shootCd: 0, aiming: false, aimX: 0, aimY: 0 },
+    colorBag: ['r','b','g','r','b','g'],
+    queue: [],
+    queueCount: { r: 0, b: 0, g: 0 },
+    skillToast: '',
+    skillTimer: 0
+  };
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    state.w = w;
+    state.h = h;
+    state.player.x = w * 0.5;
+    state.player.y = h - 58;
+  }
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
+  function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+  function nextColor() {
+    if (state.colorBag.length === 0) state.colorBag = ['r','b','g','r','b','g'];
+    const i = (Math.random() * state.colorBag.length) | 0;
+    return state.colorBag.splice(i, 1)[0];
+  }
+
+  function spawnEnemy() {
+    const x = rand(24, state.w - 24);
+    const typeRoll = Math.random();
+    let type = 'normal';
+    if (state.wave >= 2 && typeRoll < 0.25) type = 'shield';
+    if (state.wave >= 3 && typeRoll >= 0.25 && typeRoll < 0.48) type = 'rage';
+    if (state.wave >= 4 && typeRoll >= 0.48 && typeRoll < 0.68) type = 'split';
+
+    const hpBase = 12 + state.wave * 1.6;
+    const e = {
+      type,
+      x,
+      y: -20,
+      r: type === 'split' ? 14 : 16,
+      hp: hpBase * (type === 'shield' ? 1.25 : type === 'rage' ? 1.15 : type === 'split' ? 1.1 : 1),
+      maxHp: hpBase,
+      vy: 18 + state.wave * 1.8,
+      weak: type === 'shield' ? 'b' : type === 'rage' ? 'r' : type === 'split' ? 'g' : pick(['r','b','g']),
+      charge: type === 'rage' ? 4.2 : 0,
+      mini: false
+    };
+    state.enemies.push(e);
+  }
+
+  function spawnMiniSplit(parent) {
+    for (let i = 0; i < 2; i++) {
+      state.enemies.push({
+        type: 'split-mini',
+        x: parent.x + (i === 0 ? -12 : 12),
+        y: parent.y,
+        r: 9,
+        hp: 5 + state.wave * 0.6,
+        maxHp: 5,
+        vy: 28 + state.wave * 2.3,
+        weak: 'g',
+        charge: 0,
+        mini: true
+      });
+    }
+  }
+
+  function shootTo(tx, ty) {
+    if (state.player.shootCd > 0) return;
+    const dx = tx - state.player.x;
+    const dy = ty - state.player.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 8) return;
+    const vx = (dx / d) * 420;
+    const vy = (dy / d) * 420;
+    const c = nextColor();
+    state.bullets.push({ x: state.player.x, y: state.player.y - 10, vx, vy, r: 6, c, life: 2.3, bounce: 6 });
+    state.player.shootCd = 0.38;
+  }
+
+  function addQueue(color) {
+    state.queue.push(color);
+    state.queueCount[color]++;
+    if (state.queue.length > 9) {
+      const old = state.queue.shift();
+      state.queueCount[old]--;
+    }
+    if (state.queueCount[color] >= 3) {
+      triggerSkill(color);
+      let remove = 3;
+      for (let i = state.queue.length - 1; i >= 0 && remove > 0; i--) {
+        if (state.queue[i] === color) {
+          state.queue.splice(i, 1);
+          state.queueCount[color]--;
+          remove--;
+        }
+      }
+    }
+    renderQueue();
+  }
+
+  function triggerSkill(color) {
+    if (color === 'r') {
+      let target = null;
+      for (const e of state.enemies) {
+        if (!target || e.hp > target.hp) target = e;
+      }
+      if (target) {
+        target.hp -= 22 + state.wave * 2;
+        state.skillToast = '紅3消：斬殺爆發';
+      }
+    }
+    if (color === 'b') {
+      for (const e of state.enemies) {
+        e.vy *= 0.35;
+        e.ice = 1.6;
+      }
+      state.skillToast = '藍3消：全場冰緩';
+    }
+    if (color === 'g') {
+      for (let i = 0; i < 5; i++) {
+        const angle = -Math.PI * (0.15 + i * 0.17);
+        state.bullets.push({
+          x: state.player.x,
+          y: state.player.y - 10,
+          vx: Math.cos(angle) * 360,
+          vy: Math.sin(angle) * 360,
+          r: 4,
+          c: 'g',
+          life: 1.4,
+          bounce: 3
+        });
+      }
+      state.skillToast = '綠3消：分裂彈幕';
+    }
+    state.skillTimer = 1.2;
+    rightHud.textContent = `技能: ${state.skillToast}`;
+  }
+
+  function hitEnemy(b, e) {
+    let dmg = 6;
+    if (b.c === e.weak) dmg *= 1.75;
+    else if (e.type === 'shield' && b.c !== 'b') dmg *= 0.35;
+
+    e.hp -= dmg;
+    addQueue(b.c);
+    for (let i = 0; i < 5; i++) {
+      state.particles.push({ x: b.x, y: b.y, vx: rand(-90, 90), vy: rand(-90, 90), life: 0.4, c: C[b.c] });
+    }
+
+    if (e.type === 'rage' && b.c === 'r') {
+      e.charge = Math.max(0, e.charge - 1.2);
+    }
+
+    if (e.hp <= 0) {
+      state.score += e.mini ? 4 : 10;
+      if (e.type === 'split') spawnMiniSplit(e);
+      e.dead = true;
+      state.effects.push({ x: e.x, y: e.y, t: 0.35, text: `+${e.mini ? 4 : 10}` });
+    }
+
+    b.life = 0;
+  }
+
+  function update(dt) {
+    if (state.hp <= 0) return;
+
+    state.t += dt;
+    state.player.shootCd = Math.max(0, state.player.shootCd - dt);
+
+    if (state.skillTimer > 0) {
+      state.skillTimer -= dt;
+      if (state.skillTimer <= 0) rightHud.textContent = '技能: -';
+    }
+
+    if (state.t >= state.nextSpawn) {
+      spawnEnemy();
+      state.nextSpawn = state.t + state.spawnGap;
+      state.spawnGap = Math.max(0.52, 1.18 - state.wave * 0.04);
+    }
+
+    if (Math.floor(state.score / 120) + 1 > state.wave) state.wave = Math.floor(state.score / 120) + 1;
+
+    for (const b of state.bullets) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      if ((b.x < 8 && b.vx < 0) || (b.x > state.w - 8 && b.vx > 0)) {
+        b.vx *= -1;
+        b.bounce--;
+      }
+      if (b.y < 8 && b.vy < 0) { b.vy *= -1; b.bounce--; }
+      if (b.bounce < 0) b.life = 0;
+
+      for (const e of state.enemies) {
+        if (e.dead) continue;
+        if (dist(b.x, b.y, e.x, e.y) < b.r + e.r) {
+          hitEnemy(b, e);
+          break;
+        }
+      }
+    }
+
+    for (const e of state.enemies) {
+      if (e.ice) e.ice = Math.max(0, e.ice - dt);
+      const mul = e.ice ? 0.35 : 1;
+      e.y += e.vy * mul * dt;
+
+      if (e.type === 'rage') {
+        e.charge -= dt;
+        if (e.charge <= 0) {
+          state.hp -= 12;
+          e.charge = 4.2;
+          state.effects.push({ x: e.x, y: e.y - 16, t: 0.6, text: '怒爆 -12' });
+        }
+      }
+
+      if (e.y > state.h - 44) {
+        state.hp -= e.mini ? 6 : 12;
+        e.dead = true;
+      }
+    }
+
+    for (const p of state.particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    }
+    for (const fx of state.effects) fx.t -= dt;
+
+    state.bullets = state.bullets.filter(b => b.life > 0);
+    state.enemies = state.enemies.filter(e => !e.dead);
+    state.particles = state.particles.filter(p => p.life > 0);
+    state.effects = state.effects.filter(fx => fx.t > 0);
+
+    leftHud.firstChild.nodeValue = `HP ${Math.max(0, state.hp | 0)} | Wave ${state.wave} | Score ${state.score}`;
+  }
+
+  function drawEnemy(e) {
+    const color = C[e.weak];
+    ctx.beginPath();
+    ctx.fillStyle = e.type === 'shield' ? '#7ea9d8' : e.type === 'rage' ? '#d97878' : e.type.includes('split') ? '#72c79a' : '#aaaec3';
+    ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r + 5, -Math.PI * 0.7, -Math.PI * 0.15);
+    ctx.stroke();
+
+    const hpw = e.r * 2;
+    const ratio = Math.max(0, e.hp / (e.maxHp || 1));
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(e.x - e.r, e.y + e.r + 7, hpw, 4);
+    ctx.fillStyle = '#7dff9f';
+    ctx.fillRect(e.x - e.r, e.y + e.r + 7, hpw * ratio, 4);
+
+    if (e.type === 'rage') {
+      ctx.fillStyle = '#ffb2b2';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(`怒:${e.charge.toFixed(1)}`, e.x - 14, e.y - e.r - 8);
+    }
+  }
+
+  function draw() {
+    const g = ctx.createLinearGradient(0, 0, 0, state.h);
+    g.addColorStop(0, C.bg2);
+    g.addColorStop(1, C.bg1);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, state.w, state.h);
+
+    for (let y = 0; y < state.h; y += 36) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(state.w, y);
+      ctx.stroke();
+    }
+
+    for (const e of state.enemies) drawEnemy(e);
+
+    for (const b of state.bullets) {
+      ctx.beginPath();
+      ctx.fillStyle = C[b.c];
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const p of state.particles) {
+      ctx.globalAlpha = Math.max(0, p.life * 2);
+      ctx.fillStyle = p.c;
+      ctx.fillRect(p.x, p.y, 2, 2);
+      ctx.globalAlpha = 1;
+    }
+
+    for (const fx of state.effects) {
+      ctx.globalAlpha = Math.min(1, fx.t * 2);
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(fx.text, fx.x - 16, fx.y - 12 + (0.6 - fx.t) * 20);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.beginPath();
+    ctx.fillStyle = '#f4f5ff';
+    ctx.arc(state.player.x, state.player.y, state.player.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    const next = state.colorBag[state.colorBag.length - 1] || 'r';
+    ctx.beginPath();
+    ctx.fillStyle = C[next];
+    ctx.arc(state.player.x, state.player.y - 22, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (state.pointer.down) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5,5]);
+      ctx.beginPath();
+      ctx.moveTo(state.player.x, state.player.y);
+      ctx.lineTo(state.pointer.x, state.pointer.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (state.hp <= 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, 0, state.w, state.h);
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('失敗', state.w / 2, state.h / 2 - 10);
+      ctx.font = '14px sans-serif';
+      ctx.fillText(`分數 ${state.score} | 點一下重開`, state.w / 2, state.h / 2 + 20);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function renderQueue() {
+    comboEl.innerHTML = '';
+    for (const c of state.queue.slice(-9)) {
+      const el = document.createElement('span');
+      el.className = `chip ${c}`;
+      comboEl.appendChild(el);
+    }
+  }
+
+  function resetGame() {
+    state.hp = 100;
+    state.score = 0;
+    state.wave = 1;
+    state.nextSpawn = 0;
+    state.spawnGap = 1.2;
+    state.enemies = [];
+    state.bullets = [];
+    state.particles = [];
+    state.effects = [];
+    state.queue = [];
+    state.queueCount = { r: 0, b: 0, g: 0 };
+    state.colorBag = ['r','b','g','r','b','g'];
+    rightHud.textContent = '技能: -';
+    renderQueue();
+  }
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function pointFromEvent(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onDown(e) {
+    const p = pointFromEvent(e);
+    if (state.hp <= 0) { resetGame(); return; }
+    state.pointer.down = true;
+    state.pointer.x = p.x;
+    state.pointer.y = p.y;
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!state.pointer.down) return;
+    const p = pointFromEvent(e);
+    state.pointer.x = p.x;
+    state.pointer.y = p.y;
+    e.preventDefault();
+  }
+  function onUp(e) {
+    if (!state.pointer.down) return;
+    state.pointer.down = false;
+    shootTo(state.pointer.x, state.pointer.y);
+    e.preventDefault();
+  }
+
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, { passive: false });
+  canvas.addEventListener('touchmove', onMove, { passive: false });
+  canvas.addEventListener('touchend', onUp, { passive: false });
+
+  window.addEventListener('resize', resize);
+  resize();
+  renderQueue();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
