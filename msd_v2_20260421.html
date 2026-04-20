@@ -30,9 +30,9 @@
   <canvas id="game"></canvas>
   <div class="hud">
     <div class="panel" id="leftHud">HP 100 | Wave 1 | Score 0<div class="chips" id="combo"></div></div>
-    <div class="panel" id="rightHud">技能: -</div>
+    <div class="panel" id="rightHud">技能: -（同色弱點充能 | 放開三連發）</div>
   </div>
-  <div class="btn">單手拖曳瞄準，放開發射</div>
+  <div class="btn">拖曳選方向，放開三連發（同色弱點自動吸附）</div>
 
 <script>
 (() => {
@@ -64,8 +64,9 @@
     bullets: [],
     particles: [],
     effects: [],
-    pointer: { down: false, x: 0, y: 0 },
+    pointer: { down: false, x: 0, y: 0, ax: 0, ay: 0, lock: false },
     player: { x: 0, y: 0, r: 14, shootCd: 0, aiming: false, aimX: 0, aimY: 0 },
+    burst: { remain: 0, timer: 0, tx: 0, ty: 0 },
     colorBag: ['r','b','g','r','b','g'],
     nextShotColor: 'r',
     queue: [],
@@ -148,18 +149,69 @@
     }
   }
 
+  function findAimAssistTarget(tx, ty, shotColor) {
+    const px = state.player.x;
+    const py = state.player.y;
+    const inDx = tx - px;
+    const inDy = ty - py;
+    const inLen = Math.hypot(inDx, inDy);
+    if (inLen < 1) return null;
+
+    const nx = inDx / inLen;
+    const ny = inDy / inLen;
+    let best = null;
+    let bestScore = -1e9;
+
+    for (const e of state.enemies) {
+      if (e.dead) continue;
+      const ex = e.x - px;
+      const ey = e.y - py;
+      const d = Math.hypot(ex, ey);
+      if (d < 30 || d > 460) continue;
+      const dot = (ex / d) * nx + (ey / d) * ny;
+      if (dot < 0.88) continue;
+
+      const weakMatch = e.weak === shotColor ? 1 : 0;
+      const score = weakMatch * 1000 + dot * 120 - d * 0.35;
+      if (score > bestScore) {
+        bestScore = score;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  function getAssistedPoint(tx, ty, shotColor) {
+    const t = findAimAssistTarget(tx, ty, shotColor);
+    if (!t) return { x: tx, y: ty, lock: false };
+    return { x: t.x, y: t.y, lock: true };
+  }
+
   function shootTo(tx, ty) {
-    if (state.player.shootCd > 0) return;
-    const dx = tx - state.player.x;
-    const dy = ty - state.player.y;
+    if (state.player.shootCd > 0) return false;
+
+    const previewColor = state.nextShotColor || 'r';
+    const assisted = getAssistedPoint(tx, ty, previewColor);
+    const dx = assisted.x - state.player.x;
+    const dy = assisted.y - state.player.y;
     const d = Math.hypot(dx, dy);
-    if (d < 8) return;
+    if (d < 8) return false;
+
     const vx = (dx / d) * 420;
     const vy = (dy / d) * 420;
     const c = nextColor();
     state.bullets.push({ x: state.player.x, y: state.player.y - 10, vx, vy, r: 6, c, life: 2.3, bounce: 6 });
-    state.player.shootCd = 0.38;
+    state.player.shootCd = 0.11;
+    return true;
   }
+
+  function startBurst(tx, ty) {
+    state.burst.tx = tx;
+    state.burst.ty = ty;
+    state.burst.remain = 3;
+    state.burst.timer = 0;
+  }
+
 
   function addQueue(color) {
     state.queue.push(color);
@@ -184,13 +236,22 @@
 
   function triggerSkill(color) {
     if (color === 'r') {
-      let target = null;
+      const executeLine = 18 + state.wave * 1.8;
+      let executeTarget = null;
+      let fallback = null;
       for (const e of state.enemies) {
-        if (!target || e.hp > target.hp) target = e;
+        if (!fallback || e.hp > fallback.hp) fallback = e;
+        if (e.hp <= executeLine && (!executeTarget || e.hp > executeTarget.hp)) executeTarget = e;
       }
+      const target = executeTarget || fallback;
       if (target) {
-        target.hp -= 22 + state.wave * 2;
-        state.skillToast = '紅3消：斬殺爆發';
+        if (executeTarget) {
+          target.hp = 0;
+          state.skillToast = `紅3消：斬殺(${executeLine | 0})`;
+        } else {
+          target.hp -= 18 + state.wave * 1.8;
+          state.skillToast = '紅3消：重擊';
+        }
       }
     }
     if (color === 'b') {
@@ -201,24 +262,25 @@
       state.skillToast = '藍3消：全場冰緩';
     }
     if (color === 'g') {
-      for (let i = 0; i < 5; i++) {
-        const angle = -Math.PI * (0.15 + i * 0.17);
+      for (let i = 0; i < 7; i++) {
+        const angle = -Math.PI * (0.12 + i * 0.13);
         state.bullets.push({
           x: state.player.x,
           y: state.player.y - 10,
-          vx: Math.cos(angle) * 360,
-          vy: Math.sin(angle) * 360,
+          vx: Math.cos(angle) * 390,
+          vy: Math.sin(angle) * 390,
           r: 4,
           c: 'g',
-          life: 1.4,
+          life: 1.5,
           bounce: 3
         });
       }
-      state.skillToast = '綠3消：分裂彈幕';
+      state.skillToast = '綠3消：擴散彈幕';
     }
     state.skillTimer = 1.2;
     rightHud.textContent = `技能: ${state.skillToast}`;
   }
+
 
   function hitEnemy(b, e) {
     let dmg = 6;
@@ -252,10 +314,23 @@
     state.t += dt;
     state.player.shootCd = Math.max(0, state.player.shootCd - dt);
 
+    if (state.burst.remain > 0) {
+      state.burst.timer -= dt;
+      if (state.burst.timer <= 0 && state.player.shootCd <= 0) {
+        if (shootTo(state.burst.tx, state.burst.ty)) {
+          state.burst.remain--;
+          state.burst.timer = 0.12;
+        } else {
+          state.burst.remain = 0;
+        }
+      }
+    }
+
     if (state.skillTimer > 0) {
       state.skillTimer -= dt;
-      if (state.skillTimer <= 0) rightHud.textContent = '技能: -';
+      if (state.skillTimer <= 0) rightHud.textContent = '技能: -（同色弱點充能 | 放開三連發）';
     }
+
 
     if (state.t >= state.nextSpawn) {
       spawnEnemy();
@@ -333,6 +408,11 @@
     ctx.arc(e.x, e.y, e.r + 5, -Math.PI * 0.7, -Math.PI * 0.15);
     ctx.stroke();
 
+    ctx.fillStyle = color;
+    ctx.font = '700 10px sans-serif';
+    ctx.fillText(e.weak.toUpperCase(), e.x - 3, e.y + 3);
+
+
     const hpw = e.r * 2;
     const ratio = Math.max(0, e.hp / (e.maxHp || 1));
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
@@ -399,15 +479,27 @@
     ctx.fill();
 
     if (state.pointer.down) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+      ctx.strokeStyle = state.pointer.lock ? 'rgba(120,255,180,0.9)' : 'rgba(255,255,255,0.65)';
       ctx.lineWidth = 2;
       ctx.setLineDash([5,5]);
       ctx.beginPath();
       ctx.moveTo(state.player.x, state.player.y);
-      ctx.lineTo(state.pointer.x, state.pointer.y);
+      ctx.lineTo(state.pointer.ax, state.pointer.ay);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      if (state.pointer.lock) {
+        ctx.strokeStyle = 'rgba(120,255,180,0.95)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(state.pointer.ax, state.pointer.ay, 16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(120,255,180,0.95)';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('吸附', state.pointer.ax - 11, state.pointer.ay - 20);
+      }
     }
+
 
     if (state.hp <= 0) {
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
@@ -445,10 +537,13 @@
     state.queueCount = { r: 0, b: 0, g: 0 };
     state.colorBag = ['r','b','g','r','b','g'];
     state.nextShotColor = pullRandomColor();
-    rightHud.textContent = '技能: -（命中同色弱点才充能）';
+    state.burst = { remain: 0, timer: 0, tx: 0, ty: 0 };
+    state.pointer = { down: false, x: state.player.x, y: state.player.y - 120, ax: state.player.x, ay: state.player.y - 120, lock: false };
+    rightHud.textContent = '技能: -（同色弱點充能 | 放開三連發）';
 
     renderQueue();
   }
+
 
 
   let last = performance.now();
@@ -465,12 +560,20 @@
     return { x: e.clientX, y: e.clientY };
   }
 
+  function updateAimPreview() {
+    const aim = getAssistedPoint(state.pointer.x, state.pointer.y, state.nextShotColor || 'r');
+    state.pointer.ax = aim.x;
+    state.pointer.ay = aim.y;
+    state.pointer.lock = aim.lock;
+  }
+
   function onDown(e) {
     const p = pointFromEvent(e);
     if (state.hp <= 0) { resetGame(); return; }
     state.pointer.down = true;
     state.pointer.x = p.x;
     state.pointer.y = p.y;
+    updateAimPreview();
     e.preventDefault();
   }
   function onMove(e) {
@@ -478,14 +581,18 @@
     const p = pointFromEvent(e);
     state.pointer.x = p.x;
     state.pointer.y = p.y;
+    updateAimPreview();
     e.preventDefault();
   }
   function onUp(e) {
     if (!state.pointer.down) return;
     state.pointer.down = false;
-    shootTo(state.pointer.x, state.pointer.y);
+    if (state.player.shootCd <= 0 && state.burst.remain <= 0) {
+      startBurst(state.pointer.ax || state.pointer.x, state.pointer.ay || state.pointer.y);
+    }
     e.preventDefault();
   }
+
 
   canvas.addEventListener('mousedown', onDown);
   canvas.addEventListener('mousemove', onMove);
