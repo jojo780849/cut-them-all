@@ -768,6 +768,34 @@ function showWaveBanner(text, color) {
     setTimeout(() => { if (waveBannerEl) waveBannerEl.style.opacity = '0'; }, 900);
 }
 
+// 波次主题定义 — 循序渐进引入新威胁
+const WAVE_THEMES = {
+    1:  { label:'热身',        desc:'蛋壳怪 & 小虫' },
+    2:  { label:'加速',        desc:'瓢虫加入（快速）' },
+    3:  { label:'硬壳',        desc:'石蛋加入（高HP）' },
+    4:  { label:'纸符来袭',    desc:'远程纸符！逼你走位' },
+    5:  { label:'纸符潮',      desc:'纸符大量出没', eventType:'shooter_burst' },
+    6:  { label:'火纸警告',    desc:'火纸自爆怪加入' },
+    7:  { label:'混战',        desc:'全杂兵混合' },
+    8:  { label:'阴魂突袭',    desc:'阴魂冲刺怪加入' },
+    9:  { label:'风暴前夕',    desc:'所有小怪高密度' },
+    10: { label:'⚠️ BOSS · 黑白无常', desc:'第一个 Boss 战' },
+    11: { label:'复苏',        desc:'喘息后继续' },
+    12: { label:'精英登场',    desc:'黑无常精英出现' },
+    13: { label:'火纸围攻',    desc:'自爆怪密集', eventType:'bomber_burst' },
+    14: { label:'阴魂夜行',    desc:'冲刺怪密集', eventType:'dasher_burst' },
+    15: { label:'纸符雨',      desc:'远程弹幕地狱', eventType:'shooter_burst' },
+    16: { label:'三路夹击',    desc:'射/爆/冲 三种组合' },
+    17: { label:'精英双咒',    desc:'多精英同场' },
+    18: { label:'绝境',        desc:'全兵种最高密度' },
+    19: { label:'风暴眼',      desc:'Boss 前最后一波' },
+    20: { label:'⚠️ 最终 BOSS',desc:'决战时刻' }
+};
+
+function getWaveTheme(n) {
+    return WAVE_THEMES[n] || { label:`第${n}波`, desc:'战斗！' };
+}
+
 function startWave(n) {
     currentWave = n;
     waveState = 'battle';
@@ -776,11 +804,28 @@ function startWave(n) {
     waveEnemyBudget = getWaveBudget(n);
     formatWaveInfo();
     const isBoss = BOSS_WAVES.includes(n);
+    const theme = getWaveTheme(n);
     if (waveProgressEl) {
-        waveProgressEl.innerText = isBoss ? '⚠️ BOSS 波次' : '战斗中';
+        waveProgressEl.innerText = isBoss ? '⚠️ BOSS 波次' : theme.label;
         waveProgressEl.style.color = isBoss ? '#ff4444' : '#00ff88';
     }
-    showWaveBanner(isBoss ? `第 ${n} 波 · BOSS` : `第 ${n} 波 开始！`, isBoss ? '#ff2222' : '#FFB300');
+    showWaveBanner(isBoss ? `第 ${n} 波 · ${theme.label}` : `第 ${n} 波 · ${theme.label}`,
+                   isBoss ? '#ff2222' : '#FFB300');
+    // 关卡事件：特定类型爆发刷
+    if (theme.eventType === 'shooter_burst') {
+        // 开局立刻刷一批射手
+        setTimeout(() => {
+            for (let i = 0; i < 5; i++) spawnEnemy('shooter');
+        }, 400);
+    } else if (theme.eventType === 'bomber_burst') {
+        setTimeout(() => {
+            for (let i = 0; i < 4; i++) spawnEnemy('bomber');
+        }, 400);
+    } else if (theme.eventType === 'dasher_burst') {
+        setTimeout(() => {
+            for (let i = 0; i < 4; i++) spawnEnemy('dasher');
+        }, 400);
+    }
     // Boss 波：重置 boss 状态并立即预警
     if (isBoss && !bossSpawned) {
         bossWarningTimer = BOSS_WARNING_DURATION;
@@ -1105,30 +1150,159 @@ if (bazaarContinueBtn) {
 }
 
 // === 敌人 ===
+// aiType: chase=追着打（默认） / shooter=远程射手（逼移动）/ bomber=自爆冲刺（逼走位）/ dasher=冲刺突进（逼反应）
 const ENEMY_TYPES = {
-    basic:  { name: '蛋壳怪', radius: 10, baseSpeed: 1.2, baseHp: 20, color: '#f0f0e0', expDrop: 2, weight: 10 },
-    fast:   { name: '瓢虫', radius: 8, baseSpeed: 2.2, baseHp: 12, color: '#ee4444', expDrop: 3, weight: 5 },
-    tank:   { name: '石蛋', radius: 16, baseSpeed: 0.6, baseHp: 80, color: '#888877', expDrop: 5, weight: 3 },
-    swarm:  { name: '小虫', radius: 6, baseSpeed: 1.8, baseHp: 8, color: '#66cc66', expDrop: 1, weight: 8 }
+    basic:   { name: '蛋壳怪', radius: 10, baseSpeed: 1.2, baseHp: 20, color: '#f0f0e0', expDrop: 2, weight: 10, aiType:'chase',   unlockWave: 1 },
+    swarm:   { name: '小虫',   radius: 6,  baseSpeed: 1.8, baseHp: 8,  color: '#66cc66', expDrop: 1, weight: 10, aiType:'chase',   unlockWave: 1 },
+    fast:    { name: '瓢虫',   radius: 8,  baseSpeed: 2.4, baseHp: 12, color: '#ee4444', expDrop: 3, weight: 6,  aiType:'chase',   unlockWave: 2 },
+    tank:    { name: '石蛋',   radius: 16, baseSpeed: 0.6, baseHp: 80, color: '#888877', expDrop: 5, weight: 3,  aiType:'chase',   unlockWave: 3 },
+    shooter: { name: '纸符',   radius: 9,  baseSpeed: 0.8, baseHp: 18, color: '#c08844', expDrop: 4, weight: 5,  aiType:'shooter', unlockWave: 4, shootCD: 90, shootRange: 320 },
+    bomber:  { name: '火纸',   radius: 11, baseSpeed: 1.6, baseHp: 14, color: '#ff6600', expDrop: 4, weight: 4,  aiType:'bomber',  unlockWave: 6, explodeRadius: 50, explodeDmg: 20 },
+    dasher:  { name: '阴魂',   radius: 10, baseSpeed: 1.0, baseHp: 25, color: '#9966ff', expDrop: 4, weight: 4,  aiType:'dasher',  unlockWave: 8, dashRange: 180, dashSpeed: 6, dashCD: 120 },
+    elite:   { name: '黑无常', radius: 14, baseSpeed: 1.4, baseHp: 150,color: '#222244', expDrop:10, weight: 2,  aiType:'chase',   unlockWave: 12, isElite:true }
 };
 
-function spawnEnemy() {
-    const types = Object.entries(ENEMY_TYPES);
-    const totalW = types.reduce((s,[,t]) => s+t.weight, 0);
-    let r = Math.random()*totalW, chosen = types[0][1];
-    for (const [,t] of types) { r -= t.weight; if (r <= 0) { chosen = t; break; } }
+// 敌人子弹（纸符射手发射）
+let enemyBullets = [];
+
+function spawnEnemy(forceType) {
+    // 按波次解锁 + 权重抽
+    const wave = currentWave || 1;
+    const pool = Object.entries(ENEMY_TYPES).filter(([,t]) => t.unlockWave <= wave);
+    const totalW = pool.reduce((s,[,t]) => s+t.weight, 0);
+    let r = Math.random()*totalW, chosen = pool[0][1];
+    for (const [,t] of pool) { r -= t.weight; if (r <= 0) { chosen = t; break; } }
+    if (forceType && ENEMY_TYPES[forceType]) chosen = ENEMY_TYPES[forceType];
     let x, y;
     if (Math.random() < 0.5) { x = Math.random()<0.5 ? -20 : canvas.width+20; y = Math.random()*canvas.height; }
     else { x = Math.random()*canvas.width; y = Math.random()<0.5 ? -20 : canvas.height+20; }
-    const hpM = 1 + gameTime*0.008 + player.level*0.08 + (currentWave||1)*0.25;
-    const spM = 1 + gameTime*0.002 + (currentWave||1)*0.04;
+    const hpM = 1 + gameTime*0.008 + player.level*0.08 + wave*0.30;
+    const spM = 1 + gameTime*0.002 + wave*0.04;
     enemies.push({
         x, y, radius: chosen.radius, speed: chosen.baseSpeed*spM,
         hp: chosen.baseHp*hpM, maxHp: chosen.baseHp*hpM,
         color: chosen.color, expDrop: chosen.expDrop,
         hitFlash: 0, stunTimer: 0,
-        poisonDmg: 0, poisonTimer: 0
+        poisonDmg: 0, poisonTimer: 0,
+        // AI 扩展字段
+        aiType: chosen.aiType || 'chase',
+        isElite: !!chosen.isElite,
+        shootCD: chosen.shootCD || 0, shootTimer: chosen.shootCD ? Math.floor(Math.random()*chosen.shootCD) : 0,
+        shootRange: chosen.shootRange || 0,
+        explodeRadius: chosen.explodeRadius || 0, explodeDmg: chosen.explodeDmg || 0, fuseTimer: 0,
+        dashRange: chosen.dashRange || 0, dashSpeed: chosen.dashSpeed || 0,
+        dashCD: chosen.dashCD || 0, dashTimer: chosen.dashCD ? Math.floor(Math.random()*chosen.dashCD*0.5) : 0,
+        dashActive: 0, dashVx: 0, dashVy: 0
     });
+}
+
+// ========================================
+//  敌人 AI 更新（每帧调用）
+// ========================================
+function updateEnemyAI(e, i) {
+    if (e.stunTimer > 0) { e.stunTimer--; return; }
+    const dx = player.x - e.x, dy = player.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const nx = dx/d, ny = dy/d;
+
+    switch (e.aiType) {
+        case 'shooter': {
+            // 保持距离射击：< 180 后退，180~320 站定射，> 320 靠近
+            if (d < 160) {
+                e.x -= nx * e.speed * 0.8;
+                e.y -= ny * e.speed * 0.8;
+            } else if (d > e.shootRange) {
+                e.x += nx * e.speed;
+                e.y += ny * e.speed;
+            }
+            // 射击
+            if (e.shootTimer > 0) e.shootTimer--;
+            if (e.shootTimer <= 0 && d <= e.shootRange) {
+                const speed = 3.8;
+                enemyBullets.push({
+                    x: e.x, y: e.y, vx: nx*speed, vy: ny*speed,
+                    radius: 4, dmg: 6 + currentWave*0.8, life: 180, color:'#ffaa44'
+                });
+                e.shootTimer = e.shootCD;
+            }
+            break;
+        }
+        case 'bomber': {
+            // 冲向玩家，靠近后自爆（触发引信 25 帧后爆）
+            if (d < e.explodeRadius + 12 && e.fuseTimer === 0) {
+                e.fuseTimer = 25;
+            }
+            if (e.fuseTimer > 0) {
+                e.fuseTimer--;
+                // 引信期间慢下来震动
+                e.x += (Math.random()-0.5)*1.5;
+                e.y += (Math.random()-0.5)*1.5;
+                if (e.fuseTimer === 0) {
+                    // 爆炸：伤害 + 粒子 + 清除自己
+                    if (dist(player.x, player.y, e.x, e.y) < e.explodeRadius) {
+                        damagePlayer(e.explodeDmg + currentWave, e.x, e.y, 10);
+                    }
+                    for (let k=0;k<16;k++){
+                        spawnDeathEffect(e.x, e.y, '#ff6600', 10);
+                    }
+                    screenShake = Math.max(screenShake, 10);
+                    e.hp = 0; // 标记死亡（外层清理）
+                }
+            } else {
+                e.x += nx * e.speed * 1.15;
+                e.y += ny * e.speed * 1.15;
+            }
+            break;
+        }
+        case 'dasher': {
+            if (e.dashActive > 0) {
+                e.x += e.dashVx;
+                e.y += e.dashVy;
+                e.dashActive--;
+            } else {
+                // 接近目标范围触发冲刺
+                if (e.dashTimer > 0) e.dashTimer--;
+                if (e.dashTimer <= 0 && d < e.dashRange && d > 30) {
+                    e.dashVx = nx * e.dashSpeed;
+                    e.dashVy = ny * e.dashSpeed;
+                    e.dashActive = 18; // 冲刺 18 帧
+                    e.dashTimer = e.dashCD;
+                } else {
+                    e.x += nx * e.speed * 0.8;
+                    e.y += ny * e.speed * 0.8;
+                }
+            }
+            break;
+        }
+        case 'chase':
+        default:
+            e.x += nx * e.speed;
+            e.y += ny * e.speed;
+            break;
+    }
+}
+
+// 更新敌人子弹
+function updateEnemyBullets() {
+    for (let i = enemyBullets.length-1; i >= 0; i--) {
+        const b = enemyBullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+        // 命中玩家
+        if (dist(b.x, b.y, player.x, player.y) < player.radius + b.radius) {
+            damagePlayer(b.dmg, b.x, b.y, 4);
+            enemyBullets.splice(i,1); continue;
+        }
+        // 出界
+        if (b.life <= 0 || b.x < -40 || b.x > canvas.width+40 || b.y < -40 || b.y > canvas.height+40) {
+            enemyBullets.splice(i,1); continue;
+        }
+        // 绘制
+        ctx.save();
+        ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+        ctx.fillStyle = b.color;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
 }
 
 // ========================================
@@ -3172,11 +3346,8 @@ function gameLoop() {
             }
         }
         // 眩晕
-        if (e.stunTimer > 0) { e.stunTimer--; }
-        else {
-            const a = Math.atan2(player.y-e.y, player.x-e.x);
-            e.x += Math.cos(a)*e.speed; e.y += Math.sin(a)*e.speed;
-        }
+        // 方案B：多样化 AI（射手/自爆/冲刺/追击）
+        updateEnemyAI(e, i);
         if (e.hitFlash > 0) e.hitFlash--;
         
         drawEnemy(e);
@@ -3228,6 +3399,7 @@ function gameLoop() {
     
     // 子弹 & 特效
     updateBullets();
+    updateEnemyBullets();
     drawDamageNumbers();
     drawDeathEffects();
     
