@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>割草 x 破壞小隊 Lite</title>
+  <title>單手暴暴王 Lite</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #080b12; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif; color: #eef3ff; }
     #app { position: fixed; inset: 0; }
-    canvas { width: 100%; height: 100%; display: block; background: radial-gradient(120% 90% at 50% 0%, #15233b 0%, #0b1220 45%, #080b12 100%); touch-action: none; }
+    canvas { width: 100%; height: 100%; display: block; background: radial-gradient(120% 90% at 50% 0%, #16253f 0%, #0b1220 45%, #080b12 100%); touch-action: none; }
 
     .hud {
       position: fixed;
@@ -49,36 +49,6 @@
       pointer-events: none;
     }
 
-    #pick {
-      position: fixed;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.55);
-      padding: 16px;
-      z-index: 5;
-    }
-    .pickCard {
-      width: min(640px, 100%);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(8, 12, 22, 0.95);
-      padding: 14px;
-    }
-    .pickTitle { font-size: 16px; font-weight: 800; margin-bottom: 10px; }
-    .pickGrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-    .optBtn {
-      width: 100%;
-      text-align: left;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.16);
-      color: #eef3ff;
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 14px;
-    }
-
     #gameOver {
       position: fixed;
       inset: 0;
@@ -110,39 +80,30 @@
   </style>
 </head>
 <body>
-  <div id="app">
-    <canvas id="game"></canvas>
-  </div>
+  <div id="app"><canvas id="game"></canvas></div>
 
   <div class="hud">
     <div class="panel">
-      <div class="title">割草 x 破壞小隊 Lite</div>
+      <div class="title">單手暴暴王 Lite</div>
       <div class="row">
-        <span id="hp" class="chip good">HP 100</span>
-        <span id="squad" class="chip">隊伍 1</span>
-        <span id="shard" class="chip warn">碎片 0/3</span>
+        <span id="hp" class="chip good">HP 3</span>
+        <span id="squad" class="chip">炸彈 1</span>
+        <span id="shard" class="chip warn">爆風 2</span>
         <span id="kills" class="chip">擊殺 0</span>
         <span id="timer" class="chip">00:00</span>
       </div>
     </div>
     <div class="panel" style="min-width:98px;text-align:right;">
-      <div style="font-size:11px;opacity:.8;">下一升級</div>
+      <div style="font-size:11px;opacity:.8;">下一波</div>
       <div id="nextLv" style="font-size:18px;font-weight:800;">20</div>
     </div>
   </div>
 
-  <div id="hint">主角開箱｜隊員清怪｜碎片需求隨等級提高｜血量歸零先掉隊員</div>
-
-  <div id="pick">
-    <div class="pickCard">
-      <div class="pickTitle">選 1 個強化</div>
-      <div id="pickGrid" class="pickGrid"></div>
-    </div>
-  </div>
+  <div id="hint">按住拖曳移動｜放開自動下彈｜連鎖爆炸清怪</div>
 
   <div id="gameOver">
     <div class="goCard">
-      <div class="goTitle">你倒下了</div>
+      <div class="goTitle">被炸翻了</div>
       <div id="goStats" style="opacity:.9;line-height:1.6"></div>
       <button id="restart" class="goBtn">再來一局</button>
     </div>
@@ -150,584 +111,408 @@
 
 <script>
 (() => {
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const hpEl = document.getElementById('hp');
-  const squadEl = document.getElementById('squad');
-  const shardEl = document.getElementById('shard');
-  const killsEl = document.getElementById('kills');
-  const timerEl = document.getElementById('timer');
-  const nextLvEl = document.getElementById('nextLv');
-  const hintEl = document.getElementById('hint');
-  const pickEl = document.getElementById('pick');
-  const pickGridEl = document.getElementById('pickGrid');
-  const gameOverEl = document.getElementById('gameOver');
-  const goStatsEl = document.getElementById('goStats');
-  const restartBtn = document.getElementById('restart');
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const hpEl = document.getElementById("hp");
+  const squadEl = document.getElementById("squad");
+  const shardEl = document.getElementById("shard");
+  const killsEl = document.getElementById("kills");
+  const timerEl = document.getElementById("timer");
+  const nextLvEl = document.getElementById("nextLv");
+  const hintEl = document.getElementById("hint");
+  const gameOverEl = document.getElementById("gameOver");
+  const goStatsEl = document.getElementById("goStats");
+  const restartBtn = document.getElementById("restart");
 
-  const world = { w: 2200, h: 2200 };
+  const COLS = 15;
+  const ROWS = 13;
+  const CELL = 56;
+  const WORLD_W = COLS * CELL;
+  const WORLD_H = ROWS * CELL;
+  const BOMB_DELAY = 1.7;
+  const FLAME_LIFE = 0.34;
+
+  let W = 0;
+  let H = 0;
+  let DPR = 1;
+
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  let W = 0, H = 0, DPR = 1;
   function resize() {
     DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
     W = window.innerWidth;
     H = window.innerHeight;
     canvas.width = Math.floor(W * DPR);
     canvas.height = Math.floor(H * DPR);
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
-  window.addEventListener('resize', resize);
+  window.addEventListener("resize", resize);
   resize();
 
-  const JOY = { maxR: 56, dead: 0.14 };
   const input = {
-    joy: {
-      active: false,
-      id: null,
-      cx: 0,
-      cy: 0,
-      dx: 0,
-      dy: 0,
-      nx: 0,
-      ny: 0,
-      mag: 0
-    },
+    pointerActive: false,
+    pointerId: null,
+    sx: 0,
+    sy: 0,
+    mx: 0,
+    my: 0,
+    vx: 0,
+    vy: 0,
+    mag: 0,
     keys: new Set()
   };
 
-  function resetJoy() {
-    input.joy.active = false;
-    input.joy.id = null;
-    input.joy.dx = 0;
-    input.joy.dy = 0;
-    input.joy.nx = 0;
-    input.joy.ny = 0;
-    input.joy.mag = 0;
-  }
-
-  function updateJoyFromPoint(clientX, clientY) {
-    const j = input.joy;
-    let dx = clientX - j.cx;
-    let dy = clientY - j.cy;
-    const len = Math.hypot(dx, dy) || 1;
-    const clamped = Math.min(JOY.maxR, len);
-    dx = dx / len * clamped;
-    dy = dy / len * clamped;
-    j.dx = dx;
-    j.dy = dy;
-    j.nx = dx / JOY.maxR;
-    j.ny = dy / JOY.maxR;
-    j.mag = clamped / JOY.maxR;
-  }
-
-  canvas.addEventListener('pointerdown', (e) => {
-    if (state.pausePick || state.gameOver) return;
-    const inControlArea = e.clientX <= W * 0.78 && e.clientY >= H * 0.22;
-    if (!inControlArea) return;
-    const j = input.joy;
-    j.active = true;
-    j.id = e.pointerId;
-    j.cx = clamp(e.clientX, 62, W * 0.72);
-    j.cy = clamp(e.clientY, H * 0.38, H - 62);
-    updateJoyFromPoint(e.clientX, e.clientY);
-  });
-
-  canvas.addEventListener('pointermove', (e) => {
-    const j = input.joy;
-    if (!j.active) return;
-    if (j.id !== null && j.id !== e.pointerId) return;
-    updateJoyFromPoint(e.clientX, e.clientY);
-  });
-
-  function stopPointer(e) {
-    const j = input.joy;
-    if (!j.active) return;
-    if (j.id !== null && j.id !== e.pointerId) return;
-    resetJoy();
-  }
-  canvas.addEventListener('pointerup', stopPointer);
-  canvas.addEventListener('pointercancel', stopPointer);
-
-
-  window.addEventListener('keydown', (e) => input.keys.add(e.key.toLowerCase()));
-  window.addEventListener('keyup', (e) => input.keys.delete(e.key.toLowerCase()));
-
-  const ROLE_CFG = {
-    blade: {
-      name: '斬擊手', icon: '⚔', color: '#8ef2c3',
-      range: 104, fireGap: 0.96, dmg: 16,
-      bulletR: 0, pierce: 0, speedMul: 1,
-      melee: true, cleaveR: 62
-    },
-    gunner: {
-      name: '射手', icon: '✦', color: '#9bceff',
-      range: 290, fireGap: 0.44, dmg: 7,
-      bulletR: 3, pierce: 1, speedMul: 1.22,
-      melee: false, cleaveR: 0
-    },
-    bomber: {
-      name: '爆破手', icon: '✹', color: '#ffc680',
-      range: 255, fireGap: 1.18, dmg: 24,
-      bulletR: 7, pierce: 1, speedMul: 0.78,
-      melee: false, cleaveR: 0,
-      aoe: 56
+  function makeGrid() {
+    const g = [];
+    for (let y = 0; y < ROWS; y++) {
+      const row = [];
+      for (let x = 0; x < COLS; x++) {
+        let t = "empty";
+        if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) t = "wall";
+        else if (x % 2 === 0 && y % 2 === 0) t = "wall";
+        else if (Math.random() < 0.46) t = "brick";
+        row.push(t);
+      }
+      g.push(row);
     }
-  };
-  const ROLE_KEYS = ['blade', 'gunner', 'bomber'];
-  const MAX_UNIT_LEVEL = 9;
 
-  function getRoleUnit(role) {
-    return state.squad.find((u) => u.role === role) || null;
+    const safe = [
+      [1, 1], [1, 2], [2, 1],
+      [COLS - 2, ROWS - 2], [COLS - 2, ROWS - 3], [COLS - 3, ROWS - 2]
+    ];
+    for (const [x, y] of safe) g[y][x] = "empty";
+    return g;
   }
 
-  function needFragmentsFor(role) {
-    const u = getRoleUnit(role);
-    if (!u) return 3;
-    return Math.min(8, 3 + Math.floor(u.level / 2));
+  function cellCenter(cx, cy) {
+    return { x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2 };
   }
 
+  function worldToCell(x, y) {
+    return { cx: clamp(Math.floor(x / CELL), 0, COLS - 1), cy: clamp(Math.floor(y / CELL), 0, ROWS - 1) };
+  }
 
   function makeState() {
+    const start = cellCenter(1, 1);
     return {
       time: 0,
-      pausePick: false,
       gameOver: false,
-      player: { x: world.w / 2, y: world.h / 2, r: 14, hp: 100, maxHp: 100, speed: 210, hurtCD: 0, openRange: 74, openPower: 20 },
-      squad: [{ role: 'gunner', level: 1, angleBase: 0, fireCD: 0 }],
-      enemies: [],
-      bullets: [],
-      crates: [],
+      player: {
+        x: start.x,
+        y: start.y,
+        r: 14,
+        hp: 3,
+        maxHp: 3,
+        speed: 188,
+        bombStock: 1,
+        bombPower: 2,
+        bombCD: 0,
+        inv: 0
+      },
+      grid: makeGrid(),
+      bombs: [],
+      flames: [],
       drops: [],
+      enemies: [],
       fx: [],
-      spawnEnemyCD: 0,
-      spawnCrateCD: 0,
       kills: 0,
-      fragments: { blade: 0, gunner: 0, bomber: 0 },
-      score: 0,
-      level: 1,
-      nextLevelKills: 20,
-      buffs: { dmg: 1, rate: 0.78, speed: 1, pierce: 0, magnet: 1, move: 1, open: 1 },
-      logCD: 0,
-      logText: '碎片需求會隨等級提高；血量歸零先失去1名隊員'
+      waveTimer: 20,
+      spawnCD: 1.6,
+      score: 0
     };
   }
 
   let state = makeState();
 
-  function addFx(x, y, text, c = '#ffffff') {
+  function addFx(x, y, text, c = "#fff") {
     state.fx.push({ x, y, text, c, life: 0.8 });
   }
 
-  function shardLabel(role) {
-    return ROLE_CFG[role].name + '碎片';
+  function isBombAt(cx, cy) {
+    return state.bombs.some((b) => b.cx === cx && b.cy === cy);
   }
 
-  function grantRoleUpgrade(role) {
-    const cfg = ROLE_CFG[role];
-    let unit = getRoleUnit(role);
-    if (!unit) {
-      if (state.squad.length >= 5) {
-        state.score += 22;
-        addFx(state.player.x, state.player.y - 30, '+22', '#ffd27b');
-        return;
+  function canPassCell(cx, cy) {
+    if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return false;
+    if (state.grid[cy][cx] === "wall" || state.grid[cy][cx] === "brick") return false;
+    if (isBombAt(cx, cy)) return false;
+    return true;
+  }
+
+  function tryMove(entity, nx, ny, dt) {
+    const r = entity.r;
+    const px = entity.x;
+    const py = entity.y;
+
+    const tx = clamp(nx, r + 2, WORLD_W - r - 2);
+    const ty = clamp(ny, r + 2, WORLD_H - r - 2);
+
+    function blocked(x, y) {
+      const minCx = Math.floor((x - r) / CELL);
+      const maxCx = Math.floor((x + r) / CELL);
+      const minCy = Math.floor((y - r) / CELL);
+      const maxCy = Math.floor((y + r) / CELL);
+      for (let cy = minCy; cy <= maxCy; cy++) {
+        for (let cx = minCx; cx <= maxCx; cx++) {
+          if (!canPassCell(cx, cy)) return true;
+        }
       }
-      unit = { role, level: 1, angleBase: Math.random() * Math.PI * 2, fireCD: 0 };
-      state.squad.push(unit);
-      addFx(state.player.x, state.player.y - 28, cfg.icon + ' ' + cfg.name + '入隊', cfg.color);
-      return;
+      return false;
     }
 
-    if (unit.level >= MAX_UNIT_LEVEL) {
-      state.buffs.dmg *= 1.03;
-      addFx(state.player.x, state.player.y - 28, cfg.icon + ' 滿級轉火力+', cfg.color);
-      return;
-    }
+    const sx = blocked(tx, py) ? px : tx;
+    const sy = blocked(sx, ty) ? py : ty;
 
-    unit.level += 1;
-    addFx(state.player.x, state.player.y - 28, cfg.icon + ' ' + cfg.name + ' Lv' + unit.level, cfg.color);
+    entity.x = sx;
+    entity.y = sy;
+
+    if (dt > 0 && Math.abs(entity.x - px) + Math.abs(entity.y - py) < 0.001) {
+      entity.x += rand(-0.1, 0.1);
+      entity.y += rand(-0.1, 0.1);
+    }
   }
 
+  function placeBombFromPlayer() {
+    const p = state.player;
+    if (p.bombStock <= 0 || p.bombCD > 0) return;
+    const { cx, cy } = worldToCell(p.x, p.y);
+    if (isBombAt(cx, cy)) return;
+    if (state.grid[cy][cx] !== "empty") return;
 
-
-  function spawnEnemy(elite = false) {
-    const side = Math.floor(Math.random() * 4);
-    const pad = 80;
-    const cam = state.player;
-    let x = cam.x, y = cam.y;
-    if (side === 0) { x = cam.x - W / 2 - pad; y = cam.y + rand(-H / 2, H / 2); }
-    if (side === 1) { x = cam.x + W / 2 + pad; y = cam.y + rand(-H / 2, H / 2); }
-    if (side === 2) { y = cam.y - H / 2 - pad; x = cam.x + rand(-W / 2, W / 2); }
-    if (side === 3) { y = cam.y + H / 2 + pad; x = cam.x + rand(-W / 2, W / 2); }
-
-    const t = elite ? 1 : Math.random();
-    let hp = 16 + state.time * 0.22;
-    let spd = 55 + Math.min(85, state.time * 0.14);
-    let r = 10;
-    let color = '#ff6f7f';
-    let kind = 'grunt';
-    let icon = '●';
-
-    if (t > 0.86) {
-      hp *= 2.8;
-      spd *= 0.78;
-      r = 15;
-      color = '#ffad5e';
-      kind = 'tank';
-      icon = '🛡';
-    } else if (t < 0.26) {
-      hp *= 0.75;
-      spd *= 1.28;
-      r = 8;
-      color = '#ff7be1';
-      kind = 'runner';
-      icon = '⚡';
-    }
-
-    if (elite) {
-      hp *= 3.2;
-      r += 4;
-      color = '#c88dff';
-      kind = 'elite';
-      icon = '☠';
-    }
-
-    state.enemies.push({ x, y, r, hp, maxHp: hp, spd, color, kind, icon, hitCD: 0 });
+    p.bombStock -= 1;
+    p.bombCD = 0.18;
+    state.bombs.push({ cx, cy, timer: BOMB_DELAY, power: p.bombPower, owner: "player" });
+    addFx(p.x, p.y - 16, "下彈", "#9bceff");
   }
 
+  function explodeBomb(index) {
+    const bomb = state.bombs[index];
+    if (!bomb) return;
+    state.bombs.splice(index, 1);
+    if (bomb.owner === "player") {
+      state.player.bombStock = Math.min(8, state.player.bombStock + 1);
+    }
 
-  function spawnCrate() {
-    if (state.crates.length >= 8) return;
-    const d = rand(240, 520);
-    const a = rand(0, Math.PI * 2);
-    const x = clamp(state.player.x + Math.cos(a) * d, 80, world.w - 80);
-    const y = clamp(state.player.y + Math.sin(a) * d, 80, world.h - 80);
-    const hp = 36 + state.time * 0.25;
-    state.crates.push({ x, y, r: 17, hp, maxHp: hp });
-  }
+    const cells = [{ cx: bomb.cx, cy: bomb.cy }];
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
 
+    for (const [dx, dy] of dirs) {
+      for (let step = 1; step <= bomb.power; step++) {
+        const cx = bomb.cx + dx * step;
+        const cy = bomb.cy + dy * step;
+        if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) break;
 
-  function nearestEnemy(x, y, range) {
-    let best = null;
-    let bestD2 = range * range;
-    for (const e of state.enemies) {
-      const dx = e.x - x;
-      const dy = e.y - y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bestD2) {
-        best = e;
-        bestD2 = d2;
+        const tile = state.grid[cy][cx];
+        if (tile === "wall") break;
+
+        cells.push({ cx, cy });
+
+        if (tile === "brick") {
+          state.grid[cy][cx] = "empty";
+          if (Math.random() < 0.36) {
+            const dropType = Math.random();
+            const kind = dropType < 0.4 ? "power" : (dropType < 0.72 ? "bomb" : (dropType < 0.9 ? "speed" : "heal"));
+            const c = cellCenter(cx, cy);
+            state.drops.push({ x: c.x, y: c.y, kind, r: 10 });
+          }
+          break;
+        }
       }
     }
-    return best;
-  }
 
-  function nearestCrate(x, y, range) {
-    let best = null;
-    let bestD2 = range * range;
-    for (const c of state.crates) {
-      const dx = c.x - x;
-      const dy = c.y - y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bestD2) {
-        best = c;
-        bestD2 = d2;
+    for (const c of cells) {
+      state.flames.push({ cx: c.cx, cy: c.cy, life: FLAME_LIFE });
+      const chainIdx = state.bombs.findIndex((b) => b.cx === c.cx && b.cy === c.cy);
+      if (chainIdx >= 0) {
+        state.bombs[chainIdx].timer = Math.min(0.02, state.bombs[chainIdx].timer);
       }
     }
-    return best;
+
+    const epic = cells.length >= 8 ? "連鎖" : "爆";
+    const center = cellCenter(bomb.cx, bomb.cy);
+    addFx(center.x, center.y - 10, epic, "#ffc680");
   }
 
-
-  function shoot(fromX, fromY, tx, ty, spec) {
-    const dx = tx - fromX;
-    const dy = ty - fromY;
-    const len = Math.hypot(dx, dy) || 1;
-    const speed = 470 * (spec.speedMul || 1);
-    state.bullets.push({
-      x: fromX,
-      y: fromY,
-      vx: dx / len * speed,
-      vy: dy / len * speed,
-      r: spec.r,
-      color: spec.color,
-      icon: spec.icon,
-      role: spec.role,
-      dmg: spec.dmg,
-      pierce: spec.pierce,
-      aoe: spec.aoe || 0,
-      life: 1.1
-    });
+  function flameHits(cx, cy) {
+    return state.flames.some((f) => f.cx === cx && f.cy === cy);
   }
 
-  function killEnemyAt(index, e) {
-    state.kills++;
-    state.score += 1;
-    if (Math.random() < 0.45) {
-      state.drops.push({ x: e.x + rand(-8, 8), y: e.y + rand(-8, 8), t: 'score', v: 1, r: 6, color: '#ffe078', icon: '✶' });
-    }
-    addFx(e.x, e.y - 16, '+1', '#ffd27b');
-    state.enemies.splice(index, 1);
+  function spawnEnemy() {
+    const spots = [
+      { cx: COLS - 2, cy: ROWS - 2 },
+      { cx: COLS - 2, cy: 1 },
+      { cx: 1, cy: ROWS - 2 }
+    ];
+
+    const spawn = spots[Math.floor(Math.random() * spots.length)];
+    const tile = state.grid[spawn.cy][spawn.cx];
+    if (tile !== "empty" || isBombAt(spawn.cx, spawn.cy)) return;
+
+    const c = cellCenter(spawn.cx, spawn.cy);
+    const typeR = Math.random();
+    let type = "chaser";
+    if (typeR < 0.28) type = "runner";
+    else if (typeR > 0.82) type = "tank";
+
+    const stat = {
+      runner: { speed: 116, hp: 1, color: "#ff7be1", icon: "⚡" },
+      chaser: { speed: 92, hp: 2, color: "#ff6f7f", icon: "●" },
+      tank: { speed: 68, hp: 4, color: "#ffad5e", icon: "🛡" }
+    }[type];
+
+    state.enemies.push({ x: c.x, y: c.y, r: 13, hp: stat.hp, maxHp: stat.hp, speed: stat.speed, type, color: stat.color, icon: stat.icon, thinkCD: 0, dirX: 0, dirY: 0 });
   }
-
-  function splashDamage(x, y, radius, dmg) {
-    const r2 = radius * radius;
-    for (let j = state.enemies.length - 1; j >= 0; j--) {
-      const e = state.enemies[j];
-      const dx = e.x - x;
-      const dy = e.y - y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 > r2) continue;
-      const ratio = 1 - Math.sqrt(d2) / radius;
-      const dealt = dmg * (0.42 + ratio * 0.58);
-      e.hp -= dealt;
-      if (e.hp <= 0) killEnemyAt(j, e);
-    }
-    addFx(x, y - 10, '爆', '#ffc680');
-  }
-
-
 
   function updatePlayer(dt) {
     const p = state.player;
-    let vx = 0, vy = 0;
+    p.bombCD = Math.max(0, p.bombCD - dt);
+    p.inv = Math.max(0, p.inv - dt);
 
-    if (input.joy.active && input.joy.mag > JOY.dead) {
-      const power = (input.joy.mag - JOY.dead) / (1 - JOY.dead);
-      vx += input.joy.nx * power;
-      vy += input.joy.ny * power;
+    let vx = 0;
+    let vy = 0;
+
+    if (input.pointerActive) {
+      const len = Math.hypot(input.vx, input.vy) || 1;
+      vx += input.vx / len * input.mag;
+      vy += input.vy / len * input.mag;
     }
 
-    if (input.keys.has('w') || input.keys.has('arrowup')) vy -= 1;
-    if (input.keys.has('s') || input.keys.has('arrowdown')) vy += 1;
-    if (input.keys.has('a') || input.keys.has('arrowleft')) vx -= 1;
-    if (input.keys.has('d') || input.keys.has('arrowright')) vx += 1;
+    if (input.keys.has("w") || input.keys.has("arrowup")) vy -= 1;
+    if (input.keys.has("s") || input.keys.has("arrowdown")) vy += 1;
+    if (input.keys.has("a") || input.keys.has("arrowleft")) vx -= 1;
+    if (input.keys.has("d") || input.keys.has("arrowright")) vx += 1;
 
     const len = Math.hypot(vx, vy) || 1;
-    const spd = p.speed * state.buffs.move;
     if (Math.hypot(vx, vy) > 0.01) {
-      p.x += vx / len * spd * dt;
-      p.y += vy / len * spd * dt;
-    }
-
-    p.x = clamp(p.x, p.r, world.w - p.r);
-    p.y = clamp(p.y, p.r, world.h - p.r);
-    p.hurtCD = Math.max(0, p.hurtCD - dt);
-  }
-
-
-  function updateCrateOpening(dt) {
-    const p = state.player;
-    const c = nearestCrate(p.x, p.y, p.openRange);
-    if (!c) return;
-    const dmg = p.openPower * state.buffs.open * dt;
-    c.hp -= dmg;
-    if (Math.random() < 0.22) addFx(c.x, c.y - 16, '開箱', '#9bceff');
-    if (c.hp <= 0) {
-      const reward = 1 + (Math.random() < 0.38 ? 1 : 0);
-      for (let k = 0; k < reward; k++) {
-
-        const role = ROLE_KEYS[Math.floor(Math.random() * ROLE_KEYS.length)];
-        const cfg = ROLE_CFG[role];
-        state.drops.push({ x: c.x + rand(-12, 12), y: c.y + rand(-12, 12), t: 'frag', role, v: 1, r: 9, color: cfg.color, icon: cfg.icon });
-      }
-      addFx(c.x, c.y - 18, '寶箱打開+' + reward, '#8ef2c3');
-      const idx = state.crates.indexOf(c);
-      if (idx >= 0) state.crates.splice(idx, 1);
+      tryMove(p, p.x + vx / len * p.speed * dt, p.y + vy / len * p.speed * dt, dt);
     }
   }
 
-  function updateSquad(dt) {
-    const p = state.player;
-    const n = state.squad.length;
-    const baseR = 44 + n * 2;
-
-    for (let i = 0; i < n; i++) {
-      const u = state.squad[i];
-      const cfg = ROLE_CFG[u.role];
-      const ang = state.time * (0.86 + i * 0.07) + u.angleBase + i * (Math.PI * 2 / n);
-      const ux = p.x + Math.cos(ang) * baseR;
-      const uy = p.y + Math.sin(ang) * baseR;
-      u.x = ux;
-      u.y = uy;
-
-      u.fireCD -= dt;
-      if (u.fireCD <= 0) {
-        const range = cfg.range + u.level * 16;
-        const target = nearestEnemy(ux, uy, range);
-        if (target) {
-          const lvMul = 1 + (u.level - 1) * 0.46;
-          const scaledDmg = (cfg.dmg + state.time * 0.03) * state.buffs.dmg * lvMul;
-
-          if (cfg.melee) {
-            const hitR = cfg.cleaveR + u.level * 4;
-            const r2 = hitR * hitR;
-            for (let j = state.enemies.length - 1; j >= 0; j--) {
-              const e = state.enemies[j];
-              const dx = e.x - ux;
-              const dy = e.y - uy;
-              if (dx * dx + dy * dy > r2) continue;
-              e.hp -= scaledDmg;
-              if (e.hp <= 0) killEnemyAt(j, e);
-            }
-            addFx(ux, uy - 8, '斬', cfg.color);
-          } else {
-            shoot(ux, uy, target.x, target.y, {
-              role: u.role,
-              r: cfg.bulletR + Math.min(2, u.level - 1),
-              color: cfg.color,
-              icon: cfg.icon,
-              dmg: scaledDmg,
-              pierce: cfg.pierce + state.buffs.pierce,
-              speedMul: cfg.speedMul,
-              aoe: cfg.aoe || 0
-            });
-          }
-
-          const growth = 1 - (u.level - 1) * 0.14;
-          const fireBase = (cfg.fireGap / state.buffs.rate) * Math.max(0.42, growth);
-          u.fireCD = Math.max(0.16, fireBase + rand(-0.04, 0.04));
-        }
-      }
+  function updateBombs(dt) {
+    for (let i = state.bombs.length - 1; i >= 0; i--) {
+      const b = state.bombs[i];
+      b.timer -= dt;
+      if (b.timer <= 0) explodeBomb(i);
     }
   }
 
-
+  function updateFlames(dt) {
+    for (let i = state.flames.length - 1; i >= 0; i--) {
+      state.flames[i].life -= dt;
+      if (state.flames[i].life <= 0) state.flames.splice(i, 1);
+    }
+  }
 
   function updateEnemies(dt) {
     const p = state.player;
-    for (const e of state.enemies) {
-      const dx = p.x - e.x;
-      const dy = p.y - e.y;
-      const len = Math.hypot(dx, dy) || 1;
-      e.x += dx / len * e.spd * dt;
-      e.y += dy / len * e.spd * dt;
-      e.hitCD = Math.max(0, e.hitCD - dt);
 
-      const touch = e.r + p.r;
-      if (len < touch && p.hurtCD <= 0 && e.hitCD <= 0) {
-        const dmg = 5 + state.time * 0.015;
-        p.hp -= dmg;
-        p.hurtCD = 0.35;
-        e.hitCD = 0.45;
-        addFx(p.x, p.y - 20, '-' + Math.round(dmg), '#ffb0b0');
-      }
-    }
-  }
+    for (let i = state.enemies.length - 1; i >= 0; i--) {
+      const e = state.enemies[i];
+      const ec = worldToCell(e.x, e.y);
 
-  function updateBullets(dt) {
-    for (let i = state.bullets.length - 1; i >= 0; i--) {
-      const b = state.bullets[i];
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-      b.life -= dt;
-      if (b.life <= 0 || b.x < -40 || b.y < -40 || b.x > world.w + 40 || b.y > world.h + 40) {
-        state.bullets.splice(i, 1);
-        continue;
+      if (flameHits(ec.cx, ec.cy)) {
+        e.hp -= 3;
+        if (e.hp <= 0) {
+          state.kills += 1;
+          state.score += 4;
+          addFx(e.x, e.y - 12, "+1", "#ffd27b");
+          state.enemies.splice(i, 1);
+          continue;
+        }
       }
 
-      for (let j = state.enemies.length - 1; j >= 0 && b.pierce > 0; j--) {
-        const e = state.enemies[j];
-        const dx = b.x - e.x;
-        const dy = b.y - e.y;
-        const hit = b.r + e.r;
-        if (dx * dx + dy * dy <= hit * hit) {
-          e.hp -= b.dmg;
-          b.pierce--;
-          if (b.aoe > 0) splashDamage(b.x, b.y, b.aoe, b.dmg * 0.75);
-          if (e.hp <= 0) killEnemyAt(j, e);
+      e.thinkCD -= dt;
+      if (e.thinkCD <= 0) {
+        const dx = p.x - e.x;
+        const dy = p.y - e.y;
+        const chase = Math.random() < 0.76;
+        if (chase) {
+          const len = Math.hypot(dx, dy) || 1;
+          e.dirX = dx / len;
+          e.dirY = dy / len;
+        } else {
+          const r = Math.floor(Math.random() * 4);
+          if (r === 0) { e.dirX = 1; e.dirY = 0; }
+          if (r === 1) { e.dirX = -1; e.dirY = 0; }
+          if (r === 2) { e.dirX = 0; e.dirY = 1; }
+          if (r === 3) { e.dirX = 0; e.dirY = -1; }
+        }
+        e.thinkCD = rand(0.16, 0.34);
+      }
+
+      const nx = e.x + e.dirX * e.speed * dt;
+      const ny = e.y + e.dirY * e.speed * dt;
+      const ox = e.x;
+      const oy = e.y;
+      tryMove(e, nx, ny, dt);
+
+      if (Math.abs(e.x - ox) + Math.abs(e.y - oy) < 0.01) {
+        e.thinkCD = 0;
+      }
+
+      const dist = Math.hypot(p.x - e.x, p.y - e.y);
+      if (dist < p.r + e.r - 2 && p.inv <= 0) {
+        p.hp -= 1;
+        p.inv = 1.2;
+        addFx(p.x, p.y - 18, "-1", "#ffb0b0");
+        if (p.hp <= 0) {
+          state.gameOver = true;
+          return;
         }
       }
     }
   }
 
-
-
   function updateDrops(dt) {
     const p = state.player;
-    const magnet = 88 * state.buffs.magnet;
-    const m2 = magnet * magnet;
-
     for (let i = state.drops.length - 1; i >= 0; i--) {
       const d = state.drops[i];
       const dx = p.x - d.x;
       const dy = p.y - d.y;
       const d2 = dx * dx + dy * dy;
-      if (d2 < m2) {
+      if (d2 < 92 * 92) {
         const len = Math.hypot(dx, dy) || 1;
-        const pull = 220;
-        d.x += dx / len * pull * dt;
-        d.y += dy / len * pull * dt;
+        d.x += dx / len * 240 * dt;
+        d.y += dy / len * 240 * dt;
       }
-      if (d2 < (p.r + d.r + 8) * (p.r + d.r + 8)) {
-        if (d.t === 'frag') {
-          state.fragments[d.role] += d.v;
-          const cfg = ROLE_CFG[d.role];
-          addFx(p.x, p.y - 18, cfg.icon + ' +' + d.v, cfg.color);
-        } else {
-          state.score += d.v;
+      if (d2 < (p.r + d.r + 6) * (p.r + d.r + 6)) {
+        if (d.kind === "power") {
+          p.bombPower = Math.min(7, p.bombPower + 1);
+          addFx(p.x, p.y - 20, "爆風+1", "#ffc680");
+        } else if (d.kind === "bomb") {
+          p.bombStock = Math.min(8, p.bombStock + 1);
+          addFx(p.x, p.y - 20, "炸彈+1", "#9bceff");
+        } else if (d.kind === "speed") {
+          p.speed = Math.min(280, p.speed + 12);
+          addFx(p.x, p.y - 20, "移速+", "#8ef2c3");
+        } else if (d.kind === "heal") {
+          p.hp = Math.min(p.maxHp, p.hp + 1);
+          addFx(p.x, p.y - 20, "HP+1", "#8ef2c3");
         }
         state.drops.splice(i, 1);
       }
     }
-
-    for (const role of ROLE_KEYS) {
-      let need = needFragmentsFor(role);
-      while (state.fragments[role] >= need) {
-        state.fragments[role] -= need;
-        grantRoleUpgrade(role);
-        need = needFragmentsFor(role);
-      }
-    }
   }
 
+  function updateWave(dt) {
+    state.waveTimer -= dt;
+    state.spawnCD -= dt;
 
-
-  function maybeLevelUp() {
-    if (state.kills < state.nextLevelKills || state.pausePick) return;
-    state.level++;
-    state.nextLevelKills += Math.floor(18 + state.level * 7.5);
-    openPick();
-  }
-
-  const allBuffs = [
-    { key: 'dmg', name: '火力強化', desc: '隊員輸出 +25%', apply: () => state.buffs.dmg *= 1.25 },
-    { key: 'rate', name: '急速射擊', desc: '隊員射速 +35%', apply: () => state.buffs.rate *= 1.35 },
-    { key: 'move', name: '疾走', desc: '移動速度 +12%', apply: () => state.buffs.move *= 1.12 },
-    { key: 'open', name: '拆箱專精', desc: '主角開箱效率 +28%', apply: () => state.buffs.open *= 1.28 },
-    { key: 'pierce', name: '穿透彈', desc: '子彈穿透 +1', apply: () => state.buffs.pierce += 1 },
-    { key: 'magnet', name: '磁吸', desc: '撿取範圍 +20%', apply: () => state.buffs.magnet *= 1.2 },
-    { key: 'heal', name: '急救', desc: '立即回復 18 HP', apply: () => { state.player.hp = Math.min(state.player.maxHp, state.player.hp + 18); } },
-  ];
-
-  function pickRandomBuffs(n) {
-    const arr = [...allBuffs];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+    const activeCap = 4 + Math.floor(state.time / 26);
+    if (state.spawnCD <= 0 && state.enemies.length < activeCap) {
+      spawnEnemy();
+      if (Math.random() < Math.min(0.42, state.time / 180)) spawnEnemy();
+      state.spawnCD = Math.max(0.36, 1.2 - state.time * 0.0042);
     }
-    return arr.slice(0, n);
-  }
 
-  function openPick() {
-    state.pausePick = true;
-    const opts = pickRandomBuffs(3);
-    pickGridEl.innerHTML = '';
-    for (const o of opts) {
-      const b = document.createElement('button');
-      b.className = 'optBtn';
-      b.innerHTML = `<b>${o.name}</b><br><span style="opacity:.86">${o.desc}</span>`;
-      b.addEventListener('click', () => {
-        o.apply();
-        addFx(state.player.x, state.player.y - 30, o.name, '#9bceff');
-        state.pausePick = false;
-        pickEl.style.display = 'none';
-      });
-      pickGridEl.appendChild(b);
+    if (state.waveTimer <= 0) {
+      state.waveTimer = Math.max(9, 20 - state.time * 0.05);
+      for (let i = 0; i < 2 + Math.floor(state.time / 55); i++) spawnEnemy();
+      addFx(state.player.x, state.player.y - 26, "怪潮來了", "#ffb0b0");
     }
-    pickEl.style.display = 'flex';
   }
 
   function updateFx(dt) {
@@ -737,235 +522,243 @@
     }
   }
 
-  function drawGrid(camX, camY) {
-    const step = 64;
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
+  function drawMap(camX, camY) {
+    const startX = Math.floor((camX - W / 2) / CELL) - 1;
+    const endX = Math.floor((camX + W / 2) / CELL) + 1;
+    const startY = Math.floor((camY - H / 2) / CELL) - 1;
+    const endY = Math.floor((camY + H / 2) / CELL) + 1;
 
-    const startX = -((camX - W / 2) % step);
-    const startY = -((camY - H / 2) % step);
+    for (let cy = startY; cy <= endY; cy++) {
+      if (cy < 0 || cy >= ROWS) continue;
+      for (let cx = startX; cx <= endX; cx++) {
+        if (cx < 0 || cx >= COLS) continue;
+        const sx = cx * CELL - camX + W / 2;
+        const sy = cy * CELL - camY + H / 2;
+        const tile = state.grid[cy][cx];
 
-    for (let x = startX; x < W; x += step) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-      ctx.stroke();
+        ctx.fillStyle = ((cx + cy) % 2 === 0) ? "#1a2744" : "#14203a";
+        ctx.fillRect(sx, sy, CELL, CELL);
+
+        if (tile === "wall") {
+          ctx.fillStyle = "#4c5b79";
+          ctx.fillRect(sx + 3, sy + 3, CELL - 6, CELL - 6);
+          ctx.fillStyle = "rgba(255,255,255,0.16)";
+          ctx.fillRect(sx + 8, sy + 8, CELL - 16, 6);
+        } else if (tile === "brick") {
+          ctx.fillStyle = "#7b583d";
+          ctx.fillRect(sx + 4, sy + 4, CELL - 8, CELL - 8);
+          ctx.fillStyle = "#b48a65";
+          ctx.fillRect(sx + 8, sy + 10, CELL - 16, 5);
+        }
+      }
     }
-    for (let y = startY; y < H; y += step) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
-  }
-
-  function drawCircle(x, y, r, color) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   function drawJoystick() {
-    const j = input.joy;
-    if (!j.active) return;
-    ctx.save();
-    ctx.globalAlpha = 0.95;
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    if (!input.pointerActive) return;
+    const maxR = 54;
+    const kx = input.sx + input.vx;
+    const ky = input.sy + input.vy;
+
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(j.cx, j.cy, JOY.maxR, 0, Math.PI * 2);
+    ctx.arc(input.sx, input.sy, maxR, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    const knobR = 24;
-    ctx.fillStyle = 'rgba(185, 224, 255, 0.32)';
-    ctx.strokeStyle = 'rgba(185, 224, 255, 0.85)';
+    ctx.fillStyle = "rgba(185, 224, 255, 0.32)";
+    ctx.strokeStyle = "rgba(185, 224, 255, 0.85)";
     ctx.beginPath();
-    ctx.arc(j.cx + j.dx, j.cy + j.dy, knobR, 0, Math.PI * 2);
+    ctx.arc(kx, ky, 22, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.restore();
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    const camX = state.player.x;
-    const camY = state.player.y;
+
+    const camX = clamp(state.player.x, W / 2, WORLD_W - W / 2);
+    const camY = clamp(state.player.y, H / 2, WORLD_H - H / 2);
     const toScreenX = (x) => x - camX + W / 2;
     const toScreenY = (y) => y - camY + H / 2;
 
-    drawGrid(camX, camY);
-
-    for (const c of state.crates) {
-      const sx = toScreenX(c.x);
-      const sy = toScreenY(c.y);
-      ctx.fillStyle = '#6a5b42';
-      ctx.fillRect(sx - c.r, sy - c.r, c.r * 2, c.r * 2);
-      ctx.strokeStyle = '#b99768';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(sx - c.r, sy - c.r, c.r * 2, c.r * 2);
-      ctx.fillStyle = '#ffe5b0';
-      ctx.font = 'bold 13px -apple-system,Segoe UI,Roboto';
-      ctx.textAlign = 'center';
-      ctx.fillText('📦', sx, sy + 4);
-      const hpw = (c.hp / c.maxHp) * c.r * 2;
-      ctx.fillStyle = '#ffd58a';
-      ctx.fillRect(sx - c.r, sy - c.r - 7, Math.max(0, hpw), 3);
-    }
-
+    drawMap(camX, camY);
 
     for (const d of state.drops) {
       const sx = toScreenX(d.x);
       const sy = toScreenY(d.y);
-      drawCircle(sx, sy, d.r, d.color || '#ffe078');
-      ctx.fillStyle = '#0b1220';
-      ctx.font = 'bold 11px -apple-system,Segoe UI,Roboto';
-      ctx.textAlign = 'center';
-      ctx.fillText(d.icon || '•', sx, sy + 4);
+      let color = "#ffe078";
+      let icon = "◆";
+      if (d.kind === "power") { color = "#ffc680"; icon = "✸"; }
+      if (d.kind === "bomb") { color = "#9bceff"; icon = "✦"; }
+      if (d.kind === "speed") { color = "#8ef2c3"; icon = "➤"; }
+      if (d.kind === "heal") { color = "#9df7a7"; icon = "✚"; }
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, d.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#0d1527";
+      ctx.font = "bold 11px -apple-system,Segoe UI,Roboto";
+      ctx.textAlign = "center";
+      ctx.fillText(icon, sx, sy + 4);
     }
 
-
-    for (const b of state.bullets) {
-      const sx = toScreenX(b.x);
-      const sy = toScreenY(b.y);
-      drawCircle(sx, sy, b.r, b.color || '#fff39b');
-      ctx.fillStyle = 'rgba(10,16,26,0.6)';
-      ctx.font = 'bold 10px -apple-system,Segoe UI,Roboto';
-      ctx.textAlign = 'center';
-      ctx.fillText(b.icon || '•', sx, sy + 3);
+    for (const b of state.bombs) {
+      const c = cellCenter(b.cx, b.cy);
+      const sx = toScreenX(c.x);
+      const sy = toScreenY(c.y);
+      ctx.fillStyle = "#0f1729";
+      ctx.beginPath();
+      ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#d9e5ff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#ffcc77";
+      ctx.font = "bold 10px -apple-system,Segoe UI,Roboto";
+      ctx.textAlign = "center";
+      ctx.fillText((Math.max(0, b.timer)).toFixed(1), sx, sy + 3);
     }
 
+    for (const f of state.flames) {
+      const x = f.cx * CELL - camX + W / 2;
+      const y = f.cy * CELL - camY + H / 2;
+      const alpha = clamp(f.life / FLAME_LIFE, 0, 1);
+      ctx.fillStyle = `rgba(255, 184, 88, ${0.22 + alpha * 0.55})`;
+      ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+      ctx.fillStyle = `rgba(255, 235, 177, ${0.28 + alpha * 0.55})`;
+      ctx.fillRect(x + 10, y + 10, CELL - 20, CELL - 20);
+    }
 
     for (const e of state.enemies) {
       const sx = toScreenX(e.x);
       const sy = toScreenY(e.y);
-      drawCircle(sx, sy, e.r, e.color);
-      ctx.fillStyle = '#fff1f6';
-      ctx.font = 'bold 12px -apple-system,Segoe UI,Roboto';
-      ctx.textAlign = 'center';
-      ctx.fillText(e.icon || '●', sx, sy + 4);
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillStyle = e.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, e.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#fff1f6";
+      ctx.font = "bold 12px -apple-system,Segoe UI,Roboto";
+      ctx.textAlign = "center";
+      ctx.fillText(e.icon, sx, sy + 4);
+
+      ctx.fillStyle = "rgba(0,0,0,0.36)";
       ctx.fillRect(sx - e.r, sy - e.r - 6, e.r * 2, 3);
-      ctx.fillStyle = '#ffd1d1';
+      ctx.fillStyle = "#ffd1d1";
       ctx.fillRect(sx - e.r, sy - e.r - 6, (e.hp / e.maxHp) * e.r * 2, 3);
-    }
-
-
-    for (const u of state.squad) {
-      const cfg = ROLE_CFG[u.role];
-      const sx = toScreenX(u.x);
-      const sy = toScreenY(u.y);
-      drawCircle(sx, sy, 8 + Math.min(3, u.level - 1), cfg.color);
-      ctx.fillStyle = '#0c1528';
-      ctx.font = 'bold 11px -apple-system,Segoe UI,Roboto';
-      ctx.textAlign = 'center';
-      ctx.fillText(cfg.icon, sx, sy + 4);
-      ctx.fillStyle = '#e9f1ff';
-      ctx.font = 'bold 9px -apple-system,Segoe UI,Roboto';
-      ctx.fillText('L' + u.level, sx, sy - 10);
     }
 
     const p = state.player;
     const psx = toScreenX(p.x);
     const psy = toScreenY(p.y);
-    drawCircle(psx, psy, p.r, p.hurtCD > 0 ? '#ff9fa8' : '#d7e7ff');
-    ctx.fillStyle = '#1b2946';
-    ctx.font = 'bold 12px -apple-system,Segoe UI,Roboto';
-    ctx.textAlign = 'center';
-    ctx.fillText('🔓', psx, psy + 4);
+    ctx.fillStyle = p.inv > 0 ? "#ff9fa8" : "#d7e7ff";
+    ctx.beginPath();
+    ctx.arc(psx, psy, p.r, 0, Math.PI * 2);
+    ctx.fill();
 
-    const opening = nearestCrate(state.player.x, state.player.y, state.player.openRange);
-    if (opening) {
-      ctx.strokeStyle = 'rgba(140, 210, 255, 0.55)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(psx, psy);
-      ctx.lineTo(toScreenX(opening.x), toScreenY(opening.y));
-      ctx.stroke();
-    }
+    ctx.fillStyle = "#1b2946";
+    ctx.font = "bold 12px -apple-system,Segoe UI,Roboto";
+    ctx.textAlign = "center";
+    ctx.fillText("💣", psx, psy + 4);
 
-    for (const f of state.fx) {
-
-      const sx = toScreenX(f.x);
-      const sy = toScreenY(f.y - (1 - f.life) * 32);
-      ctx.fillStyle = f.c;
-      ctx.globalAlpha = Math.max(0, f.life);
-      ctx.font = 'bold 13px -apple-system,Segoe UI,Roboto';
-      ctx.textAlign = 'center';
-      ctx.fillText(f.text, sx, sy);
+    for (const fx of state.fx) {
+      const sx = toScreenX(fx.x);
+      const sy = toScreenY(fx.y - (1 - fx.life) * 30);
+      ctx.globalAlpha = clamp(fx.life, 0, 1);
+      ctx.fillStyle = fx.c;
+      ctx.font = "bold 13px -apple-system,Segoe UI,Roboto";
+      ctx.textAlign = "center";
+      ctx.fillText(fx.text, sx, sy);
       ctx.globalAlpha = 1;
     }
 
     drawJoystick();
   }
 
-
   function updateHud() {
-    hpEl.textContent = 'HP ' + Math.max(0, Math.round(state.player.hp));
-    hpEl.className = 'chip ' + (state.player.hp > 45 ? 'good' : (state.player.hp > 20 ? 'warn' : 'bad'));
-    const teamPower = state.squad.reduce((s, u) => s + u.level, 0);
-    squadEl.textContent = '隊伍 ' + state.squad.length + '人 / 力量' + teamPower;
-    shardEl.textContent =
-      '碎片 ⚔' + state.fragments.blade + '/' + needFragmentsFor('blade') +
-      ' ✦' + state.fragments.gunner + '/' + needFragmentsFor('gunner') +
-      ' ✹' + state.fragments.bomber + '/' + needFragmentsFor('bomber');
-    killsEl.textContent = '擊殺 ' + state.kills;
+    const p = state.player;
+    hpEl.textContent = "HP " + p.hp;
+    hpEl.className = "chip " + (p.hp >= 3 ? "good" : (p.hp === 2 ? "warn" : "bad"));
+    squadEl.textContent = "炸彈 " + p.bombStock;
+    shardEl.textContent = "爆風 " + p.bombPower;
+    killsEl.textContent = "擊殺 " + state.kills;
+
     const t = Math.floor(state.time);
-    const mm = String(Math.floor(t / 60)).padStart(2, '0');
-    const ss = String(t % 60).padStart(2, '0');
-    timerEl.textContent = mm + ':' + ss;
-    nextLvEl.textContent = Math.max(0, state.nextLevelKills - state.kills);
-  }
-
-
-
-
-
-  function handleDownByLosingMember() {
-    if (state.squad.length <= 1) {
-      showGameOver();
-      return;
-    }
-
-    let removeIdx = 0;
-    let minLv = Infinity;
-    for (let i = 0; i < state.squad.length; i++) {
-      const lv = state.squad[i].level;
-      if (lv < minLv) {
-        minLv = lv;
-        removeIdx = i;
-      }
-    }
-
-    const lost = state.squad.splice(removeIdx, 1)[0];
-    state.player.hp = Math.max(state.player.maxHp * 0.56, 36);
-    state.player.hurtCD = 1.2;
-
-    for (const role of ROLE_KEYS) {
-      if (state.fragments[role] > 0) state.fragments[role] -= 1;
-    }
-
-    const cfg = ROLE_CFG[lost.role];
-    addFx(state.player.x, state.player.y - 24, '失去 ' + cfg.icon + cfg.name, '#ffb0b0');
+    const mm = String(Math.floor(t / 60)).padStart(2, "0");
+    const ss = String(t % 60).padStart(2, "0");
+    timerEl.textContent = mm + ":" + ss;
+    nextLvEl.textContent = String(Math.max(0, Math.floor(state.waveTimer)));
   }
 
   function showGameOver() {
-
     state.gameOver = true;
     goStatsEl.innerHTML =
-      '生存時間：<b>' + timerEl.textContent + '</b><br>' +
-      '擊殺：<b>' + state.kills + '</b><br>' +
-      '最終隊伍：<b>' + state.squad.length + '</b><br>' +
-      '分數：<b>' + state.score + '</b>';
-    gameOverEl.style.display = 'flex';
+      "生存時間：<b>" + timerEl.textContent + "</b><br>" +
+      "擊殺：<b>" + state.kills + "</b><br>" +
+      "炸彈上限：<b>" + state.player.bombStock + "</b><br>" +
+      "爆風：<b>" + state.player.bombPower + "</b><br>" +
+      "分數：<b>" + state.score + "</b>";
+    gameOverEl.style.display = "flex";
   }
 
-  restartBtn.addEventListener('click', () => {
+  function resetPointer() {
+    input.pointerActive = false;
+    input.pointerId = null;
+    input.vx = 0;
+    input.vy = 0;
+    input.mag = 0;
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (state.gameOver) return;
+    input.pointerActive = true;
+    input.pointerId = e.pointerId;
+    input.sx = e.clientX;
+    input.sy = e.clientY;
+    input.mx = e.clientX;
+    input.my = e.clientY;
+    input.vx = 0;
+    input.vy = 0;
+    input.mag = 0;
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!input.pointerActive || input.pointerId !== e.pointerId) return;
+    const dx = e.clientX - input.sx;
+    const dy = e.clientY - input.sy;
+    const len = Math.hypot(dx, dy) || 1;
+    const maxR = 54;
+    const c = Math.min(maxR, len);
+    input.vx = dx / len * c;
+    input.vy = dy / len * c;
+    input.mag = c / maxR;
+  });
+
+  function releasePointer(e) {
+    if (!input.pointerActive || input.pointerId !== e.pointerId) return;
+    placeBombFromPlayer();
+    resetPointer();
+  }
+
+  canvas.addEventListener("pointerup", releasePointer);
+  canvas.addEventListener("pointercancel", releasePointer);
+
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    input.keys.add(k);
+    if (k === " ") placeBombFromPlayer();
+  });
+  window.addEventListener("keyup", (e) => input.keys.delete(e.key.toLowerCase()));
+
+  restartBtn.addEventListener("click", () => {
     state = makeState();
-    gameOverEl.style.display = 'none';
-    pickEl.style.display = 'none';
+    gameOverEl.style.display = "none";
+    hintEl.style.opacity = "1";
+    resetPointer();
   });
 
   let last = performance.now();
@@ -973,40 +766,20 @@
     const dt = Math.min(0.033, (now - last) / 1000);
     last = now;
 
-    if (!state.gameOver && !state.pausePick) {
+    if (!state.gameOver) {
       state.time += dt;
-
-      state.spawnEnemyCD -= dt;
-      const spawnGap = Math.max(0.14, 0.45 - state.time * 0.0022);
-      if (state.spawnEnemyCD <= 0) {
-        spawnEnemy(false);
-        if (Math.random() < 0.08) spawnEnemy(false);
-        if (Math.random() < Math.min(0.24, state.time / 320)) spawnEnemy(true);
-        state.spawnEnemyCD = spawnGap;
-      }
-
-      state.spawnCrateCD -= dt;
-      if (state.spawnCrateCD <= 0) {
-        spawnCrate();
-        state.spawnCrateCD = 1.45;
-      }
-
-
       updatePlayer(dt);
-      updateCrateOpening(dt);
-      updateSquad(dt);
+      updateBombs(dt);
+      updateFlames(dt);
       updateEnemies(dt);
-      updateBullets(dt);
       updateDrops(dt);
+      updateWave(dt);
       updateFx(dt);
 
+      if (state.player.hp <= 0) showGameOver();
 
-      maybeLevelUp();
-
-      if (state.player.hp <= 0) handleDownByLosingMember();
-      if (state.time > 0.8 && hintEl.style.opacity !== '0') {
-        const alpha = Math.max(0, 1 - state.time / 9);
-        hintEl.style.opacity = String(alpha);
+      if (state.time > 0.8 && hintEl.style.opacity !== "0") {
+        hintEl.style.opacity = String(Math.max(0, 1 - state.time / 10));
       }
     }
 
