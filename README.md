@@ -8,7 +8,7 @@
 
 ## 当前技术栈
 - 纯 HTML5 Canvas + 原生 JavaScript
-- 多个单文件原型并行推进：`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `demo_ranged.html` / `game.html`
+- 多个单文件原型并行推进：`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `b.html` / `demo_ranged.html` / `game.html`
 - 无需构建工具，双击即可运行
 
 ## 跨电脑协作结构
@@ -21,8 +21,14 @@
 - `demo_ranged_bazaar.html`：**纸扎夜市验证线（方案B，含夜市商店/功德箱循环与内建自动测试员）**
 - `demo_ranged_juice.html`：**远程爽感实验线（V3，6 套 JUICE 系统 + 画面内错误诊断 overlay）**
 - `juice.html`：`demo_ranged_juice.html` 的短路径镜像，方便外部分享与试玩
+- `merge_shot_mobile_demo.html`：**移动合球射击实验线**，用拖拽瞄准 + 松手连珠来降低逐发瞄准负担
+- `m.html`：`merge_shot_mobile_demo.html` 的短路径镜像，适合微信/手机端快速进入
+- `msd_v2_20260421.html`：`merge_shot_mobile_demo.html` 的防缓存镜像，用于绕过旧缓存
+- `block_combat_mobile_demo.html`：**Block Combat 放置战斗实验线**，用拼块清线 + 三色能量技能验证轻操作战斗
+- `b.html`：**单手暴暴王 Lite**，单手炸弹人式 solo 验证线（固定摇杆 + 下弹 + 短冲刺）
 - `demo_ranged.html`：远程版基础验证线
 - `game.html`：远程射击正式版旧主线
+- `index.html`：根路径跳转页，当前默认跳到 `m.html`
 - `割一波_玩法设计进度表.xlsx`：项目进度表
 - `docs/当前任务框架.md`：当前待办框架与优先级
 - `.workbuddy/memory/MEMORY.md`：长期项目记忆
@@ -58,6 +64,21 @@
 - 新增内建游戏测试员（方案2+）：可从开局面板直接自动跑局，顶部 HUD 会显示测试员状态、趣味分与当前迭代次数
 - 测试员具备墙体排斥、卡墙脱困、敌人与子弹威胁评估、残血寻治疗/低压捡资源等行为，并会在局间按贴墙率、卡住率、承伤表现做参数微调
 - 支持自动连跑重开，便于持续观察波次、商店与资源循环是否稳定；键盘 `T` 可切换测试员，`R` 可在启用后切换单局/连跑
+
+## 移动合球射击实验线 (merge_shot_mobile_demo)
+- 用来验证“逐发手动瞄准太累”时，是否改成拖曳瞄准、松手后同角度 16 连珠会更轻松
+- 敌人带红/蓝/绿弱点；命中对应弱点会累计队列，凑到 3 个会触发红重击/斩杀、蓝全场冰缓、绿扩散弹幕
+- `m.html` 与 `msd_v2_20260421.html` 为同内容镜像；`index.html` 默认跳到 `m.html`，兼容微信只打开根域名的场景
+
+## Block Combat 放置战斗实验线 (block_combat_mobile_demo)
+- 用 8x8 棋盘 + 3 手拼块，把 Block Blast 的“放置解题”改造成会反击的战斗循环
+- 每放 3 次敌人推进或出手一次；清线负责主要伤害，红/蓝/绿能量分别给爆发、护盾、回血
+- 支持点选/拖拽放置与落点预览，用来测试“轻操作 + 空间策略”能否成为主线操作骨架
+
+## 单手暴暴王 Lite (b.html)
+- 当前保留版是单手炸弹人式 solo 原型：左下固定摇杆移动，右下按钮或松手下弹
+- 下弹后会按当前移动方向触发短冲刺脱离，减轻“下弹即站桩等爆炸”的停顿感
+- 炸弹可回充库存，爆风可连锁引爆并炸开砖块；砖块会掉落爆风/炸弹/移速/治疗道具，用来验证生存成长节奏
 
 ## 自动同步
 
