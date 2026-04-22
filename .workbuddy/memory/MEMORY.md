@@ -8,10 +8,12 @@
 
 ### 技术栈
 - 纯 HTML5 Canvas + 原生 JavaScript
-- 多个单文件原型并行推进（`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `b.html` / `demo_ranged.html` / `game.html`）
+- 多个单文件原型并行推进（`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `spire_fusion_mobile_demo.html` / `squad_demo.html` / `warlock_v0_1.html` / `warlock_v0_2.html` / `b.html` / `demo_ranged.html` / `game.html`）
+
 - 无需构建工具，双击即可运行
 
-### 已实现功能（主线 V15 + 多条实验线扩展 - 截至 2026-04-21）
+### 已实现功能（主线 V15 + 多条实验线扩展 - 截至 2026-04-22）
+
 
 
 #### game.html（远程射击版）
@@ -68,13 +70,27 @@
 3. **三色能量技能**：红 6 能量=爆发 30，蓝 6 能量=本回合护盾，绿 6 能量=回复 12
 4. **操作形态**：支持拖拽/点选放置、落点预览与手牌补充，用来验证“拼块战斗化”是否比瞄准更轻松
 
-#### b.html（单手暴暴王 Lite - V1）
-1. **定位**：单手炸弹人式 solo 原型，验证“固定摇杆走位 + 预埋爆风 + 下弹后脱离”是否更适合 5~10 分钟轻休闲循环
-2. **核心输入**：左下固定摇杆移动，右下按钮或松手下弹；下弹后会按当前移动方向触发短冲刺脱离
-3. **战斗成长**：炸弹可回充库存，爆风可引爆连锁并炸开砖块；砖块会掉落爆风/炸弹/移速/治疗道具
-4. **敌人与压力**：包含 runner/chaser/tank 三类敌人，波次计时与刷怪频率会随时间递增
+#### spire_fusion_mobile_demo.html（尖塔融合竖版验证线 - V1）
+1. **定位**：把“竖版舞台 + 美术预留 + 点按解说 + 拖拽出牌”合成一张可讲解的手机卡牌样机，用来判断信息层与角色立绘能否在单屏共存
+2. **核心交互**：敌我角色区都预留立绘空间；手牌拖到敌人/自己即可出牌；点角色可展开说明面板
+3. **当前价值**：更偏展示与结构验证，不是完整战斗数值原型，但适合提前讨论未来 UI / 美术占位方式
+
+#### squad_demo.html（小队指挥验证线 - V1）
+1. **定位**：验证“玩家扮演指挥官，拖角色牌上场，再用技能牌指定目标”的小队式策略手感
+2. **核心循环**：3 格站位、角色牌/技能牌/战术牌三类手牌、友军或敌方目标选择、即时数值反馈
+3. **当前价值**：适合继续往职业宇宙、小队协同、单局构筑方向发展
+
+#### warlock_v0_1.html（术士卡牌验证线 - V1）
+1. **定位**：先用偏炉石式布局验证基础出牌感，测试术士主题与传统回合制卡牌触感是否成立
+2. **核心交互**：敌人在上、我方在下，拖牌对准敌人或友方单位施放，强调直觉式出牌与明确目标反馈
+
+#### warlock_v0_2.html / b.html（术士联动验证线 - V2）
+1. **定位**：在 v0.1 基础上改成“主角居中 + 召唤物侧翼 + 联动卡注入”，验证术士是否应该围绕召唤物联动来立职业核心
+2. **核心机制**：小鬼/猎犬召唤后动态注入对应联动卡；召唤物死亡时联动卡会同步失效清除
+3. **分享入口**：`b.html` 当前已切为 `warlock_v0_2.html` 的短路径镜像，便于手机端快速试玩和外部分享
 
 ### 部署信息
+
 - **GitHub 用户名**：jojo780849
 - **GitHub 仓库**：`jojo780849/cut-them-all`
 - **在线游戏链接（远程版旧主线）**：https://jojo780849.github.io/cut-them-all/game.html
@@ -126,5 +142,13 @@
   - `merge_shot_mobile_demo.html`：加入拖拽瞄准、松手 16 连珠、同色弱点充能与红/蓝/绿三消技能；同时新增 `m.html`、`msd_v2_20260421.html` 镜像与 `index.html` 根路径跳转
   - `block_combat_mobile_demo.html`：完成 8x8 拼块清线 + 三步一回合敌方推进的放置战斗样机，红=爆发、蓝=护盾、绿=回血
   - `b.html`：当天从 block combat / squad-lite 快速迭代到单手炸弹人 Lite，当前保留版聚焦固定摇杆移动、下弹后短冲刺脱离、可破坏砖块与波次敌人压力
+- 2026-04-22：新增一组竖版卡牌 / 指挥感验证原型：
+  - `spire_fusion_mobile_demo.html`：完成“竖版舞台 + 美术预留 + 点按解说 + 拖拽出牌”的展示型样机
+  - `squad_demo.html`：完成 branch1 小队指挥原型，验证 3 格站位 + 角色牌/技能牌拖拽出牌
+  - `warlock_v0_1.html`：完成偏炉石式的术士基础出牌感对照
+  - `warlock_v0_2.html`：完成主角居中 + 召唤物侧翼 + 联动卡动态注入；`b.html` 同步切为短路径镜像
+
+
+
 
 

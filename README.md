@@ -8,7 +8,8 @@
 
 ## 当前技术栈
 - 纯 HTML5 Canvas + 原生 JavaScript
-- 多个单文件原型并行推进：`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `b.html` / `demo_ranged.html` / `game.html`
+- 多个单文件原型并行推进：`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `spire_fusion_mobile_demo.html` / `squad_demo.html` / `warlock_v0_1.html` / `warlock_v0_2.html` / `b.html` / `demo_ranged.html` / `game.html`
+
 - 无需构建工具，双击即可运行
 
 ## 跨电脑协作结构
@@ -25,10 +26,15 @@
 - `m.html`：`merge_shot_mobile_demo.html` 的短路径镜像，适合微信/手机端快速进入
 - `msd_v2_20260421.html`：`merge_shot_mobile_demo.html` 的防缓存镜像，用于绕过旧缓存
 - `block_combat_mobile_demo.html`：**Block Combat 放置战斗实验线**，用拼块清线 + 三色能量技能验证轻操作战斗
-- `b.html`：**单手暴暴王 Lite**，单手炸弹人式 solo 验证线（固定摇杆 + 下弹 + 短冲刺）
+- `spire_fusion_mobile_demo.html`：**尖塔融合竖版验证线**，把“竖版舞台 + 美术预留 + 点按解说 + 拖拽出牌”揉成一张可讲解的移动端卡牌样机
+- `squad_demo.html`：**小队指挥验证线（分支1）**，验证 3 格站位 + 角色牌/技能牌拖拽出牌的指挥感
+- `warlock_v0_1.html`：**术士卡牌验证线 v0.1**，偏炉石式的出牌感对照样机
+- `warlock_v0_2.html`：**术士卡牌验证线 v0.2**，主角居中 + 召唤物侧翼 + 联动卡动态注入的当前迭代版
+- `b.html`：`warlock_v0_2.html` 的短路径镜像，方便手机端快速试玩最新术士版本
 - `demo_ranged.html`：远程版基础验证线
 - `game.html`：远程射击正式版旧主线
 - `index.html`：根路径跳转页，当前默认跳到 `m.html`
+
 - `割一波_玩法设计进度表.xlsx`：项目进度表
 - `docs/当前任务框架.md`：当前待办框架与优先级
 - `.workbuddy/memory/MEMORY.md`：长期项目记忆
@@ -75,12 +81,22 @@
 - 每放 3 次敌人推进或出手一次；清线负责主要伤害，红/蓝/绿能量分别给爆发、护盾、回血
 - 支持点选/拖拽放置与落点预览，用来测试“轻操作 + 空间策略”能否成为主线操作骨架
 
-## 单手暴暴王 Lite (b.html)
-- 当前保留版是单手炸弹人式 solo 原型：左下固定摇杆移动，右下按钮或松手下弹
-- 下弹后会按当前移动方向触发短冲刺脱离，减轻“下弹即站桩等爆炸”的停顿感
-- 炸弹可回充库存，爆风可连锁引爆并炸开砖块；砖块会掉落爆风/炸弹/移速/治疗道具，用来验证生存成长节奏
+## 尖塔融合竖版验证线 (spire_fusion_mobile_demo)
+- 把尖塔式卡牌战斗压成手机竖版单屏，先验证“角色舞台可见 + 手牌拖拽出牌 + 解说层”能否同时成立
+- 舞台预留敌我立绘区，点角色可看说明；拖牌到敌人/自己即可出牌，适合拿来讨论未来美术与信息层如何共存
+- 当前定位偏“讲结构的展示样机”，不是正式战斗数值原型
+
+## 小队指挥验证线 (squad_demo)
+- 分支1 聚焦“你是指挥官，不是单角色本体”这一手感：3 格场位、角色牌上场、技能牌指定友军或敌人
+- 已验证角色/技能/战术三类卡、拖拽目标提示、场上单位即时反馈，适合继续往职业宇宙或小队协同发展
+
+## 术士卡牌验证线 (warlock_v0_1 / warlock_v0_2 / b.html)
+- `warlock_v0_1.html`：先做偏炉石式出牌感，对照传统“我方在下、敌方在上”的回合制卡牌触感
+- `warlock_v0_2.html`：进一步改成构图 D，主角居中、召唤物站两侧，并在召唤时动态注入对应联动卡，验证“术士指挥召唤物”是否比纯单卡更有职业味
+- `b.html` 当前已切到 `warlock_v0_2.html` 的短路径镜像，用于快速外发、手机试玩和后续继续迭代最新版本
 
 ## 自动同步
+
 
 
 - **代码改完自动推送**：每次修改代码后自动 git push 到 GitHub + 同步更新本地文档（README/MEMORY/当前任务框架），确保 OpenClaw 等外部工具能读到最新状态
