@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>幽塔·术士 v0.5（单屏手机布局）</title>
+  <title>幽塔·术士 v0.6（三怪站位正式版）</title>
   <style>
     :root {
       --bg: #15110e;
@@ -168,8 +168,8 @@
       position: absolute;
       left: -8%;
       right: -8%;
-      bottom: 88px;
-      height: 134px;
+      bottom: 118px;
+      height: 156px;
       border-radius: 50%;
       background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0) 72%);
       filter: blur(8px);
@@ -308,8 +308,8 @@
     .ridge {
       left: -10%;
       right: -10%;
-      top: 166px;
-      height: 154px;
+      top: 154px;
+      height: 166px;
       background:
         linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(14, 11, 9, 0.82) 36%, rgba(8, 6, 5, 0.98) 100%);
       clip-path: polygon(0 74%, 10% 66%, 20% 70%, 28% 58%, 40% 64%, 48% 54%, 58% 64%, 68% 56%, 79% 68%, 88% 62%, 100% 76%, 100% 100%, 0 100%);
@@ -319,13 +319,13 @@
     .ground {
       left: -6%;
       right: -6%;
-      bottom: 52px;
-      height: 230px;
+      bottom: 86px;
+      height: 260px;
       background:
         radial-gradient(ellipse at 50% 18%, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0) 28%),
         linear-gradient(180deg, #30271f 0%, #211b16 38%, #16110e 100%);
       border-top: 2px solid rgba(255, 245, 222, 0.08);
-      clip-path: ellipse(66% 58% at 50% 58%);
+      clip-path: ellipse(70% 60% at 50% 58%);
       filter: drop-shadow(0 -10px 18px rgba(0,0,0,0.24));
     }
 
@@ -343,63 +343,52 @@
 
     .hud-row {
       position: absolute;
-      left: 10px;
-      right: 10px;
+      left: 0;
+      right: 0;
       top: 44px;
       z-index: 4;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 6px;
-      align-items: start;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
     }
 
-    .hud-card,
-    .turn-badge,
-    .hint-banner {
+    .hud-card {
+      display: none;
+    }
+
+    .turn-badge {
       border-radius: 18px;
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(18, 14, 12, 0.56);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
       backdrop-filter: blur(8px);
-    }
-
-    .hud-card {
-      padding: 8px 10px;
-    }
-
-    .hud-label {
-      font-size: 9px;
-      letter-spacing: 1.5px;
-      color: rgba(247, 235, 212, 0.58);
-    }
-
-    .hero-hp-value {
-      margin-top: 3px;
+      align-self: center;
+      padding: 10px 12px;
       display: flex;
-      align-items: baseline;
-      gap: 4px;
-      font-size: 22px;
-      font-weight: 900;
-      color: #ffe5d9;
-      line-height: 1;
-    }
-
-    .hero-hp-value small {
+      align-items: center;
+      justify-content: center;
+      color: #f8ecd6;
       font-size: 11px;
-      color: rgba(247, 235, 212, 0.56);
+      letter-spacing: 1.4px;
+      white-space: nowrap;
     }
 
-    .mana-card {
-      text-align: right;
-    }
-
-    .mana-pool {
+    .mana-pool,
+    .mana-inline {
       margin-top: 4px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: flex-start;
       flex-wrap: wrap;
       gap: 4px;
       min-height: 20px;
+      align-items: center;
+    }
+
+    .energy-count {
+      font-size: 14px;
+      font-weight: 900;
+      color: #83c3ff;
+      letter-spacing: 0.4px;
     }
 
     .crystal {
@@ -424,44 +413,32 @@
       50% { transform: scale(1.2); }
     }
 
-    .turn-badge {
-      align-self: center;
-      padding: 10px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #f8ecd6;
-      font-size: 11px;
-      letter-spacing: 1.4px;
-      white-space: nowrap;
-    }
-
     .enemy-zone {
       position: absolute;
       left: 0;
       right: 0;
-      top: 146px;
+      top: 116px;
       z-index: 3;
-      min-height: 132px;
+      min-height: 172px;
       display: flex;
       justify-content: flex-end;
       align-items: flex-end;
-      gap: 10px;
-      padding: 0 18px 0 148px;
+      gap: 0;
+      padding: 0 12px 0 122px;
     }
 
     .ally-zone {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 194px;
+      bottom: 222px;
       z-index: 3;
-      min-height: 184px;
+      min-height: 204px;
       display: flex;
       justify-content: flex-start;
       align-items: flex-end;
       gap: 2px;
-      padding: 0 138px 0 12px;
+      padding: 0 140px 0 12px;
       transition: filter 180ms ease;
     }
 
@@ -503,22 +480,38 @@
     }
 
     .enemy.actor {
-      width: 112px;
-      height: 148px;
-      margin-left: auto;
+      width: 96px;
+      height: 142px;
+      margin-left: -18px;
+    }
+
+    .enemy.actor.slot-left {
+      transform: translateY(26px) scale(0.84);
+      z-index: 1;
+      opacity: 0.88;
+    }
+
+    .enemy.actor.slot-mid {
+      transform: translateY(0) scale(1);
+      z-index: 3;
+    }
+
+    .enemy.actor.slot-right {
+      transform: translateY(18px) scale(0.9);
+      z-index: 2;
     }
 
     .hero.actor {
       order: 1;
-      width: 142px;
-      height: 206px;
+      width: 146px;
+      height: 212px;
       margin-right: -2px;
     }
 
     .summon.actor {
       order: 2;
-      width: 76px;
-      height: 118px;
+      width: 74px;
+      height: 116px;
       margin: 0 -4px;
     }
 
@@ -847,18 +840,24 @@
       z-index: 2;
       margin-top: -6px;
       padding: 8px 10px 10px;
-      min-width: 76px;
+      min-width: 82px;
       border-radius: 18px;
-      background: rgba(25, 20, 17, 0.66);
+      background: rgba(25, 20, 17, 0.72);
       border: 1px solid rgba(255,255,255,0.08);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
-      text-align: center;
+      text-align: left;
       backdrop-filter: blur(6px);
     }
 
     .hero .meta-plate {
-      min-width: 110px;
+      min-width: 118px;
       margin-top: -2px;
+      transform: translateX(-6px);
+    }
+
+    .enemy .meta-plate {
+      min-width: 98px;
+      transform: translateX(2px);
     }
 
     .name-line {
@@ -879,23 +878,33 @@
       margin-top: 6px;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 4px;
       font-size: 10px;
       color: rgba(255, 233, 224, 0.92);
     }
 
     .hp-line b {
-      font-size: 14px;
+      font-size: 18px;
       color: #ffe0d4;
     }
 
+    .energy-line,
+    .intent-line,
     .stat-row {
       margin-top: 6px;
       display: flex;
-      justify-content: center;
+      align-items: center;
+      justify-content: flex-start;
       flex-wrap: wrap;
       gap: 4px;
+    }
+
+    .line-label {
+      font-size: 8px;
+      color: rgba(247, 235, 212, 0.56);
+      letter-spacing: 1px;
+      min-width: 20px;
     }
 
     .stat-chip {
@@ -912,31 +921,50 @@
     .stat-chip.atk { color: #f5d58d; }
     .stat-chip.blk { color: #b7deff; }
 
-    .enemy-intent {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      z-index: 3;
-      min-width: 40px;
-      height: 40px;
+    .intent-line {
+      color: #ffd6cb;
+    }
+
+    .intent-icon {
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0 8px;
-      background: rgba(22, 17, 14, 0.84);
+      background: rgba(94, 48, 34, 0.42);
       border: 1px solid rgba(255,255,255,0.08);
-      color: #fff1d8;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .intent-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .intent-title {
       font-size: 11px;
       font-weight: 900;
-      box-shadow: 0 0 12px rgba(0,0,0,0.24);
+      letter-spacing: 0.4px;
+    }
+
+    .intent-note {
+      font-size: 8px;
+      color: rgba(247, 235, 212, 0.54);
+      letter-spacing: 0.6px;
+    }
+
+    .enemy-intent {
+      display: none;
     }
 
     .enemy .tags {
-      margin-top: 6px;
+      margin-top: 4px;
       display: flex;
       flex-wrap: wrap;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 4px;
       min-height: 16px;
     }
@@ -952,44 +980,26 @@
     }
 
     .hint-banner {
-      position: absolute;
-      left: 50%;
-      bottom: 214px;
-      transform: translateX(-50%);
-      z-index: 4;
-      max-width: calc(100% - 32px);
-      padding: 8px 12px;
-      color: rgba(247, 235, 212, 0.76);
-      font-size: 9px;
-      text-align: center;
-      letter-spacing: 1.2px;
-    }
-
-    .hint-banner.hot {
-      color: #fff3d9;
-      box-shadow: 0 0 22px rgba(244, 231, 195, 0.08), inset 0 0 0 1px rgba(255,255,255,0.02);
+      display: none;
     }
 
     .hand-shell,
     .log-shell {
       position: relative;
-      overflow: hidden;
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(30, 24, 20, 0.84);
-      box-shadow: var(--shadow);
+      overflow: visible;
     }
 
     .hand-shell {
       position: fixed;
       left: 50%;
-      bottom: calc(env(safe-area-inset-bottom) + 58px);
+      bottom: calc(env(safe-area-inset-bottom) + 84px);
       transform: translateX(-50%);
       z-index: 8;
-      width: min(calc(100vw - 18px), 410px);
-      border-radius: 26px;
-      background: linear-gradient(180deg, rgba(39, 31, 26, 0.78) 0%, rgba(24, 19, 16, 0.92) 100%);
-      backdrop-filter: blur(10px);
+      width: min(calc(100vw - 14px), 410px);
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      pointer-events: none;
     }
 
     .log-shell {
@@ -997,15 +1007,11 @@
     }
 
     .hand-shell::before,
-    .log-shell::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
-      pointer-events: none;
+    .log-shell::before,
+    .hand-head {
+      display: none;
     }
 
-    .hand-head,
     .log-head {
       position: relative;
       z-index: 2;
@@ -1023,21 +1029,23 @@
     .hand-container {
       position: relative;
       z-index: 2;
-      min-height: 166px;
+      min-height: 188px;
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      padding: 2px 0 0;
+      padding: 0;
+      pointer-events: none;
     }
 
     .hand-fan {
       position: relative;
       width: 100%;
-      max-width: 400px;
-      height: 150px;
+      max-width: 408px;
+      height: 180px;
       display: flex;
       justify-content: center;
       align-items: flex-end;
+      pointer-events: none;
     }
 
     .card {
@@ -1049,14 +1057,19 @@
       cursor: pointer;
       touch-action: none;
       transform-origin: bottom center;
-      transition: transform 220ms cubic-bezier(0.22, 1.15, 0.36, 1), filter 180ms ease;
+      transition: transform 220ms cubic-bezier(0.22, 1.15, 0.36, 1), filter 180ms ease, width 180ms ease, height 180ms ease;
+      pointer-events: auto;
     }
 
     .card:hover,
     .card.lifted {
-      transform: translateY(-18px) scale(1.06) rotate(0deg) !important;
       z-index: 100 !important;
       filter: drop-shadow(0 16px 22px rgba(0,0,0,0.44));
+    }
+
+    .card.selected {
+      z-index: 120 !important;
+      filter: drop-shadow(0 24px 30px rgba(0,0,0,0.48));
     }
 
     .card.dragging { opacity: 0; }
@@ -1118,10 +1131,11 @@
       align-items: center;
       justify-content: center;
       background: #231d16;
-      color: #f4e6c6;
+      color: #83c3ff;
       border: 2px solid rgba(255,255,255,0.08);
       font-size: 14px;
       font-weight: 900;
+      text-shadow: 0 0 8px rgba(131,195,255,0.24);
       box-shadow: 0 3px 0 rgba(0,0,0,0.2);
     }
 
@@ -1174,6 +1188,29 @@
       padding: 0 2px;
     }
 
+    .card.selected .card-inner {
+      padding: 10px;
+    }
+
+    .card.selected .card-art {
+      margin-top: 28px;
+      height: 62px;
+      font-size: 38px;
+    }
+
+    .card.selected .card-name {
+      margin-top: 9px;
+      font-size: 13px;
+      min-height: 28px;
+    }
+
+    .card.selected .card-desc {
+      font-size: 10px;
+      line-height: 1.42;
+      text-align: left;
+      padding: 0 4px;
+    }
+
     .drag-ghost {
       position: fixed;
       z-index: 999;
@@ -1190,23 +1227,23 @@
       bottom: calc(env(safe-area-inset-bottom) + 8px);
       transform: translateX(-50%);
       z-index: 9;
-      width: min(calc(100vw - 18px), 410px);
+      width: min(calc(100vw - 20px), 410px);
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      grid-template-columns: 1fr;
+      gap: 0;
     }
 
     .btn {
       appearance: none;
       border: 2px solid #53402f;
-      border-radius: 16px;
-      padding: 11px 8px;
+      border-radius: 18px;
+      padding: 16px 10px;
       background: linear-gradient(180deg, #dbc39b 0%, #c4a678 100%);
       color: #241d16;
-      font-size: 12px;
+      font-size: 15px;
       font-weight: 900;
-      letter-spacing: 1.4px;
-      box-shadow: 0 8px 14px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.16);
+      letter-spacing: 1.8px;
+      box-shadow: 0 10px 18px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.16);
     }
 
     .btn.primary {
@@ -1325,7 +1362,7 @@
     <div class="topbar">
       <div class="brand">
         <div class="brand-title">幽塔 · 术士</div>
-        <div class="brand-sub">v0.5 · 单屏手机布局 / 左右站位版</div>
+        <div class="brand-sub">v0.6 · 三怪站位 / 正式可玩版</div>
       </div>
       <div class="top-pills">
         <div class="pill">牌库<b id="deckCount">0</b></div>
@@ -1355,42 +1392,28 @@
         </div>
 
         <div class="hud-row">
-          <div class="hud-card">
-            <div class="hud-label">术士生命</div>
-            <div class="hero-hp-value"><span id="selfHpVal">50</span><small>/ <span id="selfMaxVal">50</span></small></div>
-          </div>
           <div class="turn-badge" id="turnBadge">第 1 回合</div>
-          <div class="hud-card mana-card">
-            <div class="hud-label">能量</div>
-            <div class="mana-pool" id="manaPool"></div>
-          </div>
         </div>
 
         <div class="enemy-zone" id="enemyZone"></div>
         <div class="ally-zone" id="allyZone"></div>
-        <div class="hint-banner" id="hintBar">拖牌到目标释放</div>
       </div>
     </section>
 
     <section class="hand-shell">
-      <div class="hand-head">
-        <span>手牌浮层</span>
-        <span>按住拖到左侧我方 / 右侧敌人</span>
-      </div>
       <div class="hand-container">
         <div class="hand-fan" id="handFan"></div>
       </div>
     </section>
 
     <div class="control-row">
-      <button class="btn" id="restartBtn">重开本关</button>
       <button class="btn primary" id="endTurnBtn">结束回合</button>
     </div>
 
     <section class="log-shell">
       <div class="log-head">
         <span>战斗记录</span>
-        <span>v0.5</span>
+        <span>v0.6</span>
       </div>
       <div class="log" id="log"></div>
     </section>
@@ -1445,20 +1468,23 @@
       "sp_blast"
     ];
 
-    function makeEnemy() {
+    function makeEnemy(preset = {}) {
       return {
         uid: "e_" + Math.random().toString(36).slice(2),
-        name: "断罪骑士",
-        face: "✠",
-        hp: 32,
-        maxHp: 32,
-        block: 0,
-        curse: 0,
-        intent: null
+        name: preset.name || "断罪骑士",
+        face: preset.face || "✠",
+        hp: preset.hp ?? 32,
+        maxHp: preset.maxHp ?? preset.hp ?? 32,
+        block: preset.block || 0,
+        curse: preset.curse || 0,
+        intent: null,
+        slot: preset.slot || "mid",
+        note: preset.note || "背坡上的压迫者"
       };
     }
 
     let state;
+    let clearNewCardsTimer = null;
 
     const drag = {
       active: false,
@@ -1477,7 +1503,11 @@
       state = {
         hero: makeHero(),
         summons: [],
-        enemies: [makeEnemy()],
+        enemies: [
+          makeEnemy({ name: "哨戒鬼差", hp: 18, slot: "left", note: "侧翼压阵" }),
+          makeEnemy({ name: "断罪骑士", hp: 32, slot: "mid", note: "中央压迫者" }),
+          makeEnemy({ name: "纸甲阴兵", hp: 22, slot: "right", note: "侧翼追击" })
+        ],
         deck: [],
         discard: [],
         hand: [],
@@ -1485,7 +1515,9 @@
         maxEnergy: 2,
         handSize: 4,
         turn: 1,
-        ended: false
+        ended: false,
+        selectedCardUid: null,
+        newlyDrawn: []
       };
 
       state.deck = STARTER_DECK_IDS.map(id => ({ ...CARDS[id], uid: uid() }));
@@ -1493,7 +1525,7 @@
       state.enemies.forEach(pickEnemyIntent);
       draw(state.handSize);
       logClear();
-      log("战斗开始 · 月下黑林中现身断罪骑士", "summon");
+      log("战斗开始 · 月下黑林中出现三名压迫者", "summon");
       render();
     }
 
@@ -1510,21 +1542,25 @@
     }
 
     function draw(n) {
+      const drawn = [];
       for (let i = 0; i < n; i++) {
         if (state.deck.length === 0) {
           state.deck = shuffle(state.discard);
           state.discard = [];
         }
         if (state.deck.length === 0) break;
-        state.hand.push(state.deck.pop());
+        const next = state.deck.pop();
+        state.hand.push(next);
+        drawn.push(next.uid);
       }
+      state.newlyDrawn = drawn;
     }
 
     function pickEnemyIntent(e) {
       const r = Math.random();
-      if (r < 0.6) e.intent = { type: "attack", value: 7, icon: "⚔7" };
-      else if (r < 0.85) e.intent = { type: "guard", value: 6, icon: "🛡6" };
-      else e.intent = { type: "aoe", value: 3, icon: "✺3" };
+      if (r < 0.58) e.intent = { type: "attack", value: 7, icon: "⚔", note: `攻击 ${7}` };
+      else if (r < 0.84) e.intent = { type: "guard", value: 6, icon: "🛡", note: `护甲 ${6}` };
+      else e.intent = { type: "aoe", value: 3, icon: "✺", note: `横扫 ${3}` };
     }
 
     function injectLinkCards(summonTpl) {
@@ -1564,6 +1600,7 @@
         log(`${card.name} 失效：对应召唤物已离场`, "hit");
         state.discard.push(card);
         state.hand.splice(idx, 1);
+        state.selectedCardUid = null;
         state.energy -= card.cost;
         pulseCrystals();
         render();
@@ -1577,6 +1614,7 @@
       pulseCrystals();
       state.discard.push(card);
       state.hand.splice(idx, 1);
+      state.selectedCardUid = null;
 
       cleanupDead();
       checkEnd();
@@ -1786,6 +1824,7 @@
     function endTurn() {
       if (state.ended) return;
 
+      state.selectedCardUid = null;
       state.discard.push(...state.hand);
       state.hand = [];
 
@@ -1861,32 +1900,20 @@
     }
 
     function render() {
-      document.getElementById("selfHpVal").textContent = state.hero.hp;
-      document.getElementById("selfMaxVal").textContent = state.hero.maxHp;
       document.getElementById("turnBadge").textContent = `第 ${state.turn} 回合`;
       document.getElementById("deckCount").textContent = state.deck.length;
       document.getElementById("discardCount").textContent = state.discard.length;
       document.getElementById("handCount").textContent = state.hand.length;
 
-      renderMana();
       renderEnemies();
       renderAllies();
       renderHand();
 
       document.getElementById("endTurnBtn").textContent = state.ended ? "战斗结束" : "结束回合";
-      setHint("拖牌到目标释放", false);
+      queueClearNewCards();
     }
 
-    function renderMana() {
-      const pool = document.getElementById("manaPool");
-      pool.innerHTML = "";
-      const displayMax = Math.max(state.maxEnergy, state.energy);
-      for (let i = 0; i < displayMax; i++) {
-        const c = document.createElement("div");
-        c.className = "crystal" + (i >= state.energy ? " empty" : "");
-        pool.appendChild(c);
-      }
-    }
+    function renderMana() {}
 
     function pulseCrystals() {
       document.querySelectorAll(".crystal").forEach(c => {
@@ -1896,19 +1923,26 @@
       });
     }
 
+    function describeIntent(intent) {
+      if (!intent) return "待机";
+      if (intent.type === "attack") return `攻击 ${intent.value}`;
+      if (intent.type === "guard") return `护甲 ${intent.value}`;
+      return `横扫 ${intent.value}`;
+    }
+
     function renderEnemies() {
       const zone = document.getElementById("enemyZone");
       zone.innerHTML = "";
-      state.enemies.forEach(e => {
+      state.enemies.forEach((e, index) => {
         const el = document.createElement("div");
-        el.className = "enemy actor";
+        const slot = e.slot || ["left", "mid", "right"][index] || "mid";
+        el.className = `enemy actor slot-${slot}`;
         el.dataset.uid = e.uid;
         const tags = [];
         if (e.curse > 0) tags.push(`<span class="tag-bit">蚀骨 ${e.curse}</span>`);
         if (e.block > 0) tags.push(`<span class="tag-bit" style="color:#b7deff;">护甲 ${e.block}</span>`);
         el.innerHTML = `
           <div class="ground-ring"></div>
-          <div class="enemy-intent">${e.intent ? e.intent.icon : ""}</div>
           <div class="figure enemy-figure">
             <span class="aura"></span>
             <span class="horn h1"></span>
@@ -1920,8 +1954,15 @@
           </div>
           <div class="meta-plate">
             <div class="name-line">${e.name}</div>
-            <div class="sub-line">背坡上的压迫者</div>
-            <div class="hp-line"><b>${e.hp}</b><span> / ${e.maxHp}</span></div>
+            <div class="sub-line">${e.note}</div>
+            <div class="hp-line"><span class="line-label">HP</span><b>${e.hp}</b><span> / ${e.maxHp}</span></div>
+            <div class="intent-line">
+              <span class="intent-icon">${e.intent ? e.intent.icon : "·"}</span>
+              <span class="intent-copy">
+                <span class="intent-title">${describeIntent(e.intent)}</span>
+                <span class="intent-note">下回合意图</span>
+              </span>
+            </div>
             <div class="tags">${tags.join("")}</div>
           </div>
         `;
@@ -1941,6 +1982,8 @@
       const el = document.createElement("div");
       el.className = "hero actor";
       el.dataset.uid = h.uid;
+      const displayMax = Math.max(state.maxEnergy, state.energy);
+      const crystals = Array.from({ length: displayMax }, (_, i) => `<div class="crystal${i >= state.energy ? " empty" : ""}"></div>`).join("");
       el.innerHTML = `
         <div class="ground-ring"></div>
         <div class="figure hero-figure">
@@ -1956,7 +1999,11 @@
         <div class="meta-plate">
           <div class="name-line">术士</div>
           <div class="sub-line">黑月契约 / 被动：${h.passive}</div>
-          <div class="hp-line"><b>${h.hp}</b><span> / ${h.maxHp}</span>${h.block > 0 ? `<span> · 甲 ${h.block}</span>` : ""}</div>
+          <div class="hp-line"><span class="line-label">HP</span><b>${h.hp}</b><span> / ${h.maxHp}</span>${h.block > 0 ? `<span> · 甲 ${h.block}</span>` : ""}</div>
+          <div class="energy-line">
+            <span class="line-label">能量</span>
+            <span class="mana-inline">${crystals}<span class="energy-count">${state.energy}</span></span>
+          </div>
           <div class="stat-row">
             <div class="stat-chip atk">ATK ${h.atk}</div>
             ${h.block > 0 ? `<div class="stat-chip blk">BLK ${h.block}</div>` : ""}
@@ -2016,24 +2063,32 @@
       if (n === 0) return;
 
       const maxAngle = 13;
-      const spread = Math.min(70, 226 / Math.max(n, 3));
+      const spread = Math.min(72, 236 / Math.max(n, 3));
       const arcDepth = n > 2 ? 12 : 4;
 
       state.hand.forEach((c, i) => {
         const card = document.createElement("div");
         const ok = canPlay(c);
-        card.className = `card type-${c.type}${ok ? "" : " disabled"}`;
+        const selected = state.selectedCardUid === c.uid;
+        card.className = `card type-${c.type}${ok ? "" : " disabled"}${selected ? " selected" : ""}`;
         card.dataset.uid = c.uid;
 
         const mid = (n - 1) / 2;
         const dx = (i - mid) * spread;
         const rot = ((i - mid) / Math.max(mid, 1)) * maxAngle;
         const dy = Math.abs(i - mid) * arcDepth / Math.max(mid, 1);
+        const width = selected ? 114 : 84;
+        const height = selected ? 174 : 130;
+        const finalTransform = selected
+          ? `translateX(0px) translateY(${dy - 62}px) rotate(0deg) scale(1)`
+          : `translateX(0px) translateY(${dy}px) rotate(${rot}deg) scale(1)`;
 
         card.style.left = `calc(50% + ${dx}px)`;
-        card.style.marginLeft = "-48px";
-        card.style.transform = `translateY(${dy}px) rotate(${rot}deg)`;
-        card.style.zIndex = 10 + i;
+        card.style.marginLeft = `${-width / 2}px`;
+        card.style.width = `${width}px`;
+        card.style.height = `${height}px`;
+        card.style.transform = finalTransform;
+        card.style.zIndex = selected ? 200 : 10 + i;
 
         card.innerHTML = `
           <div class="card-inner">
@@ -2046,13 +2101,27 @@
         `;
 
         card.addEventListener("pointerdown", ev => startDrag(ev, c.uid, card));
+        card.addEventListener("click", () => {
+          state.selectedCardUid = state.selectedCardUid === c.uid ? null : c.uid;
+          renderHand();
+        });
         fan.appendChild(card);
+
+        if (state.newlyDrawn.includes(c.uid)) {
+          card.animate(
+            [
+              { transform: `translateX(150px) translateY(${dy - 90}px) rotate(${rot + 18}deg) scale(0.92)`, opacity: 0.2 },
+              { transform: finalTransform, opacity: 1 }
+            ],
+            { duration: 420, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)", fill: "both" }
+          );
+        }
       });
     }
 
     function startDrag(e, uid, cardEl) {
       const card = state.hand.find(c => c.uid === uid);
-      if (!canPlay(card)) return;
+      if (!card) return;
 
       drag.active = true;
       drag.uid = uid;
@@ -2072,10 +2141,12 @@
 
     function onDragMove(e) {
       if (!drag.active || e.pointerId !== drag.pointerId) return;
+      const card = state.hand.find(c => c.uid === drag.uid);
+      if (!card) return;
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
 
-      if (!drag.moved && Math.hypot(dx, dy) > 10) {
+      if (!drag.moved && Math.hypot(dx, dy) > 10 && canPlay(card)) {
         drag.moved = true;
         drag.cardEl.classList.remove("lifted");
         drag.cardEl.classList.add("dragging");
@@ -2100,10 +2171,11 @@
       const u = drag.uid;
       const moved = drag.moved;
       cleanupDrag();
-      if (!moved) return;
 
       const card = state.hand.find(c => c.uid === u);
       if (!card) return;
+      if (!moved) return;
+      if (!canPlay(card)) return;
 
       if (card.type === "summon" && t === "ally-zone") tryPlay(u, "summon", null);
       else if (card.target === "hero" && t === "hero") tryPlay(u, "hero", null);
@@ -2147,19 +2219,6 @@
       drag.overTarget = over;
       drag.overKey = key;
       updateHighlight(over, key);
-
-      if (over === "enemy") setHint("放开：命中敌人", true);
-      else if (over === "hero") setHint("放开：施加到术士", true);
-      else if (over === "ally-zone") setHint(card.type === "summon" ? "放开：召唤到前景舞台" : "放开：发动效果", true);
-      else {
-        setHint(
-          card.type === "summon" ? "拖到我方舞台召唤" :
-          card.target === "hero" ? "拖到术士" :
-          card.target === "enemy" ? "拖到敌人" :
-          "拖到我方区域发动",
-          false
-        );
-      }
     }
 
     function updateHighlight(over, key) {
@@ -2260,10 +2319,14 @@
       setTimeout(() => line.remove(), 320);
     }
 
-    function setHint(text, hot) {
-      const h = document.getElementById("hintBar");
-      h.textContent = text;
-      h.classList.toggle("hot", !!hot);
+    function setHint() {}
+
+    function queueClearNewCards() {
+      if (clearNewCardsTimer) clearTimeout(clearNewCardsTimer);
+      clearNewCardsTimer = setTimeout(() => {
+        if (!state) return;
+        state.newlyDrawn = [];
+      }, 460);
     }
 
     function log(text, cls = "") {
@@ -2283,7 +2346,6 @@
     }
 
     document.getElementById("endTurnBtn").addEventListener("click", endTurn);
-    document.getElementById("restartBtn").addEventListener("click", newGame);
     window.addEventListener("resize", () => renderHand());
 
     newGame();
