@@ -979,22 +979,23 @@
 
     .bar-track {
       position: relative;
-      width: 70px;
-      height: 10px;
+      width: 78px;
+      height: 14px;
       border-radius: 999px;
-      background: rgba(36,25,19,0.88);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(36,25,19,0.9);
+      border: 1px solid rgba(255,255,255,0.1);
       overflow: hidden;
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.32);
     }
 
     .hero .bar-track {
-      width: 94px;
+      width: 102px;
+      height: 16px;
     }
 
     .summon .bar-track {
-      width: 58px;
-      height: 9px;
+      width: 64px;
+      height: 12px;
     }
 
     .bar-fill {
@@ -1012,6 +1013,29 @@
       background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%);
       pointer-events: none;
     }
+
+    .bar-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 900;
+      color: #fff4e8;
+      letter-spacing: 0.2px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+      z-index: 1;
+    }
+
+    .hero .bar-text {
+      font-size: 10px;
+    }
+
+    .summon .bar-text {
+      font-size: 8px;
+    }
+
 
     .hero-energy {
       position: absolute;
@@ -1137,73 +1161,51 @@
     .detail-pop {
       position: absolute;
       right: 10px;
-      bottom: 112px;
+      top: 72px;
       z-index: 1;
-      width: 196px;
-      padding: 13px 13px 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,240,210,0.16);
-      background: linear-gradient(180deg, rgba(40,32,28,0.98) 0%, rgba(22,18,16,0.98) 100%);
-      box-shadow: 0 18px 40px rgba(0,0,0,0.46), inset 0 0 0 1px rgba(255,255,255,0.04), 0 0 20px rgba(244, 231, 195, 0.06);
-      backdrop-filter: blur(12px);
+      width: 182px;
+      padding: 11px 12px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,240,210,0.14);
+      background: linear-gradient(180deg, rgba(40,32,28,0.96) 0%, rgba(22,18,16,0.96) 100%);
+      box-shadow: 0 14px 28px rgba(0,0,0,0.38), inset 0 0 0 1px rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
     }
-
 
     .detail-top {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
     }
 
     .detail-flag {
-      font-size: 8px;
-      letter-spacing: 1.4px;
-      color: rgba(255,244,222,0.5);
+      display: none;
     }
 
     .detail-name {
-      margin-top: 3px;
+      margin-top: 1px;
       font-size: 15px;
       font-weight: 900;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.4px;
       color: #fff1da;
     }
 
     .detail-note {
-      margin-top: 2px;
-      font-size: 9px;
-      color: rgba(255,244,222,0.62);
-      letter-spacing: 0.5px;
-    }
-
-    .detail-bars {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      display: grid;
-      gap: 8px;
-    }
-
-    .detail-row {
-      display: grid;
-      grid-template-columns: 44px 1fr;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .detail-label {
-      font-size: 9px;
-      letter-spacing: 1px;
-      color: rgba(255,244,222,0.52);
-    }
-
-    .detail-value {
+      margin-top: 5px;
       font-size: 11px;
-      color: #ffe9d7;
-      font-weight: 800;
-      letter-spacing: 0.3px;
+      line-height: 1.45;
+      color: rgba(255,244,222,0.82);
+      letter-spacing: 0.2px;
     }
+
+    .detail-bars,
+    .detail-row,
+    .detail-label,
+    .detail-value {
+      display: none;
+    }
+
 
 
     .hand-shell,
@@ -2270,6 +2272,13 @@
       return getIntentMeta(intent).title;
     }
 
+    function getIntentSentence(intent) {
+      if (!intent) return "暂时不会行动。";
+      if (intent.type === "attack") return `即将攻击你，造成 ${intent.value} 点伤害。`;
+      if (intent.type === "weaken") return `即将对你施加负面效果：下回合少 ${intent.value} 点能量。`;
+      return `即将强化自己，获得 ${intent.value} 点护甲。`;
+    }
+
     function describePattern(unit) {
       if (!unit?.pattern?.length) return "-";
       return unit.pattern.map(step => {
@@ -2280,6 +2289,7 @@
 
 
     function renderIntentBadge(intent) {
+
       if (!intent) return "";
       const meta = getIntentMeta(intent);
       return `
@@ -2299,10 +2309,14 @@
       return `
         <div class="health-stack">
           <div class="bar-heart"></div>
-          <div class="bar-track"><div class="bar-fill" style="width:${getHpPercent(unit)}%"></div></div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${getHpPercent(unit)}%"></div>
+            <div class="bar-text">${unit.hp}/${unit.maxHp}</div>
+          </div>
         </div>
       `;
     }
+
 
     function isInspecting(type, uid) {
       return !!state.inspect && state.inspect.type === type && state.inspect.uid === uid;
@@ -2353,45 +2367,28 @@
       }
       layer.classList.add("active");
 
-
       const type = state.inspect.type;
       let flag = "主角";
-      let note = `黑月契约 / 被动：${state.hero.passive}`;
+      let note = `当前 ${state.energy} 点能量，攻击 ${state.hero.atk}。`;
       let badge = `<div class="detail-intent hero"><span class="badge-icon">✦</span></div>`;
-      const rows = [detailRow("HP", `${unit.hp} / ${unit.maxHp}`)];
 
       if (type === "enemy") {
         const meta = getIntentMeta(unit.intent);
         flag = "敌方单位";
-        note = unit.note;
+        note = getIntentSentence(unit.intent);
         badge = `
           <div class="detail-intent ${meta.badgeClass}">
             <span class="badge-icon">${meta.icon}</span>
             <span class="badge-value">${meta.short}</span>
           </div>
         `;
-        rows.push(detailRow("定位", unit.roleLabel));
-        rows.push(detailRow("意图", meta.title));
-        rows.push(detailRow("节奏", describePattern(unit)));
-        if (unit.block > 0) rows.push(detailRow("护甲", `${unit.block}`));
-        if (unit.curse > 0) rows.push(detailRow("蚀骨", `${unit.curse}`));
-        rows.push(detailRow("战术", unit.tactic || meta.note));
-        rows.push(detailRow("当前", meta.note));
       } else if (type === "summon") {
-
         flag = "召唤物";
-        note = unit.tpl === "imp" ? "快攻 / 献祭" : "护卫 / 撕咬";
+        const atk = unit.atk + (unit.buff || 0);
+        note = unit.block > 0 ? `当前攻击 ${atk}，护甲 ${unit.block}。` : `当前攻击 ${atk}。`;
         badge = `<div class="detail-intent summon"><span class="badge-icon">${unit.face}</span></div>`;
-        rows.push(detailRow("攻击", `${unit.atk + (unit.buff || 0)}`));
-        if (unit.block > 0) rows.push(detailRow("护甲", `${unit.block}`));
-        if (unit.buff > 0) rows.push(detailRow("强化", `+${unit.buff} 攻击`));
-        rows.push(detailRow("职责", note));
-      } else {
-        rows.push(detailRow("能量", `${state.energy} / ${Math.max(state.maxEnergy, state.energy)}`));
-        rows.push(detailRow("攻击", `${unit.atk}`));
-        if (unit.block > 0) rows.push(detailRow("护甲", `${unit.block}`));
-        if (unit.hex > 0) rows.push(detailRow("状态", `压制 -${unit.hex} 能量`));
-        rows.push(detailRow("被动", unit.passive));
+      } else if (unit.hex > 0) {
+        note = `当前 ${state.energy} 点能量，已被压制：本回合少 ${unit.hex} 点能量。`;
       }
 
       layer.innerHTML = `
@@ -2404,10 +2401,10 @@
             </div>
             ${badge}
           </div>
-          <div class="detail-bars">${rows.join("")}</div>
         </div>
       `;
     }
+
 
     function renderEnemies() {
       const zone = document.getElementById("enemyZone");
