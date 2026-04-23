@@ -835,153 +835,255 @@
       background: #060504;
     }
 
-    .meta-plate {
+    .health-stack {
+      position: absolute;
+      left: 50%;
+      top: 4px;
+      transform: translateX(-50%);
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      pointer-events: none;
+    }
+
+    .hero .health-stack {
+      top: 14px;
+    }
+
+    .summon .health-stack {
+      top: 30px;
+    }
+
+    .bar-heart {
+      width: 12px;
+      height: 12px;
+      transform: rotate(-45deg);
+      background: var(--danger);
+      border-radius: 4px 0 0 4px;
+      box-shadow: 0 0 10px rgba(216,109,97,0.18);
       position: relative;
-      z-index: 2;
-      margin-top: -6px;
-      padding: 8px 10px 10px;
-      min-width: 82px;
-      border-radius: 18px;
-      background: rgba(25, 20, 17, 0.72);
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
-      text-align: left;
-      backdrop-filter: blur(6px);
+      flex: 0 0 auto;
     }
 
-    .hero .meta-plate {
-      min-width: 118px;
-      margin-top: -2px;
-      transform: translateX(-6px);
-    }
-
-    .enemy .meta-plate {
-      min-width: 98px;
-      transform: translateX(2px);
-    }
-
-    .name-line {
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 1px;
-      color: #f7eed8;
-    }
-
-    .sub-line {
-      margin-top: 2px;
-      font-size: 9px;
-      color: rgba(247, 235, 212, 0.58);
-      letter-spacing: 1px;
-    }
-
-    .hp-line {
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 4px;
-      font-size: 10px;
-      color: rgba(255, 233, 224, 0.92);
-    }
-
-    .hp-line b {
-      font-size: 18px;
-      color: #ffe0d4;
-    }
-
-    .energy-line,
-    .intent-line,
-    .stat-row {
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-
-    .line-label {
-      font-size: 8px;
-      color: rgba(247, 235, 212, 0.56);
-      letter-spacing: 1px;
-      min-width: 20px;
-    }
-
-    .stat-chip {
-      padding: 3px 7px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(8, 7, 6, 0.42);
-      font-size: 9px;
-      font-weight: 900;
-      line-height: 1;
-      color: #f4ead5;
-    }
-
-    .stat-chip.atk { color: #f5d58d; }
-    .stat-chip.blk { color: #b7deff; }
-
-    .intent-line {
-      color: #ffd6cb;
-    }
-
-    .intent-icon {
-      width: 18px;
-      height: 18px;
+    .bar-heart::before,
+    .bar-heart::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
+      background: var(--danger);
+    }
+
+    .bar-heart::before { top: -6px; left: 0; }
+    .bar-heart::after { left: 6px; top: 0; }
+
+    .bar-track {
+      position: relative;
+      width: 70px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(36,25,19,0.88);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.32);
+    }
+
+    .hero .bar-track {
+      width: 94px;
+    }
+
+    .summon .bar-track {
+      width: 58px;
+      height: 9px;
+    }
+
+    .bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #b33e3a 0%, #d86d61 55%, #efab97 100%);
+      box-shadow: 0 0 12px rgba(216,109,97,0.2);
+    }
+
+    .bar-track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%);
+      pointer-events: none;
+    }
+
+    .hero-energy {
+      position: absolute;
+      left: 14px;
+      bottom: 44px;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(18,14,12,0.46);
+      border: 1px solid rgba(255,255,255,0.08);
+      pointer-events: none;
+    }
+
+    .intent-stack {
+      position: absolute;
+      left: 50%;
+      top: 18px;
+      transform: translateX(-50%);
+      z-index: 5;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(94, 48, 34, 0.42);
-      border: 1px solid rgba(255,255,255,0.08);
-      font-size: 10px;
-      line-height: 1;
-    }
-
-    .intent-copy {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
-    .intent-title {
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.4px;
-    }
-
-    .intent-note {
-      font-size: 8px;
-      color: rgba(247, 235, 212, 0.54);
-      letter-spacing: 0.6px;
-    }
-
-    .enemy-intent {
-      display: none;
-    }
-
-    .enemy .tags {
-      margin-top: 4px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-start;
       gap: 4px;
-      min-height: 16px;
+      pointer-events: none;
     }
 
-    .tag-bit {
-      padding: 2px 6px;
+    .intent-badge,
+    .detail-intent {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 7px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(7, 6, 5, 0.42);
-      font-size: 9px;
-      color: #f5d0ff;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.18);
+    }
+
+    .intent-badge.attack,
+    .detail-intent.attack {
+      background: rgba(96, 50, 34, 0.82);
+      color: #ffe0cf;
+    }
+
+    .intent-badge.debuff,
+    .detail-intent.debuff {
+      background: rgba(112, 34, 40, 0.84);
+      color: #ffb9ba;
+    }
+
+    .intent-badge.buff,
+    .detail-intent.buff {
+      background: rgba(32, 88, 54, 0.84);
+      color: #ccffd7;
+    }
+
+    .detail-intent.hero,
+    .detail-intent.summon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      padding: 0;
+      background: rgba(65, 54, 43, 0.88);
+      color: #fff0d1;
+    }
+
+    .badge-icon {
+      font-size: 11px;
       line-height: 1;
     }
 
-    .hint-banner {
-      display: none;
+    .badge-value {
+      font-size: 10px;
+      letter-spacing: 0.2px;
     }
+
+    .actor.is-focused {
+      filter: drop-shadow(0 0 12px rgba(244, 231, 195, 0.18));
+    }
+
+    .actor.is-focused .ground-ring {
+      background: radial-gradient(ellipse at 50% 50%, rgba(245, 224, 175, 0.34) 0%, rgba(0,0,0,0) 72%);
+      transform: translateX(-50%) scale(1.08);
+    }
+
+    .detail-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    .detail-pop {
+      position: absolute;
+      right: 12px;
+      bottom: 108px;
+      width: 186px;
+      padding: 12px 12px 13px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(27,22,19,0.96) 0%, rgba(19,15,13,0.96) 100%);
+      box-shadow: 0 16px 34px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.02);
+      backdrop-filter: blur(10px);
+    }
+
+    .detail-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .detail-flag {
+      font-size: 8px;
+      letter-spacing: 1.4px;
+      color: rgba(255,244,222,0.5);
+    }
+
+    .detail-name {
+      margin-top: 3px;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+      color: #fff1da;
+    }
+
+    .detail-note {
+      margin-top: 2px;
+      font-size: 9px;
+      color: rgba(255,244,222,0.62);
+      letter-spacing: 0.5px;
+    }
+
+    .detail-bars {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: grid;
+      gap: 8px;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .detail-label {
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: rgba(255,244,222,0.52);
+    }
+
+    .detail-value {
+      font-size: 11px;
+      color: #ffe9d7;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+
 
     .hand-shell,
     .log-shell {
@@ -1248,11 +1350,23 @@
 
     .btn.primary {
       background: linear-gradient(180deg, #f0d79f 0%, #d5b06d 100%);
+      animation: btnEdgeGlow 2.4s ease-in-out infinite;
+      box-shadow: 0 10px 18px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(247, 223, 162, 0.16), 0 0 10px rgba(247, 223, 162, 0.16);
     }
 
     .btn:active {
       transform: translateY(1px);
     }
+
+    @keyframes btnEdgeGlow {
+      0%, 100% {
+        box-shadow: 0 10px 18px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(247, 223, 162, 0.12), 0 0 8px rgba(247, 223, 162, 0.1);
+      }
+      50% {
+        box-shadow: 0 10px 18px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(247, 223, 162, 0.24), 0 0 14px rgba(247, 223, 162, 0.18);
+      }
+    }
+
 
     .log {
       position: relative;
@@ -1397,8 +1511,10 @@
 
         <div class="enemy-zone" id="enemyZone"></div>
         <div class="ally-zone" id="allyZone"></div>
+        <div class="detail-layer" id="detailLayer"></div>
       </div>
     </section>
+
 
     <section class="hand-shell">
       <div class="hand-container">
@@ -1430,8 +1546,10 @@
         maxHp: 50,
         atk: 2,
         block: 0,
-        passive: "阴影汲取"
+        passive: "阴影汲取",
+        hex: 0
       };
+
     }
 
     const SUMMONS = {
@@ -1439,7 +1557,50 @@
       hound: { name: "猎犬", face: "✹", hp: 9, atk: 4, linkCards: ["lk_hound_bite", "lk_hound_guard", "lk_hound_rage"] }
     };
 
+    const ENEMY_ARCHETYPES = {
+      assault: {
+        name: "哨戒鬼差",
+        hp: 20,
+        slot: "left",
+        note: "攻击手 / 专切前排",
+        roleLabel: "直伤压血",
+        tactic: "持续出刀压血线，逼你尽快处理它。",
+        pattern: [
+          { type: "attack", value: 6, note: "先手试刀，优先削前排血量" },
+          { type: "attack", value: 8, note: "第二刀最重，逼你交防御" },
+          { type: "attack", value: 7, note: "维持伤害压力，不给喘息" }
+        ]
+      },
+      hexer: {
+        name: "缚魂纸偶",
+        hp: 24,
+        slot: "mid",
+        note: "压制手 / 控能断节奏",
+        roleLabel: "控能干扰",
+        tactic: "先压制你的能量，再趁缺口补刀。",
+        pattern: [
+          { type: "weaken", value: 1, note: "下回合让你少 1 点能量" },
+          { type: "attack", value: 5, note: "趁你缺能量时补上直伤" },
+          { type: "weaken", value: 1, note: "继续压制，拖慢你的展开" }
+        ]
+      },
+      bulwark: {
+        name: "纸甲阴兵",
+        hp: 28,
+        slot: "right",
+        note: "自护手 / 叠甲拖回合",
+        roleLabel: "护甲拖场",
+        tactic: "反复给自己上甲，拖长战线保护队友。",
+        pattern: [
+          { type: "buff", value: 6, note: "先立护甲，抬高你的击杀成本" },
+          { type: "attack", value: 5, note: "顶着护甲稳定反击" },
+          { type: "buff", value: 8, note: "再次叠甲，把战线拉长" }
+        ]
+      }
+    };
+
     const CARDS = {
+
       ho_cast:    { id: "ho_cast",    type: "hero",   name: "施法",     cost: 1, target: "enemy", action: "hero_cast",       art: "✦", text: "术士施放法术，造成 5 伤害" },
       ho_curse:   { id: "ho_curse",   type: "hero",   name: "蚀骨诅咒", cost: 1, target: "enemy", action: "hero_curse",      art: "☾", text: "对敌人 +3 蚀骨（回合末扣血）" },
       ho_drain:   { id: "ho_drain",   type: "hero",   name: "魂之吸取", cost: 1, target: "enemy", action: "hero_drain",      art: "✧", text: "造成 4 伤害，术士回 3 HP" },
@@ -1479,9 +1640,14 @@
         curse: preset.curse || 0,
         intent: null,
         slot: preset.slot || "mid",
-        note: preset.note || "背坡上的压迫者"
+        note: preset.note || "背坡上的压迫者",
+        roleLabel: preset.roleLabel || "压迫者",
+        tactic: preset.tactic || "",
+        pattern: (preset.pattern || []).map(step => ({ ...step })),
+        patternIndex: preset.patternIndex || 0
       };
     }
+
 
     let state;
     let clearNewCardsTimer = null;
@@ -1504,10 +1670,11 @@
         hero: makeHero(),
         summons: [],
         enemies: [
-          makeEnemy({ name: "哨戒鬼差", hp: 18, slot: "left", note: "侧翼压阵" }),
-          makeEnemy({ name: "断罪骑士", hp: 32, slot: "mid", note: "中央压迫者" }),
-          makeEnemy({ name: "纸甲阴兵", hp: 22, slot: "right", note: "侧翼追击" })
+          makeEnemy(ENEMY_ARCHETYPES.assault),
+          makeEnemy(ENEMY_ARCHETYPES.hexer),
+          makeEnemy(ENEMY_ARCHETYPES.bulwark)
         ],
+
         deck: [],
         discard: [],
         hand: [],
@@ -1517,16 +1684,20 @@
         turn: 1,
         ended: false,
         selectedCardUid: null,
-        newlyDrawn: []
+        newlyDrawn: [],
+        inspect: null,
+        pendingHex: 0
       };
+
 
       state.deck = STARTER_DECK_IDS.map(id => ({ ...CARDS[id], uid: uid() }));
       shuffle(state.deck);
       state.enemies.forEach(pickEnemyIntent);
       draw(state.handSize);
       logClear();
-      log("战斗开始 · 月下黑林中出现三名压迫者", "summon");
+      log("战斗开始 · 左侧斩击手 / 中央压制手 / 右侧自护手已经现身", "summon");
       render();
+
     }
 
     function uid() {
@@ -1557,11 +1728,16 @@
     }
 
     function pickEnemyIntent(e) {
-      const r = Math.random();
-      if (r < 0.58) e.intent = { type: "attack", value: 7, icon: "⚔", note: `攻击 ${7}` };
-      else if (r < 0.84) e.intent = { type: "guard", value: 6, icon: "🛡", note: `护甲 ${6}` };
-      else e.intent = { type: "aoe", value: 3, icon: "✺", note: `横扫 ${3}` };
+      if (!e.pattern || e.pattern.length === 0) {
+        e.intent = { type: "attack", value: 6, note: "默认攻击" };
+        return;
+      }
+      const step = e.pattern[e.patternIndex % e.pattern.length];
+      e.intent = { ...step };
+      e.patternIndex = (e.patternIndex + 1) % e.pattern.length;
     }
+
+
 
     function injectLinkCards(summonTpl) {
       const tpl = SUMMONS[summonTpl];
@@ -1825,6 +2001,7 @@
       if (state.ended) return;
 
       state.selectedCardUid = null;
+      state.hero.hex = 0;
       state.discard.push(...state.hand);
       state.hand = [];
 
@@ -1842,13 +2019,14 @@
             dealHeroDmg(it.value);
             log("敌人攻击术士", "hit");
           }
-        } else if (it.type === "guard") {
+        } else if (it.type === "weaken") {
+          state.pendingHex = Math.max(state.pendingHex, it.value);
+          state.hero.hex = state.pendingHex;
+          floatOn(getHeroEl(), `能量-${it.value}`, "buff");
+          log(`敌人施加压制，下回合 -${it.value} 能量`, "buff");
+        } else if (it.type === "buff") {
           e.block += it.value;
-          log(`敌人获得 ${it.value} 护甲`);
-        } else if (it.type === "aoe") {
-          state.summons.forEach(s => dealSummonDmg(s, it.value));
-          dealHeroDmg(it.value);
-          log(`敌人横扫 ${it.value}`, "hit");
+          log(`敌人自护 +${it.value} 护甲`, "buff");
         }
 
         if (e.curse > 0 && e.hp > 0) {
@@ -1859,14 +2037,18 @@
         }
       });
 
+
       cleanupDead();
       checkEnd();
       if (state.ended) return render();
 
       const hasCurse = state.enemies.some(e => e.curse > 0);
+      const hexPenalty = state.pendingHex;
       state.turn += 1;
-      state.energy = state.maxEnergy + (hasCurse ? 1 : 0);
+      state.energy = Math.max(0, state.maxEnergy + (hasCurse ? 1 : 0) - hexPenalty);
+      state.pendingHex = 0;
       state.hero.block = 0;
+      state.hero.hex = hexPenalty;
       state.summons.forEach(s => {
         s.block = 0;
         s.buff = 0;
@@ -1874,7 +2056,9 @@
       state.enemies.forEach(pickEnemyIntent);
       draw(state.handSize);
       if (hasCurse) log("阴影汲取 +1 能量", "buff");
+      if (hexPenalty > 0) log(`压制生效：本回合 -${hexPenalty} 能量`, "hit");
       render();
+
     }
 
     function checkEnd() {
@@ -1905,12 +2089,15 @@
       document.getElementById("discardCount").textContent = state.discard.length;
       document.getElementById("handCount").textContent = state.hand.length;
 
+      sanitizeInspect();
       renderEnemies();
       renderAllies();
       renderHand();
+      renderDetail();
 
       document.getElementById("endTurnBtn").textContent = state.ended ? "战斗结束" : "结束回合";
       queueClearNewCards();
+
     }
 
     function renderMana() {}
@@ -1923,11 +2110,179 @@
       });
     }
 
+    function getIntentMeta(intent) {
+      if (!intent) return {
+        icon: "·",
+        badgeClass: "attack",
+        title: "待机",
+        short: "0",
+        note: "本回合暂无动作"
+      };
+      if (intent.type === "attack") {
+        return {
+          icon: "⚔",
+          badgeClass: "attack",
+          title: `攻击 ${intent.value}`,
+          short: `${intent.value}`,
+          note: intent.note || "直击你的前排单位"
+        };
+      }
+      if (intent.type === "weaken") {
+        return {
+          icon: "↓",
+          badgeClass: "debuff",
+          title: `压制 ${intent.value}`,
+          short: `${intent.value}`,
+          note: intent.note || `下回合让你少 ${intent.value} 点能量`
+        };
+      }
+      return {
+        icon: "↑",
+        badgeClass: "buff",
+        title: `自护 ${intent.value}`,
+        short: `${intent.value}`,
+        note: intent.note || `为自己施加 ${intent.value} 点护甲`
+      };
+    }
+
     function describeIntent(intent) {
-      if (!intent) return "待机";
-      if (intent.type === "attack") return `攻击 ${intent.value}`;
-      if (intent.type === "guard") return `护甲 ${intent.value}`;
-      return `横扫 ${intent.value}`;
+      return getIntentMeta(intent).title;
+    }
+
+    function describePattern(unit) {
+      if (!unit?.pattern?.length) return "-";
+      return unit.pattern.map(step => {
+        const meta = getIntentMeta(step);
+        return `${meta.icon}${step.value}`;
+      }).join(" → ");
+    }
+
+
+    function renderIntentBadge(intent) {
+      if (!intent) return "";
+      const meta = getIntentMeta(intent);
+      return `
+        <div class="intent-badge ${meta.badgeClass}" aria-label="${meta.title}">
+          <span class="badge-icon">${meta.icon}</span>
+          <span class="badge-value">${meta.short}</span>
+        </div>
+      `;
+    }
+
+    function getHpPercent(unit) {
+      if (!unit || !unit.maxHp) return 0;
+      return Math.max(0, Math.min(100, Math.round(unit.hp / unit.maxHp * 100)));
+    }
+
+    function renderHpStack(unit) {
+      return `
+        <div class="health-stack">
+          <div class="bar-heart"></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${getHpPercent(unit)}%"></div></div>
+        </div>
+      `;
+    }
+
+    function isInspecting(type, uid) {
+      return !!state.inspect && state.inspect.type === type && state.inspect.uid === uid;
+    }
+
+    function toggleInspect(type, uid) {
+      if (isInspecting(type, uid)) state.inspect = null;
+      else state.inspect = { type, uid };
+      render();
+    }
+
+    function sanitizeInspect() {
+      if (!state.inspect) return;
+      if (state.inspect.type === "hero") return;
+      if (state.inspect.type === "enemy" && !state.enemies.some(e => e.uid === state.inspect.uid)) {
+        state.inspect = null;
+      }
+      if (state.inspect?.type === "summon" && !state.summons.some(s => s.uid === state.inspect.uid)) {
+        state.inspect = null;
+      }
+    }
+
+    function getInspectUnit() {
+      if (!state.inspect) return null;
+      if (state.inspect.type === "hero") return state.hero;
+      if (state.inspect.type === "enemy") return state.enemies.find(e => e.uid === state.inspect.uid) || null;
+      if (state.inspect.type === "summon") return state.summons.find(s => s.uid === state.inspect.uid) || null;
+      return null;
+    }
+
+    function detailRow(label, value) {
+      return `
+        <div class="detail-row">
+          <div class="detail-label">${label}</div>
+          <div class="detail-value">${value}</div>
+        </div>
+      `;
+    }
+
+    function renderDetail() {
+      const layer = document.getElementById("detailLayer");
+      if (!layer) return;
+      const unit = getInspectUnit();
+      if (!unit) {
+        layer.innerHTML = "";
+        return;
+      }
+
+      const type = state.inspect.type;
+      let flag = "主角";
+      let note = `黑月契约 / 被动：${state.hero.passive}`;
+      let badge = `<div class="detail-intent hero"><span class="badge-icon">✦</span></div>`;
+      const rows = [detailRow("HP", `${unit.hp} / ${unit.maxHp}`)];
+
+      if (type === "enemy") {
+        const meta = getIntentMeta(unit.intent);
+        flag = "敌方单位";
+        note = unit.note;
+        badge = `
+          <div class="detail-intent ${meta.badgeClass}">
+            <span class="badge-icon">${meta.icon}</span>
+            <span class="badge-value">${meta.short}</span>
+          </div>
+        `;
+        rows.push(detailRow("定位", unit.roleLabel));
+        rows.push(detailRow("意图", meta.title));
+        rows.push(detailRow("节奏", describePattern(unit)));
+        if (unit.block > 0) rows.push(detailRow("护甲", `${unit.block}`));
+        if (unit.curse > 0) rows.push(detailRow("蚀骨", `${unit.curse}`));
+        rows.push(detailRow("战术", unit.tactic || meta.note));
+        rows.push(detailRow("当前", meta.note));
+      } else if (type === "summon") {
+
+        flag = "召唤物";
+        note = unit.tpl === "imp" ? "快攻 / 献祭" : "护卫 / 撕咬";
+        badge = `<div class="detail-intent summon"><span class="badge-icon">${unit.face}</span></div>`;
+        rows.push(detailRow("攻击", `${unit.atk + (unit.buff || 0)}`));
+        if (unit.block > 0) rows.push(detailRow("护甲", `${unit.block}`));
+        if (unit.buff > 0) rows.push(detailRow("强化", `+${unit.buff} 攻击`));
+        rows.push(detailRow("职责", note));
+      } else {
+        rows.push(detailRow("能量", `${state.energy} / ${Math.max(state.maxEnergy, state.energy)}`));
+        rows.push(detailRow("攻击", `${unit.atk}`));
+        if (unit.block > 0) rows.push(detailRow("护甲", `${unit.block}`));
+        if (unit.hex > 0) rows.push(detailRow("状态", `压制 -${unit.hex} 能量`));
+        rows.push(detailRow("被动", unit.passive));
+      }
+
+      layer.innerHTML = `
+        <div class="detail-pop">
+          <div class="detail-top">
+            <div>
+              <div class="detail-flag">${flag}</div>
+              <div class="detail-name">${unit.name}</div>
+              <div class="detail-note">${note}</div>
+            </div>
+            ${badge}
+          </div>
+          <div class="detail-bars">${rows.join("")}</div>
+        </div>
+      `;
     }
 
     function renderEnemies() {
@@ -1936,12 +2291,11 @@
       state.enemies.forEach((e, index) => {
         const el = document.createElement("div");
         const slot = e.slot || ["left", "mid", "right"][index] || "mid";
-        el.className = `enemy actor slot-${slot}`;
+        el.className = `enemy actor slot-${slot}${isInspecting("enemy", e.uid) ? " is-focused" : ""}`;
         el.dataset.uid = e.uid;
-        const tags = [];
-        if (e.curse > 0) tags.push(`<span class="tag-bit">蚀骨 ${e.curse}</span>`);
-        if (e.block > 0) tags.push(`<span class="tag-bit" style="color:#b7deff;">护甲 ${e.block}</span>`);
         el.innerHTML = `
+          ${renderHpStack(e)}
+          <div class="intent-stack">${renderIntentBadge(e.intent)}</div>
           <div class="ground-ring"></div>
           <div class="figure enemy-figure">
             <span class="aura"></span>
@@ -1952,23 +2306,15 @@
             <span class="cape"></span>
             <span class="weapon"></span>
           </div>
-          <div class="meta-plate">
-            <div class="name-line">${e.name}</div>
-            <div class="sub-line">${e.note}</div>
-            <div class="hp-line"><span class="line-label">HP</span><b>${e.hp}</b><span> / ${e.maxHp}</span></div>
-            <div class="intent-line">
-              <span class="intent-icon">${e.intent ? e.intent.icon : "·"}</span>
-              <span class="intent-copy">
-                <span class="intent-title">${describeIntent(e.intent)}</span>
-                <span class="intent-note">下回合意图</span>
-              </span>
-            </div>
-            <div class="tags">${tags.join("")}</div>
-          </div>
         `;
+        el.addEventListener("click", ev => {
+          ev.stopPropagation();
+          toggleInspect("enemy", e.uid);
+        });
         zone.appendChild(el);
       });
     }
+
 
     function renderAllies() {
       const zone = document.getElementById("allyZone");
@@ -1980,11 +2326,13 @@
 
     function buildHeroEl(h) {
       const el = document.createElement("div");
-      el.className = "hero actor";
+      el.className = `hero actor${isInspecting("hero", h.uid) ? " is-focused" : ""}`;
       el.dataset.uid = h.uid;
       const displayMax = Math.max(state.maxEnergy, state.energy);
       const crystals = Array.from({ length: displayMax }, (_, i) => `<div class="crystal${i >= state.energy ? " empty" : ""}"></div>`).join("");
       el.innerHTML = `
+        ${renderHpStack(h)}
+        <div class="hero-energy">${crystals}</div>
         <div class="ground-ring"></div>
         <div class="figure hero-figure">
           <span class="aura"></span>
@@ -1996,29 +2344,18 @@
           <span class="weapon"></span>
           <span class="extra"></span>
         </div>
-        <div class="meta-plate">
-          <div class="name-line">术士</div>
-          <div class="sub-line">黑月契约 / 被动：${h.passive}</div>
-          <div class="hp-line"><span class="line-label">HP</span><b>${h.hp}</b><span> / ${h.maxHp}</span>${h.block > 0 ? `<span> · 甲 ${h.block}</span>` : ""}</div>
-          <div class="energy-line">
-            <span class="line-label">能量</span>
-            <span class="mana-inline">${crystals}<span class="energy-count">${state.energy}</span></span>
-          </div>
-          <div class="stat-row">
-            <div class="stat-chip atk">ATK ${h.atk}</div>
-            ${h.block > 0 ? `<div class="stat-chip blk">BLK ${h.block}</div>` : ""}
-          </div>
-        </div>
       `;
+      el.addEventListener("click", ev => {
+        ev.stopPropagation();
+        toggleInspect("hero", h.uid);
+      });
       return el;
     }
 
     function buildSummonEl(s) {
       const el = document.createElement("div");
-      el.className = `summon actor ${s.tpl} enter-anim`;
+      el.className = `summon actor ${s.tpl} enter-anim${isInspecting("summon", s.uid) ? " is-focused" : ""}`;
       el.dataset.uid = s.uid;
-      const atkVal = s.atk + (s.buff || 0);
-      const sub = s.tpl === "imp" ? "快攻 / 献祭" : "护卫 / 撕咬";
       const figure = s.tpl === "imp"
         ? `
           <div class="figure">
@@ -2041,20 +2378,17 @@
           </div>`;
 
       el.innerHTML = `
+        ${renderHpStack(s)}
         <div class="ground-ring"></div>
         ${figure}
-        <div class="meta-plate">
-          <div class="name-line">${s.name}</div>
-          <div class="sub-line">${sub}</div>
-          <div class="hp-line"><b>${s.hp}</b><span> / ${s.maxHp}</span>${s.block > 0 ? `<span> · 甲 ${s.block}</span>` : ""}</div>
-          <div class="stat-row">
-            <div class="stat-chip atk">ATK ${atkVal}</div>
-            ${s.block > 0 ? `<div class="stat-chip blk">BLK ${s.block}</div>` : ""}
-          </div>
-        </div>
       `;
+      el.addEventListener("click", ev => {
+        ev.stopPropagation();
+        toggleInspect("summon", s.uid);
+      });
       return el;
     }
+
 
     function renderHand() {
       const fan = document.getElementById("handFan");
@@ -2346,9 +2680,16 @@
     }
 
     document.getElementById("endTurnBtn").addEventListener("click", endTurn);
+    document.querySelector(".battle-stage").addEventListener("click", ev => {
+      if (ev.target === ev.currentTarget || ev.target.classList.contains("battle-stage") || ev.target.classList.contains("backdrop")) {
+        state.inspect = null;
+        render();
+      }
+    });
     window.addEventListener("resize", () => renderHand());
 
     newGame();
+
   </script>
 </body>
 </html>
