@@ -2,1343 +2,201 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>幽塔·术士 v0.2（构图D + 联动卡注入）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>Claw 機制鏡像 v1</title>
   <style>
-    :root {
-      --bg-deep: #0c0f1a;
-      --gold: #e9c56d;
-      --gold-dim: #8c6c2c;
-      --text: #fff4dc;
-      --text-dim: #b7a680;
-      --mana-blue: #3b7fe0;
-      --mana-glow: #7ecbff;
-    }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
-    body {
-      margin: 0; min-height: 100vh;
-      background:
-        radial-gradient(ellipse at 50% -10%, #3a2410 0%, rgba(0,0,0,0) 45%),
-        radial-gradient(ellipse at 50% 100%, #1a2942 0%, rgba(0,0,0,0) 55%),
-        linear-gradient(180deg, var(--bg-deep) 0%, #0a0d18 100%);
-      color: var(--text);
-      font-family: "SimSun","宋体","Songti TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      padding: 6px 6px 12px;
-      overflow-x: hidden;
-    }
-
-    .app { max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
-
-    .title-bar { display:flex; justify-content:space-between; align-items:center; padding: 2px 6px; }
-    .title { font-size: 15px; font-weight: 800; color: var(--gold); text-shadow: 0 0 8px rgba(233,197,109,0.4); letter-spacing: 2px; }
-    .subtitle { font-size: 9px; color: var(--text-dim); }
-
-    /* ===== 统一舞台（构图D · 1/3上+2/3下） ===== */
-    .stage {
-      position: relative;
-      border-radius: 16px;
-      border: 2px solid #4a3218;
-      background:
-        linear-gradient(180deg, rgba(60,40,20,0.35) 0%, rgba(0,0,0,0) 40%),
-        linear-gradient(180deg, #1a1d2d 0%, #0f1420 100%);
-      box-shadow: inset 0 0 20px rgba(233,197,109,0.1), 0 8px 24px rgba(0,0,0,0.45);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .stage::before {
-      content: ""; position: absolute; inset: 5px;
-      border: 1px solid rgba(233,197,109,0.16);
-      border-radius: 12px; pointer-events: none;
-    }
-
-    /* --- 敌人区（上1/3） --- */
-    .enemy-zone {
-      flex: 0 0 auto;
-      min-height: 148px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-      gap: 10px;
-      padding: 10px 8px 8px;
-      background: linear-gradient(180deg, rgba(80,30,20,0.18) 0%, rgba(0,0,0,0) 80%);
-    }
-    .enemy {
-      width: 100px; height: 130px;
-      border-radius: 12px;
-      position: relative;
-      padding: 6px;
-      cursor: pointer;
-      background:
-        radial-gradient(ellipse at 50% 20%, rgba(216,94,74,0.28), rgba(0,0,0,0) 70%),
-        linear-gradient(180deg, #2b1a18 0%, #1a1010 100%);
-      border: 2px solid #6b3a32;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.55), inset 0 0 12px rgba(216,94,74,0.15);
-      transition: transform 180ms, border-color 180ms, box-shadow 180ms;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      align-items: center;
-    }
-    .enemy.drop-ready {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 2px rgba(233,197,109,0.45), 0 4px 20px rgba(233,197,109,0.35), inset 0 0 20px rgba(233,197,109,0.15);
-      transform: translateY(-3px);
-    }
-    .enemy.hit { animation: shake 280ms ease; }
-    @keyframes shake {
-      0%,100% { transform: translate(0,0); }
-      20% { transform: translate(-4px,2px); }
-      40% { transform: translate(4px,-2px); }
-      60% { transform: translate(-3px,0); }
-      80% { transform: translate(3px,0); }
-    }
-    .enemy .portrait {
-      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-      font-size: 48px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7));
-    }
-    .enemy .name {
-      font-size: 10px; color: #ffd2bf; font-weight: 700;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.9); letter-spacing: 1px;
-    }
-    .enemy .hp {
-      font-size: 18px; font-weight: 900; color: #ffe0d2;
-      text-shadow: 0 0 6px rgba(216,94,74,0.8), 0 2px 3px rgba(0,0,0,0.9);
-      line-height: 1; margin-top: 2px;
-    }
-    .enemy .hp-max { font-size: 9px; color: var(--text-dim); }
-    .enemy .tags { display: flex; gap: 3px; margin-top: 2px; }
-    .enemy .tag-bit { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(0,0,0,0.4); color: #d7a0ff; border: 1px solid rgba(215,160,255,0.3); }
-    .enemy .intent {
-      position: absolute; top: -8px; right: -4px;
-      min-width: 32px; height: 32px; border-radius: 50%;
-      background: linear-gradient(180deg, #3a2218 0%, #1f1008 100%);
-      border: 2px solid var(--gold);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 900; color: var(--gold);
-      box-shadow: 0 0 10px rgba(233,197,109,0.5);
-      padding: 0 6px;
-    }
-
-    /* --- 状态栏（能量/本体HP/回合） --- */
-    .status-row {
-      padding: 4px 10px;
-      display: flex; align-items: center; justify-content: space-between;
-      background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 100%);
-    }
-    .self-hp {
-      display: flex; align-items: center; gap: 4px;
-      color: #ff8080; font-weight: 800; font-size: 13px;
-      text-shadow: 0 0 4px rgba(255,128,128,0.5);
-    }
-    .self-hp .icon { font-size: 16px; }
-    .turn-badge {
-      background: linear-gradient(180deg, #3a2818 0%, #1a110a 100%);
-      border: 1px solid var(--gold-dim);
-      color: var(--gold); font-size: 10px;
-      padding: 3px 8px; border-radius: 999px; letter-spacing: 1px;
-    }
-    .mana-pool { display: flex; gap: 3px; }
-    .crystal {
-      width: 20px; height: 24px;
-      clip-path: polygon(50% 0%,100% 30%,100% 70%,50% 100%,0% 70%,0% 30%);
-      background: linear-gradient(180deg, var(--mana-glow) 0%, var(--mana-blue) 100%);
-      box-shadow: 0 0 6px rgba(126,203,255,0.55), inset 0 0 4px rgba(255,255,255,0.5);
-      transition: all 200ms;
-    }
-    .crystal.empty {
-      background: linear-gradient(180deg, #2a2a3a 0%, #15151f 100%);
-      box-shadow: inset 0 0 4px rgba(0,0,0,0.8); opacity: 0.55;
-    }
-    .crystal.pulse { animation: crystalPulse 300ms ease; }
-    @keyframes crystalPulse {
-      0%,100% { transform: scale(1); }
-      50% { transform: scale(1.25); box-shadow: 0 0 16px rgba(126,203,255,0.9); }
-    }
-
-    /* --- 我方区（下2/3：主角居中+召唤物两侧） --- */
-    .ally-zone {
-      flex: 1;
-      min-height: 220px;
-      position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-      gap: 12px;
-      padding: 16px 10px 18px;
-      background:
-        radial-gradient(ellipse at 50% 100%, rgba(30,80,160,0.22) 0%, rgba(0,0,0,0) 65%);
-    }
-    /* 公用站位 */
-    .unit-holder { position: relative; cursor: pointer; transition: transform 180ms; }
-    .unit-holder.drop-ready {
-      transform: translateY(-3px);
-    }
-    .unit-holder.drop-ready .unit-inner {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 2px rgba(233,197,109,0.45), 0 4px 20px rgba(233,197,109,0.35), inset 0 0 20px rgba(233,197,109,0.15);
-    }
-
-    .hero .unit-inner {
-      width: 148px; height: 200px;
-      border-radius: 16px;
-      padding: 8px;
-      background:
-        radial-gradient(ellipse at 50% 30%, rgba(160,110,240,0.35) 0%, rgba(0,0,0,0) 65%),
-        linear-gradient(180deg, #2a1f45 0%, #120a28 100%);
-      border: 2px solid #6a4aa0;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.6), inset 0 0 16px rgba(180,130,255,0.15);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      position: relative;
-    }
-    .hero .portrait {
-      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-      font-size: 80px; line-height: 1; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.7));
-    }
-    .hero .name {
-      font-size: 13px; color: #e6d5ff; font-weight: 800;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.9); letter-spacing: 2px;
-      background: linear-gradient(90deg, rgba(0,0,0,0), rgba(106,74,160,0.5) 50%, rgba(0,0,0,0));
-      padding: 2px 6px;
-      margin-bottom: 4px;
-    }
-    .hero .hp-bar {
-      width: 100%; height: 7px; border-radius: 4px;
-      background: rgba(0,0,0,0.6); overflow: hidden; margin-bottom: 3px;
-    }
-    .hero .hp-bar > i {
-      display: block; height: 100%; background: linear-gradient(90deg, #ff6d6d, #ffa0a0);
-      transition: width 200ms;
-    }
-    .hero .stat-line { display: flex; gap: 6px; }
-    .hero .stat-orb {
-      width: 24px; height: 24px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 900; color: #fff;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
-      border: 1.5px solid rgba(0,0,0,0.6);
-    }
-    .stat-orb.atk { background: radial-gradient(circle at 35% 30%, #ffe26b, #c9860d); }
-    .stat-orb.blk { background: radial-gradient(circle at 35% 30%, #9dd6ff, #3b7fe0); }
-
-    .hero.just-acted { animation: unitPulse 320ms ease; }
-    @keyframes unitPulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.06); filter: brightness(1.3); }
-      100% { transform: scale(1); }
-    }
-
-    /* 召唤物 */
-    .summon .unit-inner {
-      width: 88px; height: 130px;
-      border-radius: 12px;
-      padding: 6px;
-      background:
-        radial-gradient(ellipse at 50% 30%, rgba(110,167,255,0.25) 0%, rgba(0,0,0,0) 65%),
-        linear-gradient(180deg, #1a2540 0%, #0c1124 100%);
-      border: 2px solid #3a5084;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.55), inset 0 0 10px rgba(110,167,255,0.1);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      position: relative;
-    }
-    .summon .portrait {
-      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-      font-size: 42px; line-height: 1; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.7));
-    }
-    .summon .name {
-      font-size: 10px; color: #c8ddff; font-weight: 700;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
-      margin-bottom: 2px;
-    }
-    .summon .stat-line { display: flex; gap: 3px; }
-    .summon .stat-orb { width: 20px; height: 20px; font-size: 9px; }
-
-    .summon.just-acted { animation: unitPulse 320ms ease; }
-
-    /* 召唤物入场动画 */
-    .unit-holder.enter-anim { animation: enterIn 400ms ease; }
-    @keyframes enterIn {
-      0% { transform: translateY(40px) scale(0.3); opacity: 0; }
-      60% { transform: translateY(-4px) scale(1.05); opacity: 1; }
-      100% { transform: translateY(0) scale(1); opacity: 1; }
-    }
-
-    /* --- 提示条 --- */
-    .hint-bar {
-      text-align: center; font-size: 10px; color: var(--text-dim);
-      padding: 3px 0; letter-spacing: 1.5px;
-    }
-    .hint-bar.hot { color: var(--gold); text-shadow: 0 0 8px rgba(233,197,109,0.5); }
-
-    /* --- 手牌 --- */
-    .hand-container {
-      padding: 6px 0 10px; position: relative;
-      min-height: 180px;
-      display: flex; align-items: flex-end; justify-content: center;
-    }
-    .hand-fan {
-      position: relative; width: 100%; max-width: 420px;
-      height: 170px;
-      display: flex; justify-content: center; align-items: flex-end;
-    }
-
-    .card {
-      position: absolute; bottom: 0;
-      width: 86px; height: 130px;
-      border-radius: 10px;
-      cursor: pointer;
-      touch-action: none;
-      transition: transform 220ms cubic-bezier(0.34,1.56,0.64,1), filter 180ms, bottom 220ms;
-      transform-origin: bottom center;
-    }
-    .card:hover, .card.lifted {
-      transform: translateY(-18px) scale(1.12) rotate(0deg) !important;
-      z-index: 100 !important;
-      filter: brightness(1.12) drop-shadow(0 10px 18px rgba(0,0,0,0.7));
-    }
-    .card.dragging { opacity: 0; }
-    .card.disabled { filter: grayscale(0.65) brightness(0.55); }
-
-    .card-inner {
-      width: 100%; height: 100%;
-      border-radius: 10px;
-      position: relative;
-      padding: 6px;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-      border: 2px solid var(--gold);
-      box-shadow: 0 3px 10px rgba(0,0,0,0.7), inset 0 0 10px rgba(0,0,0,0.5);
-    }
-
-    .card.type-hero .card-inner {
-      background:
-        radial-gradient(ellipse at 50% 40%, rgba(160,110,240,0.3) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(180deg, #2a1a45 0%, #0e0720 100%);
-    }
-    .card.type-summon .card-inner {
-      background:
-        radial-gradient(ellipse at 50% 40%, rgba(110,167,255,0.3) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(180deg, #1f3154 0%, #0d1a2f 100%);
-    }
-    .card.type-spell .card-inner {
-      background:
-        radial-gradient(ellipse at 50% 40%, rgba(255,134,80,0.3) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(180deg, #3b2412 0%, #1a0d04 100%);
-    }
-    .card.type-link .card-inner {
-      background:
-        radial-gradient(ellipse at 50% 40%, rgba(126,255,180,0.28) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(180deg, #163828 0%, #07190f 100%);
-    }
-
-    .card-inner::before {
-      content: ""; position: absolute; inset: 3px;
-      border: 1px solid rgba(233,197,109,0.5);
-      border-radius: 7px; pointer-events: none;
-    }
-
-    .cost-gem {
-      position: absolute; left: -6px; top: -6px;
-      width: 26px; height: 26px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, var(--mana-glow), var(--mana-blue));
-      box-shadow: 0 0 8px rgba(126,203,255,0.6), inset 0 0 4px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.6);
-      border: 2px solid #1a3966;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 900; font-size: 14px;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.9); z-index: 2;
-    }
-
-    .card-art {
-      height: 48px; border-radius: 6px; margin-top: 12px;
-      background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0) 60%);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 36px; line-height: 1;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
-      border: 1px solid rgba(233,197,109,0.3);
-    }
-    .card-name-banner {
-      margin-top: 3px; text-align: center;
-      font-size: 10px; font-weight: 900; color: var(--gold);
-      text-shadow: 0 1px 2px rgba(0,0,0,0.9); letter-spacing: 1px;
-      padding: 1px;
-      background: linear-gradient(90deg, rgba(0,0,0,0), rgba(90,60,20,0.4) 50%, rgba(0,0,0,0));
-    }
-    .card-desc {
-      flex: 1; margin-top: 3px;
-      font-size: 9px; line-height: 1.3;
-      color: #ecdcb0; text-align: center; padding: 0 2px;
-    }
-
-    /* 联动卡的徽记 */
-    .link-badge {
-      position: absolute; right: -6px; top: -6px;
-      min-width: 22px; height: 22px; border-radius: 999px; padding: 0 6px;
-      background: linear-gradient(180deg, #2a5840 0%, #0e2a1a 100%);
-      border: 2px solid #7effb4;
-      color: #c8ffdc; font-size: 9px; font-weight: 900;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 8px rgba(126,255,180,0.6); z-index: 2;
-      letter-spacing: 1px;
-    }
-
-    /* --- 按钮 --- */
-    .btn-row { display: flex; gap: 6px; padding: 2px 6px; }
-    .btn {
-      flex: 1; border: 2px solid var(--gold-dim); border-radius: 10px;
-      background: linear-gradient(180deg, #3a2818 0%, #1a110a 100%);
-      color: var(--gold); font-size: 12px; font-weight: 800;
-      padding: 8px; letter-spacing: 2px;
-      box-shadow: 0 3px 0 #0d0805, inset 0 0 8px rgba(233,197,109,0.1);
-    }
-    .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #0d0805; }
-    .btn.primary {
-      background: linear-gradient(180deg, #5a3a1c 0%, #2a1a0a 100%);
-      border-color: var(--gold); color: #fff4dc;
-      text-shadow: 0 0 6px rgba(233,197,109,0.7);
-    }
-
-    /* --- 日志 --- */
-    .log {
-      max-height: 68px; overflow: auto;
-      padding: 6px 8px;
-      background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.45) 100%);
-      border: 1px solid rgba(233,197,109,0.2); border-radius: 8px;
-      font-size: 10px; line-height: 1.55; color: #d8c99f;
-    }
-    .log::-webkit-scrollbar { width: 3px; }
-    .log::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
-    .log-hit { color: #ff8b6e; }
-    .log-summon { color: #9ecbff; }
-    .log-buff { color: #d7a0ff; }
-    .log-inject { color: #7effb4; }
-
-    /* --- 拖拽幽灵 --- */
-    .drag-ghost {
-      position: fixed; z-index: 999;
-      width: 86px; height: 130px;
-      pointer-events: none;
-      transform: translate(-50%, -50%) scale(1.15);
-      filter: drop-shadow(0 12px 24px rgba(0,0,0,0.7)) drop-shadow(0 0 12px rgba(233,197,109,0.5));
-    }
-
-    /* --- 飘字/打击线 --- */
-    .float-num {
-      position: fixed; z-index: 80;
-      font-weight: 900; font-size: 30px;
-      pointer-events: none;
-      text-shadow: 0 3px 6px rgba(0,0,0,0.9);
-      animation: floatNum 1000ms cubic-bezier(0.25,1,0.5,1) forwards;
-      letter-spacing: -1px;
-    }
-    @keyframes floatNum {
-      0% { transform: translate(-50%,0) scale(0.3); opacity: 0; }
-      15% { transform: translate(-50%,-10px) scale(1.3); opacity: 1; }
-      30% { transform: translate(-50%,-18px) scale(1); opacity: 1; }
-      100% { transform: translate(-50%,-70px) scale(0.9); opacity: 0; }
-    }
-    .float-num.dmg { color: #ff7a6a; }
-    .float-num.heal { color: #8fffa8; }
-    .float-num.buff { color: #d0a0ff; }
-    .float-num.link { color: #7effb4; }
-
-    .strike-flash {
-      position: fixed; z-index: 70; pointer-events: none;
-      animation: strikeFlash 320ms ease forwards;
-    }
-    @keyframes strikeFlash {
-      0% { opacity: 0; transform: scale(0.3); }
-      20% { opacity: 1; transform: scale(1.2); }
-      100% { opacity: 0; transform: scale(1.8); }
-    }
-    .screen-flash {
-      position: fixed; inset: 0; z-index: 60; pointer-events: none;
-      background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.25) 0%, rgba(0,0,0,0) 60%);
-      animation: screenFlash 250ms ease forwards;
-    }
-    @keyframes screenFlash {
-      0% { opacity: 0; }
-      30% { opacity: 1; }
-      100% { opacity: 0; }
-    }
+    :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;background:linear-gradient(180deg,#161212,#0f0d0d);color:#f6f0e5;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
+    .app{max-width:430px;margin:0 auto;min-height:100dvh;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px)}
+    .row{display:flex;gap:8px;align-items:center}
+    .between{justify-content:space-between}
+    .pill{background:#201b18;border:1px solid #3a2f28;border-radius:999px;padding:6px 10px;font-size:12px}
+    .title{font-weight:800;letter-spacing:.8px}
+    .arena{margin-top:8px;background:rgba(23,18,16,.92);border:1px solid #3a2f28;border-radius:16px;padding:10px}
+    .hero{margin-bottom:8px;padding:8px;border:1px solid #433831;border-radius:12px;background:#1e1a17}
+    .bar{height:10px;background:#2c2622;border-radius:999px;overflow:hidden;border:1px solid #4a3f38}
+    .fill{height:100%;background:linear-gradient(90deg,#b94444,#e88989)}
+    .energy{display:flex;gap:4px}
+    .gem{width:14px;height:14px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:var(--blue)}
+    .gem.off{opacity:.2}
+    .enemies{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+    .enemy{padding:8px;border:1px solid #493a33;border-radius:12px;background:#221c19;position:relative}
+    .enemy.sel{outline:2px solid var(--gold)}
+    .enemy.dead{opacity:.4;filter:grayscale(1)}
+    .intent{font-size:12px;color:#ffd7cf;margin-top:4px}
+    .hint{margin:8px 0 0;font-size:12px;color:#dbc9a8;min-height:18px}
+    .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 70px);width:min(410px,calc(100vw - 16px));display:flex;gap:6px;justify-content:center;z-index:5}
+    .card{width:92px;min-height:132px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative}
+    .card .cost{position:absolute;left:8px;top:8px;background:#1f1a16;color:var(--blue);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800}
+    .card h4{margin:24px 0 4px;font-size:13px;line-height:1.2}
+    .card p{margin:0;font-size:11px;line-height:1.35}
+    .card button{margin-top:6px;width:100%;border:0;border-radius:8px;padding:6px;background:#2c241f;color:#fff;font-weight:700}
+    .card button[disabled]{opacity:.35}
+    .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(410px,calc(100vw - 16px));z-index:6}
+    .end{width:100%;border:0;border-radius:12px;padding:14px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px}
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="title-bar">
-      <span class="title">幽塔 · 术士</span>
-      <span class="subtitle">v0.2 · 构图D + 联动卡注入</span>
+    <div class="row between">
+      <div class="title">幽塔・術士（H5 機制鏡像 v1）</div>
+      <div class="pill" id="turn">回合 1</div>
     </div>
-
-    <div class="stage">
-      <div class="enemy-zone" id="enemyZone"></div>
-
-      <div class="status-row">
-        <div class="self-hp">
-          <span class="icon">❤</span>
-          <span id="selfHpVal">50</span><span style="opacity:0.5">/</span><span id="selfMaxVal">50</span>
+    <div class="arena">
+      <div class="hero">
+        <div class="row between"><b>術士</b><span id="heroHpText">HP 80/80</span></div>
+        <div class="bar"><div class="fill" id="heroHpFill" style="width:100%"></div></div>
+        <div class="row between" style="margin-top:8px">
+          <span>能量</span>
+          <div class="energy" id="energy"></div>
         </div>
-        <div class="turn-badge" id="turnBadge">第 1 回合</div>
-        <div class="mana-pool" id="manaPool"></div>
       </div>
-
-      <div class="ally-zone" id="allyZone">
-        <!-- 动态渲染: 左召唤物/主角/右召唤物 -->
-      </div>
+      <div class="enemies" id="enemies"></div>
+      <div class="hint" id="hint">點卡牌，單體卡再點怪物出牌</div>
     </div>
-
-    <div class="hint-bar" id="hintBar">拖牌到目标释放</div>
-
-    <div class="hand-container">
-      <div class="hand-fan" id="handFan"></div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn" id="restartBtn">重开本关</button>
-      <button class="btn primary" id="endTurnBtn">结束回合</button>
-    </div>
-
-    <div class="log" id="log"></div>
   </div>
 
-  <script>
-    // ==================== 主角 ====================
-    function makeHero() {
-      return {
-        uid: "hero",
-        isHero: true,
-        name: "术士",
-        face: "🧙",
-        hp: 50, maxHp: 50,
-        atk: 2, block: 0,
-        passive: "阴影汲取"
-      };
-    }
+  <div class="hand" id="hand"></div>
+  <div class="ctl"><button class="end" id="endBtn">結束回合</button></div>
 
-    // ==================== 召唤物模板 ====================
-    const SUMMONS = {
-      imp:    { name: "小鬼", face: "👺", hp: 5, atk: 2, linkCards: ["lk_imp_claw", "lk_imp_sac", "lk_imp_boom"] },
-      hound:  { name: "猎犬", face: "🐺", hp: 9, atk: 4, linkCards: ["lk_hound_bite", "lk_hound_guard", "lk_hound_rage"] }
+<script>
+const DECK_TEMPLATES = [
+  {name:"暗焰箭",cost:1,text:"造成 8 傷害",target:"enemy",damage:8},
+  {name:"暗焰箭",cost:1,text:"造成 8 傷害",target:"enemy",damage:8},
+  {name:"靈火連射",cost:2,text:"造成 16 傷害",target:"enemy",damage:16},
+  {name:"詛咒之釘",cost:1,text:"造成 6 傷害，抽 1",target:"enemy",damage:6,draw:1},
+  {name:"靈魂虹吸",cost:2,text:"造成 12 傷害，回 3 HP",target:"enemy",damage:12,heal:3},
+  {name:"惡契汲取",cost:0,text:"失去 2 HP，+1 能量，抽 1",target:"self",selfDamage:2,energyGain:1,draw:1},
+  {name:"鮮血導流",cost:1,text:"失去 3 HP，+2 能量",target:"self",selfDamage:3,energyGain:2},
+  {name:"換手施法",cost:1,text:"抽 2",target:"self",draw:2}
+];
+
+const ENEMY_PRESET = [
+  {id:"enemy_far",name:"紙甲陰兵",maxHp:24,pattern:[6,7,8],idx:0},
+  {id:"enemy_mid",name:"請魂紙偶",maxHp:28,pattern:[7,9,11],idx:0},
+  {id:"enemy_near",name:"哨戒鬼差",maxHp:36,pattern:[8,10,12],idx:0}
+];
+
+const S={
+  turn:1,playerTurn:true,
+  player:{hp:80,maxHp:80,energy:3,maxEnergy:3,block:0},
+  enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null
+};
+
+function cloneCard(t){return {...t,uid:S.uid++};}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function aliveEnemies(){return S.enemies.filter(e=>e.hp>0);} 
+function setHint(t){document.getElementById("hint").textContent=t;}
+
+function init(){
+  S.enemies=ENEMY_PRESET.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
+  S.drawPile=shuffle(DECK_TEMPLATES.map(cloneCard));
+  drawCards(5);
+  renderAll();
+}
+
+function drawCards(n){
+  for(let i=0;i<n;i++){
+    if(!S.drawPile.length){S.drawPile=shuffle(S.discard);S.discard=[];}
+    if(!S.drawPile.length)break;
+    S.hand.push(S.drawPile.pop());
+  }
+}
+
+function renderAll(){renderTop();renderEnergy();renderEnemies();renderHand();}
+function renderTop(){document.getElementById("turn").textContent=`回合 ${S.turn}`;document.getElementById("heroHpText").textContent=`HP ${S.player.hp}/${S.player.maxHp}`;document.getElementById("heroHpFill").style.width=`${Math.max(0,S.player.hp)/S.player.maxHp*100}%`;}
+function renderEnergy(){const el=document.getElementById("energy");el.innerHTML="";for(let i=0;i<S.player.maxEnergy;i++){const d=document.createElement("div");d.className="gem"+(i<S.player.energy?"":" off");el.appendChild(d);} }
+
+function renderEnemies(){
+  const root=document.getElementById("enemies");root.innerHTML="";
+  S.enemies.forEach(e=>{
+    const d=document.createElement("div");
+    d.className="enemy"+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"");
+    d.innerHTML=`<div class="row between"><b>${e.name}</b><span>${e.hp}/${e.maxHp}</span></div><div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div></div><div class="intent">意圖：攻擊 ${e.intent}</div>`;
+    d.onclick=()=>{
+      if(e.hp<=0)return;
+      S.selectedEnemy=e.id;
+      if(S.selectedCard){tryPlay(S.selectedCard.uid,e.id);} else {setHint(`已選目標：${e.name}`);renderEnemies();}
     };
+    root.appendChild(d);
+  });
+}
 
-    // ==================== 卡牌定义 ====================
-    // type: hero | summon | spell | link
-    // target: hero | summon | enemy | any_ally | none
-    const CARDS = {
-      // ------- 主角行动卡 -------
-      ho_cast:  { id: "ho_cast",  type: "hero",  name: "施法",     cost: 1, target: "enemy",  action: "hero_cast",    art: "✦", text: "术士施放法术，造成 5 伤害" },
-      ho_curse: { id: "ho_curse", type: "hero",  name: "蚀骨诅咒", cost: 1, target: "enemy",  action: "hero_curse",   art: "⚘", text: "对敌人 +3 蚀骨（回合末扣血）" },
-      ho_drain: { id: "ho_drain", type: "hero",  name: "魂之吸取", cost: 1, target: "enemy",  action: "hero_drain",   art: "✧", text: "造成 4 伤害，术士回 3 HP" },
-      ho_guard: { id: "ho_guard", type: "hero",  name: "暗盾",     cost: 1, target: "hero",   action: "hero_guard",   art: "🛡", text: "术士 +5 护甲" },
+function cardPlayable(c){return S.player.energy>=c.cost && S.playerTurn;}
 
-      // ------- 召唤卡 -------
-      s_imp:    { id: "s_imp",    type: "summon", name: "召唤小鬼", cost: 1, target: "any_ally", action: "summon_imp",   art: "👺", text: "召唤小鬼(5/2)，注入 3 张小鬼联动卡" },
-      s_hound:  { id: "s_hound",  type: "summon", name: "地狱猎犬", cost: 2, target: "any_ally", action: "summon_hound", art: "🐺", text: "召唤猎犬(9/4)，注入 3 张猎犬联动卡" },
-
-      // ------- 法术卡 -------
-      sp_bolt:  { id: "sp_bolt",  type: "spell",  name: "暗影箭", cost: 1, target: "enemy", action: "spell_bolt",  art: "◈", text: "造成 6 伤害" },
-      sp_blast: { id: "sp_blast", type: "spell",  name: "腐朽爆发", cost: 2, target: "enemy", action: "spell_blast", art: "◆", text: "造成 10 伤害" },
-
-      // ------- 联动卡（动态注入，不在起始牌组） -------
-      lk_imp_claw:  { id: "lk_imp_claw",  type: "link", linkTo: "imp",   name: "小鬼挥爪", cost: 1, target: "enemy", action: "link_imp_attack", art: "🗡", text: "让小鬼攻击一次", isLink: true },
-      lk_imp_sac:   { id: "lk_imp_sac",   type: "link", linkTo: "imp",   name: "小鬼献祭", cost: 0, target: "none",  action: "link_imp_sac",    art: "🩸", text: "消耗小鬼，抽 2 张", isLink: true },
-      lk_imp_boom:  { id: "lk_imp_boom",  type: "link", linkTo: "imp",   name: "小鬼爆破", cost: 1, target: "enemy", action: "link_imp_boom",   art: "💥", text: "消耗小鬼，造成 小鬼HP 的伤害", isLink: true },
-      lk_hound_bite:{ id: "lk_hound_bite",type: "link", linkTo: "hound", name: "猎犬撕咬", cost: 1, target: "enemy", action: "link_hound_attack",art: "🗡", text: "让猎犬攻击一次", isLink: true },
-      lk_hound_guard:{ id:"lk_hound_guard",type:"link", linkTo: "hound", name: "猎犬守卫", cost: 1, target: "hero",  action: "link_hound_guard", art: "🛡", text: "猎犬+3甲，术士+2甲", isLink: true },
-      lk_hound_rage:{ id: "lk_hound_rage",type: "link", linkTo: "hound", name: "激怒猎犬", cost: 1, target: "enemy", action: "link_hound_rage", art: "🔥", text: "猎犬+3ATK并立即攻击", isLink: true }
+function renderHand(){
+  const root=document.getElementById("hand");root.innerHTML="";
+  S.hand.forEach(c=>{
+    const d=document.createElement("div");d.className="card";
+    d.innerHTML=`<div class="cost">${c.cost}</div><h4>${c.name}</h4><p>${c.text}</p><button ${cardPlayable(c)?"":"disabled"}>${S.selectedCard?.uid===c.uid?"已選中":"使用"}</button>`;
+    d.querySelector("button").onclick=()=>{
+      if(!cardPlayable(c))return;
+      if(c.target==="enemy"){
+        S.selectedCard=c;
+        setHint("這張是單體卡：請再點一隻怪");
+        renderHand();
+      }else{
+        tryPlay(c.uid,null);
+      }
     };
-
-    // 起始牌组（小规模 · 12 张）
-    const STARTER_DECK_IDS = [
-      "ho_cast", "ho_cast",
-      "ho_curse", "ho_drain", "ho_guard",
-      "s_imp", "s_imp",
-      "s_hound",
-      "sp_bolt", "sp_bolt",
-      "sp_blast"
-    ];
-
-    // ==================== 敌人 ====================
-    function makeEnemy() {
-      return {
-        uid: "e_" + Math.random().toString(36).slice(2),
-        name: "断罪骑士",
-        face: "👹",
-        hp: 32, maxHp: 32,
-        block: 0, curse: 0,
-        intent: null
-      };
-    }
-
-    // ==================== 游戏状态 ====================
-    let state;
-
-    const drag = {
-      active: false, uid: null, pointerId: null,
-      cardEl: null, ghostEl: null, overTarget: null, overKey: null,
-      startX: 0, startY: 0, moved: false
-    };
-
-    function newGame() {
-      state = {
-        hero: makeHero(),
-        summons: [], // 召唤物数组（上限 2）
-        enemies: [makeEnemy()],
-        deck: [], discard: [], hand: [],
-        energy: 2, maxEnergy: 2,
-        handSize: 4,
-        turn: 1,
-        ended: false
-      };
-      // 构建起始牌组
-      state.deck = STARTER_DECK_IDS.map(id => ({ ...CARDS[id], uid: uid() }));
-      shuffle(state.deck);
-
-      state.enemies.forEach(pickEnemyIntent);
-      draw(state.handSize);
-      logClear();
-      log("战斗开始 · 指挥术士与召唤物", "summon");
-      render();
-    }
-
-    function uid() { return Math.random().toString(36).slice(2, 9); }
-    function shuffle(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
-    function draw(n) {
-      for (let i = 0; i < n; i++) {
-        if (state.deck.length === 0) {
-          state.deck = shuffle(state.discard);
-          state.discard = [];
-        }
-        if (state.deck.length === 0) break;
-        state.hand.push(state.deck.pop());
-      }
-    }
-    function pickEnemyIntent(e) {
-      const r = Math.random();
-      if (r < 0.6) e.intent = { type: "attack", value: 7, icon: "⚔7" };
-      else if (r < 0.85) e.intent = { type: "guard", value: 6, icon: "🛡6" };
-      else e.intent = { type: "aoe", value: 3, icon: "💥3" };
-    }
-
-    // ==================== 联动卡注入 / 清除 ====================
-    function injectLinkCards(summonTpl) {
-      const tpl = SUMMONS[summonTpl];
-      tpl.linkCards.forEach(cid => {
-        const card = { ...CARDS[cid], uid: uid() };
-        state.deck.push(card);
-      });
-      shuffle(state.deck);
-      log(`注入 ${tpl.name} 联动卡 x${tpl.linkCards.length}`, "inject");
-    }
-
-    function purgeLinkCards(summonTpl) {
-      // 召唤物死亡 → 所有该召唤物的联动卡（在牌库/弃牌堆/手牌）立即清除
-      const filter = c => !(c.isLink && c.linkTo === summonTpl);
-      state.deck = state.deck.filter(filter);
-      state.discard = state.discard.filter(filter);
-      state.hand = state.hand.filter(filter);
-      log(`清除 ${SUMMONS[summonTpl].name} 联动卡`, "inject");
-    }
-
-    // ==================== 出牌判定 ====================
-    function canPlay(c) {
-      if (!c || state.ended) return false;
-      if (c.cost > state.energy) return false;
-      if (c.type === "summon") {
-        return state.summons.length < 2;
-      }
-      if (c.target === "hero") return true;
-      if (c.target === "any_ally") return state.summons.length < 2 || state.summons.length > 0;
-      if (c.target === "summon") return state.summons.length > 0;
-      if (c.target === "enemy") return state.enemies.length > 0;
-      // 联动卡特殊：若对应召唤物不在场，变废牌
-      if (c.isLink && !state.summons.some(s => s.tpl === c.linkTo)) return false;
-      return true;
-    }
-
-    function tryPlay(uid, targetType, key) {
-      const idx = state.hand.findIndex(c => c.uid === uid);
-      if (idx < 0) return false;
-      const card = state.hand[idx];
-      if (!canPlay(card)) return false;
-
-      // 联动卡特殊检查：召唤物死了，卡废
-      if (card.isLink && !state.summons.some(s => s.tpl === card.linkTo)) {
-        log(`${card.name} 失效：对应召唤物不在场`, "hit");
-        state.discard.push(card);
-        state.hand.splice(idx, 1);
-        state.energy -= card.cost;
-        pulseCrystals();
-        render();
-        return true;
-      }
-
-      // 按 action 执行
-      const ok = execAction(card, targetType, key);
-      if (!ok) return false;
-
-      state.energy -= card.cost;
-      pulseCrystals();
-      state.discard.push(card);
-      state.hand.splice(idx, 1);
-
-      cleanupDead();
-      checkEnd();
-      render();
-      return true;
-    }
-
-    function execAction(card, targetType, key) {
-      switch (card.action) {
-        // 主角动作
-        case "hero_cast": {
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          dealEnemyDmg(e, 5, getHeroEl());
-          flashUnit(state.hero.uid);
-          return true;
-        }
-        case "hero_curse": {
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          e.curse += 3;
-          floatOn(getEnemyEl(e.uid), "+3 蚀骨", "buff");
-          flashUnit(state.hero.uid);
-          return true;
-        }
-        case "hero_drain": {
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          dealEnemyDmg(e, 4, getHeroEl());
-          const h = Math.min(3, state.hero.maxHp - state.hero.hp);
-          state.hero.hp += h;
-          floatOn(getHeroEl(), `+${h}`, "heal");
-          flashUnit(state.hero.uid);
-          return true;
-        }
-        case "hero_guard": {
-          state.hero.block += 5;
-          floatOn(getHeroEl(), "+5 护甲", "buff");
-          return true;
-        }
-
-        // 召唤
-        case "summon_imp": {
-          if (state.summons.length >= 2) return false;
-          const s = makeSummon("imp");
-          state.summons.push(s);
-          injectLinkCards("imp");
-          log(`召唤 ${s.name}`, "summon");
-          screenFlash();
-          return true;
-        }
-        case "summon_hound": {
-          if (state.summons.length >= 2) return false;
-          const s = makeSummon("hound");
-          state.summons.push(s);
-          injectLinkCards("hound");
-          log(`召唤 ${s.name}`, "summon");
-          screenFlash();
-          return true;
-        }
-
-        // 法术
-        case "spell_bolt": {
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          dealEnemyDmg(e, 6, getHeroEl());
-          return true;
-        }
-        case "spell_blast": {
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          dealEnemyDmg(e, 10, getHeroEl());
-          return true;
-        }
-
-        // 联动 - 小鬼
-        case "link_imp_attack": {
-          const imp = state.summons.find(s => s.tpl === "imp");
-          if (!imp) return false;
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          dealEnemyDmg(e, imp.atk, getSummonEl(imp.uid));
-          flashUnit(imp.uid);
-          return true;
-        }
-        case "link_imp_sac": {
-          const imp = state.summons.find(s => s.tpl === "imp");
-          if (!imp) return false;
-          imp.hp = 0; imp.dead = true;
-          draw(2);
-          floatOn(getSummonEl(imp.uid), "+2 抽牌", "link");
-          log("献祭小鬼，抽 2 张", "inject");
-          return true;
-        }
-        case "link_imp_boom": {
-          const imp = state.summons.find(s => s.tpl === "imp");
-          if (!imp) return false;
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          const dmg = imp.hp;
-          dealEnemyDmg(e, dmg, getSummonEl(imp.uid));
-          imp.hp = 0; imp.dead = true;
-          log(`小鬼爆破，造成 ${dmg} 伤害`, "hit");
-          return true;
-        }
-
-        // 联动 - 猎犬
-        case "link_hound_attack": {
-          const h = state.summons.find(s => s.tpl === "hound");
-          if (!h) return false;
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          const dmg = h.atk + (h.buff || 0);
-          dealEnemyDmg(e, dmg, getSummonEl(h.uid));
-          flashUnit(h.uid);
-          return true;
-        }
-        case "link_hound_guard": {
-          const h = state.summons.find(s => s.tpl === "hound");
-          if (!h) return false;
-          h.block += 3;
-          state.hero.block += 2;
-          floatOn(getSummonEl(h.uid), "+3 甲", "buff");
-          floatOn(getHeroEl(), "+2 甲", "buff");
-          return true;
-        }
-        case "link_hound_rage": {
-          const h = state.summons.find(s => s.tpl === "hound");
-          if (!h) return false;
-          h.buff = (h.buff || 0) + 3;
-          floatOn(getSummonEl(h.uid), "+3 ATK", "buff");
-          const e = findEnemyOrFirst(key, targetType);
-          if (!e) return false;
-          const dmg = h.atk + h.buff;
-          dealEnemyDmg(e, dmg, getSummonEl(h.uid));
-          flashUnit(h.uid);
-          return true;
-        }
-      }
-      return false;
-    }
-
-    function makeSummon(tplName) {
-      const tpl = SUMMONS[tplName];
-      return {
-        uid: "s_" + uid(),
-        tpl: tplName,
-        name: tpl.name, face: tpl.face,
-        hp: tpl.hp, maxHp: tpl.hp, atk: tpl.atk,
-        block: 0, buff: 0, dead: false
-      };
-    }
-
-    function findEnemyOrFirst(key, targetType) {
-      if (targetType === "enemy" && key) {
-        const e = state.enemies.find(x => x.uid === key && x.hp > 0);
-        if (e) return e;
-      }
-      return state.enemies.find(e => e.hp > 0) || null;
-    }
-
-    function dealEnemyDmg(e, n, sourceEl) {
-      const el = getEnemyEl(e.uid);
-      if (sourceEl && el) flyLine(sourceEl, el);
-      const blocked = Math.min(e.block, n);
-      const dealt = Math.max(0, n - blocked);
-      e.block -= blocked;
-      e.hp = Math.max(0, e.hp - dealt);
-      floatOn(el, `-${dealt}`, "dmg");
-      shake(el);
-      screenFlash();
-      log(`造成 ${dealt} 伤害`, "hit");
-    }
-
-    function dealHeroDmg(n) {
-      const blocked = Math.min(state.hero.block, n);
-      const dealt = Math.max(0, n - blocked);
-      state.hero.block -= blocked;
-      state.hero.hp = Math.max(0, state.hero.hp - dealt);
-      floatOn(getHeroEl(), `-${dealt}`, "dmg");
-      shake(getHeroEl());
-    }
-
-    function dealSummonDmg(s, n) {
-      const blocked = Math.min(s.block, n);
-      const dealt = Math.max(0, n - blocked);
-      s.block -= blocked;
-      s.hp = Math.max(0, s.hp - dealt);
-      floatOn(getSummonEl(s.uid), `-${dealt}`, "dmg");
-      shake(getSummonEl(s.uid));
-      if (s.hp <= 0) s.dead = true;
-    }
-
-    function cleanupDead() {
-      // 召唤物死亡 → 清除它的联动卡
-      const deadSummons = state.summons.filter(s => s.dead);
-      deadSummons.forEach(s => {
-        log(`${s.name} 陨落`, "hit");
-        purgeLinkCards(s.tpl);
-      });
-      state.summons = state.summons.filter(s => !s.dead);
-      state.enemies = state.enemies.filter(e => e.hp > 0);
-    }
-
-    // ==================== 回合流程 ====================
-    function endTurn() {
-      if (state.ended) return;
-
-      state.discard.push(...state.hand);
-      state.hand = [];
-
-      // 敌人行动
-      state.enemies.forEach(e => {
-        if (e.hp <= 0) return;
-        const it = e.intent;
-        if (!it) return;
-        if (it.type === "attack") {
-          // 攻击最前排（有召唤物先打召唤物）
-          if (state.summons.length > 0) {
-            const t = state.summons[0];
-            dealSummonDmg(t, it.value);
-            log(`敌人攻击 ${t.name}`, "hit");
-          } else {
-            dealHeroDmg(it.value);
-            log(`敌人攻击术士`, "hit");
-          }
-        } else if (it.type === "guard") {
-          e.block += it.value;
-          log(`敌人获得 ${it.value} 护甲`);
-        } else if (it.type === "aoe") {
-          state.summons.forEach(s => dealSummonDmg(s, it.value));
-          dealHeroDmg(it.value);
-          log(`敌人横扫 ${it.value}`, "hit");
-        }
-        // 回合末蚀骨扣血
-        if (e.curse > 0 && e.hp > 0) {
-          const d = e.curse;
-          e.hp = Math.max(0, e.hp - d);
-          floatOn(getEnemyEl(e.uid), `蚀骨-${d}`, "buff");
-          log(`蚀骨扣 ${d}`, "buff");
-        }
-      });
-
-      cleanupDead();
-      checkEnd();
-      if (state.ended) return render();
-
-      // 主角被动：阴影汲取 - 敌人有诅咒则 +1 能量
-      const hasCurse = state.enemies.some(e => e.curse > 0);
-
-      state.turn += 1;
-      state.energy = state.maxEnergy + (hasCurse ? 1 : 0);
-      state.hero.block = 0; // 护甲清零
-      state.summons.forEach(s => { s.block = 0; s.buff = 0; });
-      state.enemies.forEach(pickEnemyIntent);
-      draw(state.handSize);
-      if (hasCurse) log("阴影汲取 +1 能量", "buff");
-      render();
-    }
-
-    function checkEnd() {
-      if (state.enemies.length === 0) {
-        state.ended = true;
-        log("✦ 胜利 ✦", "summon");
-      } else if (state.hero.hp <= 0) {
-        state.ended = true;
-        log("✧ 败北 ✧", "hit");
-      }
-    }
-
-    // ==================== 渲染 ====================
-    function getHeroEl() { return document.querySelector('.unit-holder.hero'); }
-    function getSummonEl(uid) { return document.querySelector(`.unit-holder.summon[data-uid="${uid}"]`); }
-    function getEnemyEl(uid) { return document.querySelector(`.enemy[data-uid="${uid}"]`); }
-
-    function render() {
-      document.getElementById("selfHpVal").textContent = state.hero.hp;
-      document.getElementById("selfMaxVal").textContent = state.hero.maxHp;
-      document.getElementById("turnBadge").textContent = `第 ${state.turn} 回合`;
-
-      renderMana();
-      renderEnemies();
-      renderAllies();
-      renderHand();
-
-      document.getElementById("endTurnBtn").textContent = state.ended ? "战斗结束" : "结束回合";
-      setHint("拖牌到目标释放", false);
-    }
-
-    function renderMana() {
-      const pool = document.getElementById("manaPool");
-      pool.innerHTML = "";
-      const displayMax = Math.max(state.maxEnergy, state.energy);
-      for (let i = 0; i < displayMax; i++) {
-        const c = document.createElement("div");
-        c.className = "crystal" + (i >= state.energy ? " empty" : "");
-        pool.appendChild(c);
-      }
-    }
-    function pulseCrystals() {
-      document.querySelectorAll(".crystal").forEach(c => {
-        c.classList.remove("pulse");
-        void c.offsetWidth;
-        c.classList.add("pulse");
-      });
-    }
-
-    function renderEnemies() {
-      const z = document.getElementById("enemyZone");
-      z.innerHTML = "";
-      state.enemies.forEach(e => {
-        const el = document.createElement("div");
-        el.className = "enemy";
-        el.dataset.uid = e.uid;
-        const tags = [];
-        if (e.curse > 0) tags.push(`<span class="tag-bit">蚀骨${e.curse}</span>`);
-        if (e.block > 0) tags.push(`<span class="tag-bit" style="color:#9ecbff;border-color:rgba(158,203,255,0.3);">甲${e.block}</span>`);
-        el.innerHTML = `
-          <div class="portrait">${e.face}</div>
-          <div class="intent">${e.intent ? e.intent.icon : ""}</div>
-          <div class="name">${e.name}</div>
-          <div class="hp">${e.hp}<span class="hp-max">/${e.maxHp}</span></div>
-          <div class="tags">${tags.join("")}</div>
-        `;
-        z.appendChild(el);
-      });
-    }
-
-    function renderAllies() {
-      const z = document.getElementById("allyZone");
-      z.innerHTML = "";
-      // 左召唤物
-      if (state.summons[0]) z.appendChild(buildSummonEl(state.summons[0]));
-      // 主角居中
-      z.appendChild(buildHeroEl(state.hero));
-      // 右召唤物
-      if (state.summons[1]) z.appendChild(buildSummonEl(state.summons[1]));
-    }
-
-    function buildHeroEl(h) {
-      const el = document.createElement("div");
-      el.className = "unit-holder hero";
-      el.dataset.uid = h.uid;
-      const pct = Math.max(0, h.hp / h.maxHp * 100);
-      el.innerHTML = `
-        <div class="unit-inner">
-          <div class="portrait">${h.face}</div>
-          <div class="name">✦ ${h.name} ✦</div>
-          <div class="hp-bar"><i style="width:${pct}%"></i></div>
-          <div style="font-size:9px;color:${h.block > 0 ? '#9ecbff' : 'var(--text-dim)'};margin-bottom:3px;">
-            HP ${h.hp}/${h.maxHp}${h.block > 0 ? ` · 甲 ${h.block}` : ""}
-          </div>
-          <div class="stat-line">
-            <div class="stat-orb atk">${h.atk}</div>
-            ${h.block > 0 ? `<div class="stat-orb blk">${h.block}</div>` : ""}
-          </div>
-        </div>
-      `;
-      return el;
-    }
-
-    function buildSummonEl(s) {
-      const el = document.createElement("div");
-      el.className = "unit-holder summon";
-      el.dataset.uid = s.uid;
-      const pct = Math.max(0, s.hp / s.maxHp * 100);
-      el.innerHTML = `
-        <div class="unit-inner">
-          <div class="portrait">${s.face}</div>
-          <div class="name">${s.name}</div>
-          <div class="hp-bar" style="margin-bottom:3px;"><i style="width:${pct}%"></i></div>
-          <div style="font-size:9px;color:${s.block > 0 ? '#9ecbff' : 'var(--text-dim)'};margin-bottom:3px;">
-            ${s.hp}/${s.maxHp}${s.block > 0 ? ` · 甲${s.block}` : ""}
-          </div>
-          <div class="stat-line">
-            <div class="stat-orb atk">${s.atk + (s.buff || 0)}</div>
-          </div>
-        </div>
-      `;
-      return el;
-    }
-
-    function renderHand() {
-      const fan = document.getElementById("handFan");
-      fan.innerHTML = "";
-      const n = state.hand.length;
-      if (n === 0) return;
-
-      const maxAngle = 14;
-      const spread = Math.min(82, 260 / Math.max(n, 3));
-      const arcDepth = n > 2 ? 12 : 4;
-
-      state.hand.forEach((c, i) => {
-        const card = document.createElement("div");
-        const ok = canPlay(c);
-        card.className = `card type-${c.type}${ok ? "" : " disabled"}`;
-        card.dataset.uid = c.uid;
-
-        const mid = (n - 1) / 2;
-        const dx = (i - mid) * spread;
-        const rot = (i - mid) / Math.max(mid, 1) * maxAngle;
-        const dy = Math.abs(i - mid) * arcDepth / Math.max(mid, 1);
-
-        card.style.left = `calc(50% + ${dx}px)`;
-        card.style.marginLeft = `-43px`;
-        card.style.transform = `translateY(${dy}px) rotate(${rot}deg)`;
-        card.style.zIndex = 10 + i;
-
-        const linkBadge = c.isLink ? `<div class="link-badge">联动</div>` : "";
-        card.innerHTML = `
-          <div class="cost-gem">${c.cost}</div>
-          ${linkBadge}
-          <div class="card-inner">
-            <div class="card-art">${c.art}</div>
-            <div class="card-name-banner">${c.name}</div>
-            <div class="card-desc">${c.text}</div>
-          </div>
-        `;
-
-        card.addEventListener("pointerdown", ev => startDrag(ev, c.uid, card));
-        fan.appendChild(card);
-      });
-    }
-
-    // ==================== 拖拽 ====================
-    function startDrag(e, uid, cardEl) {
-      const card = state.hand.find(c => c.uid === uid);
-      if (!canPlay(card)) return;
-
-      drag.active = true;
-      drag.uid = uid;
-      drag.pointerId = e.pointerId;
-      drag.cardEl = cardEl;
-      drag.overTarget = null; drag.overKey = null;
-      drag.startX = e.clientX; drag.startY = e.clientY;
-      drag.moved = false;
-
-      cardEl.classList.add("lifted");
-
-      document.addEventListener("pointermove", onDragMove);
-      document.addEventListener("pointerup", onDragEnd);
-      document.addEventListener("pointercancel", onDragEnd);
-    }
-
-    function onDragMove(e) {
-      if (!drag.active || e.pointerId !== drag.pointerId) return;
-      const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
-
-      if (!drag.moved && Math.hypot(dx, dy) > 10) {
-        drag.moved = true;
-        drag.cardEl.classList.remove("lifted");
-        drag.cardEl.classList.add("dragging");
-        const ghost = document.createElement("div");
-        ghost.className = "drag-ghost";
-        ghost.innerHTML = `<div class="${drag.cardEl.className.replace('card', 'card').replace('dragging','').trim()}" style="position:relative;width:100%;height:100%;">${drag.cardEl.innerHTML}</div>`;
-        document.body.appendChild(ghost);
-        drag.ghostEl = ghost;
-      }
-
-      if (drag.moved) {
-        drag.ghostEl.style.left = `${e.clientX}px`;
-        drag.ghostEl.style.top = `${e.clientY}px`;
-        refreshOver(e.clientX, e.clientY);
-      }
-    }
-
-    function onDragEnd(e) {
-      if (!drag.active || e.pointerId !== drag.pointerId) return;
-      const t = drag.overTarget, k = drag.overKey, u = drag.uid;
-      const moved = drag.moved;
-      cleanupDrag();
-      if (!moved) return;
-
-      const card = state.hand.find(c => c.uid === u);
-      if (!card) return;
-
-      // 召唤卡：拖到我方区即可（任何位置）
-      if (card.type === "summon" && t === "ally-zone") tryPlay(u, "summon", null);
-      // 主角卡指向主角
-      else if (card.target === "hero" && t === "hero") tryPlay(u, "hero", null);
-      // 敌人目标
-      else if (card.target === "enemy" && t === "enemy") tryPlay(u, "enemy", k);
-      // 无目标（战术）
-      else if (card.target === "none" && t === "ally-zone") tryPlay(u, "none", null);
-    }
-
-    function refreshOver(x, y) {
-      const card = state.hand.find(c => c.uid === drag.uid);
-      if (!card) return;
-
-      let over = null, key = null;
-
-      // 敌人目标
-      if (card.target === "enemy") {
-        document.querySelectorAll(".enemy").forEach(s => {
-          const r = s.getBoundingClientRect();
-          if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-            over = "enemy"; key = s.dataset.uid;
-          }
-        });
-      }
-      // 主角目标
-      else if (card.target === "hero") {
-        const el = getHeroEl();
-        if (el) {
-          const r = el.getBoundingClientRect();
-          if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-            over = "hero"; key = state.hero.uid;
-          }
-        }
-      }
-      // 召唤/战术：拖到我方区任意位置
-      else if (card.type === "summon" || card.target === "none" || card.target === "any_ally") {
-        const z = document.getElementById("allyZone");
-        const r = z.getBoundingClientRect();
-        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-          over = "ally-zone"; key = null;
-        }
-      }
-
-      drag.overTarget = over;
-      drag.overKey = key;
-      updateHighlight(over, key);
-
-      if (over === "enemy") setHint("放开：攻击敌人", true);
-      else if (over === "hero") setHint("放开：对术士释放", true);
-      else if (over === "ally-zone") setHint(card.type === "summon" ? "放开：召唤到我方" : "放开：发动", true);
-      else {
-        setHint(
-          card.type === "summon" ? "拖到我方区域召唤" :
-          card.target === "hero" ? "拖到术士" :
-          card.target === "enemy" ? "拖到敌人" :
-          "拖到我方区域",
-          false
-        );
-      }
-    }
-
-    function updateHighlight(over, key) {
-      document.querySelectorAll(".unit-holder.drop-ready, .enemy.drop-ready, #allyZone.drop-ready")
-        .forEach(el => el.classList.remove("drop-ready"));
-
-      if (over === "enemy") {
-        const el = document.querySelector(`.enemy[data-uid="${key}"]`);
-        if (el) el.classList.add("drop-ready");
-      } else if (over === "hero") {
-        getHeroEl()?.classList.add("drop-ready");
-      } else if (over === "ally-zone") {
-        // 不闪整个区域，只闪主角做提示
-        getHeroEl()?.classList.add("drop-ready");
-      }
-    }
-
-    function cleanupDrag() {
-      if (drag.cardEl) {
-        drag.cardEl.classList.remove("dragging");
-        drag.cardEl.classList.remove("lifted");
-      }
-      if (drag.ghostEl && drag.ghostEl.parentNode) drag.ghostEl.parentNode.removeChild(drag.ghostEl);
-      document.querySelectorAll(".unit-holder.drop-ready, .enemy.drop-ready").forEach(el => el.classList.remove("drop-ready"));
-
-      drag.active = false; drag.uid = null; drag.pointerId = null;
-      drag.cardEl = null; drag.ghostEl = null;
-      drag.overTarget = null; drag.overKey = null; drag.moved = false;
-
-      document.removeEventListener("pointermove", onDragMove);
-      document.removeEventListener("pointerup", onDragEnd);
-      document.removeEventListener("pointercancel", onDragEnd);
-    }
-
-    // ==================== 特效 ====================
-    function floatOn(el, text, cls = "dmg") {
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const f = document.createElement("div");
-      f.className = `float-num ${cls}`;
-      f.textContent = text;
-      f.style.left = `${r.left + r.width / 2}px`;
-      f.style.top = `${r.top + r.height * 0.35}px`;
-      document.body.appendChild(f);
-      setTimeout(() => f.remove(), 1000);
-    }
-    function shake(el) {
-      if (!el) return;
-      el.classList.remove("hit");
-      void el.offsetWidth;
-      el.classList.add("hit");
-    }
-    function flashUnit(uid) {
-      const el = document.querySelector(`.unit-holder[data-uid="${uid}"]`);
-      if (!el) return;
-      el.classList.remove("just-acted");
-      void el.offsetWidth;
-      el.classList.add("just-acted");
-    }
-    function screenFlash() {
-      const f = document.createElement("div");
-      f.className = "screen-flash";
-      document.body.appendChild(f);
-      setTimeout(() => f.remove(), 260);
-    }
-    function flyLine(fromEl, toEl) {
-      if (!fromEl || !toEl) return;
-      const f = fromEl.getBoundingClientRect();
-      const t = toEl.getBoundingClientRect();
-      const sx = f.left + f.width / 2, sy = f.top + f.height / 2;
-      const ex = t.left + t.width / 2, ey = t.top + t.height / 2;
-      const len = Math.hypot(ex - sx, ey - sy);
-      const ang = Math.atan2(ey - sy, ex - sx) * 180 / Math.PI;
-
-      const line = document.createElement("div");
-      line.className = "strike-flash";
-      line.style.cssText = `
-        left: ${sx}px; top: ${sy - 2}px;
-        width: ${len}px; height: 4px;
-        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,230,140,0.95), rgba(255,120,80,0.8));
-        transform-origin: 0% 50%;
-        transform: rotate(${ang}deg);
-        border-radius: 4px;
-        box-shadow: 0 0 10px rgba(255,180,90,0.7);
-      `;
-      document.body.appendChild(line);
-      setTimeout(() => line.remove(), 330);
-    }
-
-    function setHint(text, hot) {
-      const h = document.getElementById("hintBar");
-      h.textContent = text;
-      h.classList.toggle("hot", !!hot);
-    }
-    function log(text, cls = "") {
-      const el = document.getElementById("log");
-      const line = document.createElement("div");
-      if (cls === "hit") line.className = "log-hit";
-      else if (cls === "summon") line.className = "log-summon";
-      else if (cls === "buff") line.className = "log-buff";
-      else if (cls === "inject") line.className = "log-inject";
-      line.textContent = `• ${text}`;
-      el.prepend(line);
-      while (el.children.length > 15) el.lastChild.remove();
-    }
-    function logClear() { document.getElementById("log").innerHTML = ""; }
-
-    document.getElementById("endTurnBtn").addEventListener("click", endTurn);
-    document.getElementById("restartBtn").addEventListener("click", newGame);
-    window.addEventListener("resize", () => renderHand());
-    newGame();
-  </script>
+    root.appendChild(d);
+  });
+}
+
+function removeHand(uid){const i=S.hand.findIndex(c=>c.uid===uid);if(i<0)return null;return S.hand.splice(i,1)[0];}
+function enemyById(id){return S.enemies.find(e=>e.id===id&&e.hp>0)||aliveEnemies()[0]||null;}
+
+function tryPlay(cardUid,targetId){
+  if(!S.playerTurn)return;
+  const c=S.hand.find(x=>x.uid===cardUid); if(!c)return;
+  if(S.player.energy<c.cost){setHint("能量不足");return;}
+  if(c.target==="enemy"&&!targetId){setHint("先選敵人");return;}
+
+  S.player.energy-=c.cost;
+  const played=removeHand(cardUid);
+  resolveCard(played,targetId);
+  S.discard.push(played);
+  S.selectedCard=null;
+  S.selectedEnemy=null;
+
+  if(aliveEnemies().length===0){setHint("戰鬥勝利！點刷新可再測");S.playerTurn=false;renderAll();return;}
+  renderAll();
+}
+
+function resolveCard(c,targetId){
+  const t=enemyById(targetId);
+  if(c.damage&&t) t.hp=Math.max(0,t.hp-c.damage);
+  if(c.selfDamage) S.player.hp=Math.max(0,S.player.hp-c.selfDamage);
+  if(c.heal) S.player.hp=Math.min(S.player.maxHp,S.player.hp+c.heal);
+  if(c.energyGain) S.player.energy=Math.min(99,S.player.energy+c.energyGain);
+  if(c.draw) drawCards(c.draw);
+}
+
+function enemyTurn(){
+  for(const e of aliveEnemies()){
+    S.player.hp=Math.max(0,S.player.hp-e.intent);
+    e.idx=(e.idx+1)%e.pattern.length;
+    e.intent=e.pattern[e.idx];
+  }
+}
+
+function nextTurn(){
+  if(!S.playerTurn)return;
+  S.playerTurn=false;
+  S.discard.push(...S.hand); S.hand=[]; S.selectedCard=null; S.selectedEnemy=null;
+  enemyTurn();
+  if(S.player.hp<=0){setHint("你倒下了，請刷新重測");renderAll();return;}
+  S.turn+=1;
+  S.player.energy=S.player.maxEnergy;
+  S.playerTurn=true;
+  drawCards(5-S.hand.length);
+  setHint("你的回合：點卡牌出牌");
+  renderAll();
+}
+
+document.getElementById("endBtn").onclick=nextTurn;
+init();
+</script>
 </body>
 </html>
