@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v2.4</title>
+  <title>Claw 機制鏡像 v2.5</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -150,7 +150,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v2.4）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.5）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -161,7 +161,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.4：兩戰縱切 + 小鬼後排（已取消爆擊）</div>
+      <div class="hint" id="hint">v2.5：重召平衡 + 受擊優先級（格擋→小鬼→主角）</div>
 
 
       <div class="hero-stand"></div>
@@ -192,6 +192,8 @@
 
 <script>
 const DRAW_PER_TURN = 4;
+const IMP_GUARD_CAP = 6;
+
 
 const BASE_DECK = [
   {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
@@ -200,7 +202,7 @@ const BASE_DECK = [
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"黑血回流",cost:1,text:"回復 4 HP",target:"self",heal:4},
-  {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5，並注入 2 張聯動卡",target:"self",summon:"imp",onSummonDamage:5},
+  {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5 + 注入2張；若已在場則改為抽1+格擋4",target:"self",summon:"imp",onSummonDamage:5,resummonDraw:1,resummonBlock:4},
   {name:"使魔號令",cost:1,text:"若小鬼在場：立刻造成 10 傷害；否則抽 1",target:"self",impCommand:true,drawIfNoImp:1}
 ];
 
@@ -292,9 +294,11 @@ function buildEnemiesFromBattle(idx){
   return BATTLE_PRESET[idx].enemies.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
 }
 function getEnemyTargetType(e){
-  if(S.minions.imp&&Array.isArray(e.impStrikeAt)&&e.impStrikeAt.includes(e.idx)) return "imp";
+  if(S.minions.imp&&Array.isArray(e.impStrikeAt)&&e.impStrikeAt.includes(e.idx)) return "imp_mark";
+  if(S.minions.imp) return "player_then_imp";
   return "player";
 }
+
 
 function init(){
   S.battleIndex=0;
@@ -349,7 +353,9 @@ function renderEnemies(){
   S.enemies.forEach(e=>{
     const d=document.createElement("div");
     const hoverClass=S.drag?.hoverEnemyId===e.id?" hover":"";
-    const intentTarget=getEnemyTargetType(e)==="imp"?"小鬼":"主角";
+    const targetType=getEnemyTargetType(e);
+    const intentTarget=targetType==="imp_mark"?"小鬼（點名）":(targetType==="player_then_imp"?"主角→小鬼":"主角");
+
     d.className="enemy "+(posMap[e.id]||"enemy_mid")+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"")+hoverClass;
     d.dataset.eid=e.id;
     d.innerHTML=`<div class="row between"><span class="name">${e.name}</span><span class="hp">${e.hp}/${e.maxHp}</span></div><div class="bar" style="margin-top:4px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div></div><div class="intent">⚔ ${e.intent} → ${intentTarget}</div>`;
@@ -471,23 +477,30 @@ function resolveCard(c,targetId){
   const t=enemyById(targetId);
 
   if(c.summon){
-    S.minions[c.summon]=true;
-    S.impLastEvent="在場（剛召喚）";
-    injectMinionCards(c.summon);
-    const summonTarget=aliveEnemies()[0]||null;
-    if(c.onSummonDamage&&summonTarget){
-      attackEnemyByAmount(summonTarget,c.onSummonDamage,"小鬼登場");
+    const alreadySummoned=!!S.minions[c.summon];
+    if(alreadySummoned){
+      if(c.resummonBlock) S.player.block=Math.min(99,S.player.block+c.resummonBlock);
+      if(c.resummonDraw) drawCards(c.resummonDraw);
+      S.impLastEvent=`在場（重召：抽${c.resummonDraw||0} + 格擋${c.resummonBlock||0}）`;
+      setHint("小鬼已在場：本次重召轉為控節奏（抽牌+格擋）");
+    }else{
+      S.minions[c.summon]=true;
+      S.impLastEvent="在場（剛召喚）";
+      injectMinionCards(c.summon);
+      const summonTarget=aliveEnemies()[0]||null;
+      if(c.onSummonDamage&&summonTarget){
+        attackEnemyByAmount(summonTarget,c.onSummonDamage);
+      }
+      setHint("小鬼登場：進場撕咬 + 聯動卡注入");
     }
-
-
-    setHint("小鬼登場：進場撕咬 + 聯動卡注入");
   }
+
 
   if(c.impCommand){
     if(S.minions.imp){
       const cmdTarget=aliveEnemies()[0]||null;
       if(cmdTarget){
-        attackEnemyByAmount(cmdTarget,10,"使魔號令");
+        attackEnemyByAmount(cmdTarget,10);
 
 
         S.impLastEvent="在場（已號令追擊）";
@@ -506,7 +519,7 @@ function resolveCard(c,targetId){
     setHint("小鬼已獻祭，相關聯動卡將轉為沉默廢牌");
   }
 
-  if(c.damage&&t) attackEnemyByAmount(t,c.damage,c.name);
+  if(c.damage&&t) attackEnemyByAmount(t,c.damage);
 
 
   if(c.block) S.player.block=Math.min(99,S.player.block+c.block);
@@ -566,12 +579,33 @@ function tryPlay(cardUid,targetId){
   renderAll();
 }
 
-function dealDamageToPlayer(dmg){
-  const blocked=Math.min(S.player.block,dmg);
+function dealDirectHpDamage(dmg){
+  if(dmg<=0)return;
+  popPlayerDamage(dmg);
+  S.player.hp=Math.max(0,S.player.hp-dmg);
+}
+
+function dealDamageToPlayer(dmg,sourceName="敵人"){
+  let remain=dmg;
+
+  const blocked=Math.min(S.player.block,remain);
   S.player.block-=blocked;
-  const real=Math.max(0,dmg-blocked);
-  if(real>0) popPlayerDamage(real);
-  S.player.hp=Math.max(0,S.player.hp-real);
+  remain-=blocked;
+
+  if(remain<=0)return;
+
+  if(S.minions.imp){
+    const guard=Math.min(IMP_GUARD_CAP,remain);
+    popImpDamage(guard);
+    remain-=guard;
+    S.minions.imp=false;
+    S.impLastEvent=`已離場（替你承傷 ${guard}）`;
+    setHint(`${sourceName}擊穿格擋後，小鬼承傷 ${guard}`);
+  }
+
+  if(remain>0){
+    dealDirectHpDamage(remain);
+  }
 }
 
 
@@ -579,19 +613,23 @@ function enemyTurn(){
   for(const e of aliveEnemies()){
     const dmg=e.intent;
     const targetType=getEnemyTargetType(e);
-    if(targetType==="imp"&&S.minions.imp){
-      popImpDamage(dmg);
+    if(targetType==="imp_mark"&&S.minions.imp){
+      const guard=Math.min(IMP_GUARD_CAP,dmg);
+      popImpDamage(guard);
       S.minions.imp=false;
-      S.impLastEvent=`已離場（被 ${e.name} 點名 ${dmg}）`;
-      setHint(`${e.name}點名後排，小鬼被擊退`);
+      S.impLastEvent=`已離場（被 ${e.name} 點名 ${guard}）`;
+      setHint(`${e.name}點名後排，小鬼承傷 ${guard}`);
+      const overflow=Math.max(0,dmg-guard);
+      if(overflow>0) dealDirectHpDamage(overflow);
     }else{
-      dealDamageToPlayer(dmg);
+      dealDamageToPlayer(dmg,e.name);
     }
 
     e.idx=(e.idx+1)%e.pattern.length;
     e.intent=e.pattern[e.idx];
   }
 }
+
 
 
 function nextTurn(){
