@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v2.1</title>
+  <title>Claw 機制鏡像 v2.2</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -150,7 +150,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v2.1）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.2）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -160,7 +160,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.1：治療綠字 + 爆擊特效</div>
+      <div class="hint" id="hint">v2.2：平衡回調（降暴擊與治療）</div>
 
 
       <div class="hero-stand"></div>
@@ -198,7 +198,7 @@ const BASE_DECK = [
   {name:"普通攻擊",cost:1,text:"造成 7 傷害（可暴擊）",target:"enemy",damage:7},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
-  {name:"黑血回流",cost:1,text:"回復 6 HP",target:"self",heal:6},
+  {name:"黑血回流",cost:1,text:"回復 4 HP",target:"self",heal:4},
   {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5（可暴擊），並注入 2 張聯動卡",target:"self",summon:"imp",onSummonDamage:5},
   {name:"使魔號令",cost:1,text:"若小鬼在場：立刻造成 10 傷害（可暴擊）；否則抽 1",target:"self",impCommand:true,drawIfNoImp:1}
 ];
@@ -206,7 +206,7 @@ const BASE_DECK = [
 const INJECTION_TEMPLATES = {
   imp: [
     {name:"小鬼揮爪",cost:1,text:"小鬼撕咬，造成 8 傷害（可暴擊）",target:"enemy",damage:8,linkOwner:"imp",injected:true},
-    {name:"小鬼獻祭",cost:1,text:"獻祭小鬼：抽 2、回 1 能量、回復 4 HP",target:"self",draw:2,energyGain:1,heal:4,sacrifice:"imp",linkOwner:"imp",injected:true}
+    {name:"小鬼獻祭",cost:1,text:"獻祭小鬼：抽 2、回 1 能量、回復 2 HP",target:"self",draw:2,energyGain:1,heal:2,sacrifice:"imp",linkOwner:"imp",injected:true}
   ]
 };
 
@@ -216,7 +216,7 @@ const ENEMY_PRESET = [
 
 const S={
   turn:1,playerTurn:true,battleOver:false,
-  player:{hp:80,maxHp:80,energy:3,maxEnergy:3,block:0,critRate:0.25,critMult:1.7},
+  player:{hp:80,maxHp:80,energy:3,maxEnergy:3,block:0,critRate:0.15,critMult:1.5},
   enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
   drag:null,
   curseByEnemy:{},
@@ -286,7 +286,7 @@ function init(){
   S.enemies=ENEMY_PRESET.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
   S.drawPile=shuffle(BASE_DECK.map(cloneCard));
   drawCards(DRAW_PER_TURN);
-  setHint("你的回合：攻防穩住，黑血回流補血，抓爆擊窗口打傷害");
+  setHint("你的回合：攻防穩住，治療控血線，抓有限暴擊窗口");
   renderAll();
 }
 
@@ -559,7 +559,7 @@ function nextTurn(){
   S.player.block=0;
   S.playerTurn=true;
   drawCards(DRAW_PER_TURN-S.hand.length);
-  setHint("你的回合：攻防過牌，黑血回流補血，召喚線抓暴擊爆發");
+  setHint("你的回合：攻防過牌，召喚線穩打，暴擊作為加分而非主軸");
   renderAll();
 }
 
