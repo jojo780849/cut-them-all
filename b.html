@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v2.2</title>
+  <title>Claw 機制鏡像 v2.3</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -150,17 +150,18 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v2.2）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.3）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
       <div class="pill" id="deckInfo">抽牌 0｜棄牌 0</div>
       <div class="pill" id="systemInfo">格擋 0｜召喚 無</div>
       <div class="pill" id="impInfo">使魔事件：未召喚</div>
+      <div class="pill" id="stageInfo">進度 1/2｜小怪戰</div>
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.2：平衡回調（降暴擊與治療）</div>
+      <div class="hint" id="hint">v2.3：兩戰縱切（小怪→Boss）+ 小鬼後排規則</div>
 
 
       <div class="hero-stand"></div>
@@ -210,8 +211,20 @@ const INJECTION_TEMPLATES = {
   ]
 };
 
-const ENEMY_PRESET = [
-  {id:"enemy_near",name:"哨戒鬼差（測試）",maxHp:34,pattern:[6,7,8],idx:0}
+const BATTLE_PRESET = [
+  {
+    label:"小怪戰",
+    enemies:[
+      {id:"enemy_mid",name:"請魂紙偶",maxHp:28,pattern:[5,6,7],idx:0},
+      {id:"enemy_near",name:"哨戒鬼差",maxHp:34,pattern:[7,8,9],idx:0}
+    ]
+  },
+  {
+    label:"Boss戰",
+    enemies:[
+      {id:"enemy_boss",name:"紙甲監軍（Boss）",maxHp:78,pattern:[9,11,13],impStrikeAt:[1],idx:0}
+    ]
+  }
 ];
 
 const S={
@@ -221,7 +234,9 @@ const S={
   drag:null,
   curseByEnemy:{},
   minions:{imp:false},
-  impLastEvent:"未召喚"
+  impLastEvent:"未召喚",
+  battleIndex:0,
+  runCleared:false
 };
 
 function cloneCard(t){return {...t,uid:S.uid++};}
@@ -282,13 +297,25 @@ function healPlayerByAmount(v,label=""){
 }
 
 
+function currentBattle(){return BATTLE_PRESET[S.battleIndex];}
+function buildEnemiesFromBattle(idx){
+  return BATTLE_PRESET[idx].enemies.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
+}
+function getEnemyTargetType(e){
+  if(S.minions.imp&&Array.isArray(e.impStrikeAt)&&e.impStrikeAt.includes(e.idx)) return "imp";
+  return "player";
+}
+
 function init(){
-  S.enemies=ENEMY_PRESET.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
+  S.battleIndex=0;
+  S.runCleared=false;
+  S.enemies=buildEnemiesFromBattle(S.battleIndex);
   S.drawPile=shuffle(BASE_DECK.map(cloneCard));
   drawCards(DRAW_PER_TURN);
-  setHint("你的回合：攻防穩住，治療控血線，抓有限暴擊窗口");
+  setHint("第1戰：先處理雙小怪，再進 Boss 戰");
   renderAll();
 }
+
 
 function drawCards(n){
   for(let i=0;i<n;i++){
@@ -312,6 +339,8 @@ function renderMeta(){
   document.getElementById("deckInfo").textContent=`抽牌 ${S.drawPile.length}｜棄牌 ${S.discard.length}`;
   document.getElementById("systemInfo").textContent=`格擋 ${S.player.block}｜召喚 ${S.minions.imp?"小鬼在場":"無"}`;
   document.getElementById("impInfo").textContent=`使魔事件：${S.impLastEvent}`;
+  const stageText=S.runCleared?"已完成兩戰流程":`進度 ${S.battleIndex+1}/${BATTLE_PRESET.length}｜${currentBattle().label}`;
+  document.getElementById("stageInfo").textContent=stageText;
 }
 function renderEnergy(){
   const el=document.getElementById("energy");el.innerHTML="";
@@ -325,12 +354,12 @@ function renderEnergy(){
 function renderEnemies(){
   const root=document.getElementById("enemies");
   root.innerHTML="";
-  root.classList.toggle("single",S.enemies.length===1);
-  const posMap={enemy_far:"enemy_far",enemy_mid:"enemy_mid",enemy_near:"enemy_near"};
+  root.classList.toggle("single",aliveEnemies().length===1);
+  const posMap={enemy_far:"enemy_far",enemy_mid:"enemy_mid",enemy_near:"enemy_near",enemy_boss:"enemy_near"};
   S.enemies.forEach(e=>{
     const d=document.createElement("div");
     const hoverClass=S.drag?.hoverEnemyId===e.id?" hover":"";
-    const intentTarget=S.minions.imp&&e.id==="enemy_near"?"小鬼":"主角";
+    const intentTarget=getEnemyTargetType(e)==="imp"?"小鬼":"主角";
     d.className="enemy "+(posMap[e.id]||"enemy_mid")+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"")+hoverClass;
     d.dataset.eid=e.id;
     d.innerHTML=`<div class="row between"><span class="name">${e.name}</span><span class="hp">${e.hp}/${e.maxHp}</span></div><div class="bar" style="margin-top:4px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div></div><div class="intent">⚔ ${e.intent} → ${intentTarget}</div>`;
@@ -342,6 +371,7 @@ function renderEnemies(){
     root.appendChild(d);
   });
 }
+
 
 function renderImpAvatar(){
   const el=document.getElementById("impAvatar");
@@ -499,10 +529,36 @@ function resolveCard(c,targetId){
 }
 
 function checkBattleEnd(){
-  if(S.player.hp<=0){S.battleOver=true;S.playerTurn=false;setHint("主角 HP 歸零，戰鬥失敗");return true;}
-  if(aliveEnemies().length===0){S.battleOver=true;S.playerTurn=false;setHint("戰鬥勝利！可刷新重測");return true;}
-  return false;
+  if(S.player.hp<=0){
+    S.battleOver=true;
+    S.playerTurn=false;
+    setHint("主角 HP 歸零，挑戰失敗");
+    return true;
+  }
+  if(aliveEnemies().length>0)return false;
+
+  if(S.battleIndex<BATTLE_PRESET.length-1){
+    S.battleIndex+=1;
+    S.enemies=buildEnemiesFromBattle(S.battleIndex);
+    S.discard.push(...S.hand);
+    S.hand=[];
+    S.selectedCard=null;
+    S.selectedEnemy=null;
+    S.player.block=0;
+    S.player.energy=S.player.maxEnergy;
+    S.playerTurn=true;
+    drawCards(DRAW_PER_TURN);
+    setHint(`已清掉前一戰，進入 ${currentBattle().label}`);
+    return false;
+  }
+
+  S.runCleared=true;
+  S.battleOver=true;
+  S.playerTurn=false;
+  setHint("Boss 已擊破，兩戰流程完成");
+  return true;
 }
+
 
 function tryPlay(cardUid,targetId){
   if(!S.playerTurn||S.battleOver)return;
@@ -532,11 +588,12 @@ function dealDamageToPlayer(dmg){
 function enemyTurn(){
   for(const e of aliveEnemies()){
     const dmg=e.intent;
-    if(S.minions.imp && e.id==="enemy_near"){
+    const targetType=getEnemyTargetType(e);
+    if(targetType==="imp"&&S.minions.imp){
       popImpDamage(dmg);
       S.minions.imp=false;
-      S.impLastEvent=`已離場（替你擋下 ${dmg} 傷害）`;
-      setHint("小鬼替主角擋下一擊並離場");
+      S.impLastEvent=`已離場（被 ${e.name} 點名 ${dmg}）`;
+      setHint(`${e.name}點名後排，小鬼被擊退`);
     }else{
       dealDamageToPlayer(dmg);
     }
@@ -545,6 +602,7 @@ function enemyTurn(){
     e.intent=e.pattern[e.idx];
   }
 }
+
 
 function nextTurn(){
   if(!S.playerTurn||S.battleOver)return;
@@ -559,7 +617,7 @@ function nextTurn(){
   S.player.block=0;
   S.playerTurn=true;
   drawCards(DRAW_PER_TURN-S.hand.length);
-  setHint("你的回合：攻防過牌，召喚線穩打，暴擊作為加分而非主軸");
+  setHint("你的回合：先穩住主角血線，召喚線留給點名回合做取捨");
   renderAll();
 }
 
