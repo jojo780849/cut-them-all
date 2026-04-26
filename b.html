@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v1.8</title>
+  <title>Claw 機制鏡像 v1.9</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -132,16 +132,17 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v1.8）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v1.9）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
       <div class="pill" id="deckInfo">抽牌 0｜棄牌 0</div>
       <div class="pill" id="systemInfo">格擋 0｜召喚 無</div>
+      <div class="pill" id="impInfo">使魔事件：未召喚</div>
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v1.8 方案B：攻防基底 + 小鬼召喚 + 使魔號令</div>
+      <div class="hint" id="hint">v1.9：小鬼死亡提示強化（看得見為何離場）</div>
 
 
       <div class="hero-stand"></div>
@@ -198,7 +199,8 @@ const S={
   enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
   drag:null,
   curseByEnemy:{},
-  minions:{imp:false}
+  minions:{imp:false},
+  impLastEvent:"未召喚"
 };
 
 function cloneCard(t){return {...t,uid:S.uid++};}
@@ -238,6 +240,7 @@ function renderTop(){
 function renderMeta(){
   document.getElementById("deckInfo").textContent=`抽牌 ${S.drawPile.length}｜棄牌 ${S.discard.length}`;
   document.getElementById("systemInfo").textContent=`格擋 ${S.player.block}｜召喚 ${S.minions.imp?"小鬼在場":"無"}`;
+  document.getElementById("impInfo").textContent=`使魔事件：${S.impLastEvent}`;
 }
 function renderEnergy(){
   const el=document.getElementById("energy");el.innerHTML="";
@@ -371,6 +374,7 @@ function resolveCard(c,targetId){
 
   if(c.summon){
     S.minions[c.summon]=true;
+    S.impLastEvent="在場（剛召喚）";
     injectMinionCards(c.summon);
     const summonTarget=aliveEnemies()[0]||null;
     if(c.onSummonDamage&&summonTarget){
@@ -384,16 +388,19 @@ function resolveCard(c,targetId){
       const cmdTarget=aliveEnemies()[0]||null;
       if(cmdTarget){
         cmdTarget.hp=Math.max(0,cmdTarget.hp-10);
+        S.impLastEvent="在場（已號令追擊）";
         setHint("使魔號令生效：小鬼立刻追擊 10 傷害");
       }
     }else if(c.drawIfNoImp){
       drawCards(c.drawIfNoImp);
+      S.impLastEvent="不在場（號令轉抽牌）";
       setHint("場上無小鬼，號令轉為抽牌");
     }
   }
 
   if(c.sacrifice&&S.minions[c.sacrifice]){
     S.minions[c.sacrifice]=false;
+    S.impLastEvent="已離場（你打出小鬼獻祭）";
     setHint("小鬼已獻祭，相關聯動卡將轉為沉默廢牌");
   }
 
@@ -440,6 +447,7 @@ function enemyTurn(){
     const dmg=e.intent;
     if(S.minions.imp && e.id==="enemy_near"){
       S.minions.imp=false;
+      S.impLastEvent=`已離場（替你擋下 ${dmg} 傷害）`;
       setHint("小鬼替主角擋下一擊並離場");
     }else{
       dealDamageToPlayer(dmg);
