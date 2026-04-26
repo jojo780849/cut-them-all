@@ -1,5 +1,7 @@
 # 项目记忆
 
+- 2026-04-26 维护：补录当天已落地但此前未同步到文档的 Claw / 幽塔术士 H5 + Godot Web 验证线。
+
 ## 当前项目：生存割草游戏 (Vampire Survivors 风格)
 
 ### 体验目标
@@ -7,12 +9,12 @@
 - 当前重点是降低逐发手动瞄准负担，优先验证更省操作的战斗输入骨架
 
 ### 技术栈
-- 纯 HTML5 Canvas + 原生 JavaScript
-- 多个单文件原型并行推进（`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `spire_fusion_mobile_demo.html` / `squad_demo.html` / `warlock_v0_1.html` / `warlock_v0_2.html` / `b.html` / `demo_ranged.html` / `game.html`）
+- 纯 HTML5 Canvas + 原生 JavaScript 为主，另新增 `claw/godot-v01/` Godot Web 导出包用于同题材对照验证
+- 多个单文件原型并行推进（`demo_melee.html` / `demo_ranged_bazaar.html` / `demo_ranged_juice.html` / `juice.html` / `merge_shot_mobile_demo.html` / `m.html` / `msd_v2_20260421.html` / `block_combat_mobile_demo.html` / `spire_fusion_mobile_demo.html` / `squad_demo.html` / `warlock_v0_1.html` / `warlock_v0_2.html` / `b.html` / `demo_ranged.html` / `game.html` / `claw/index.html` / `claw/b.html` / `claw/h.html`）
 
-- 无需构建工具，双击即可运行
+- 无需构建工具，HTML 原型双击即可运行；`claw/godot-v01/` 为已导出的网页构建
 
-### 已实现功能（主线 V15 + 多条实验线扩展 - 截至 2026-04-22）
+### 已实现功能（主线 V15 + 多条实验线扩展 - 截至 2026-04-26）
 
 
 
@@ -84,10 +86,28 @@
 1. **定位**：先用偏炉石式布局验证基础出牌感，测试术士主题与传统回合制卡牌触感是否成立
 2. **核心交互**：敌人在上、我方在下，拖牌对准敌人或友方单位施放，强调直觉式出牌与明确目标反馈
 
-#### warlock_v0_2.html / b.html（术士联动验证线 - V2）
+#### warlock_v0_2.html（术士联动验证线 - V2）
 1. **定位**：在 v0.1 基础上改成“主角居中 + 召唤物侧翼 + 联动卡注入”，验证术士是否应该围绕召唤物联动来立职业核心
 2. **核心机制**：小鬼/猎犬召唤后动态注入对应联动卡；召唤物死亡时联动卡会同步失效清除
-3. **分享入口**：`b.html` 当前已切为 `warlock_v0_2.html` 的短路径镜像，便于手机端快速试玩和外部分享
+3. **当前价值**：作为 Claw / 幽塔术士子线成形前的关键前置验证，保留职业味与召唤物联动的起点
+
+#### b.html（Claw H5 机制镜像 - V2.6）
+1. **定位**：根目录短链已从旧 warlock 镜像演化为 Claw 的 H5 机制镜像，用来快速验证双战流程、承伤传导与召唤物流转是否成立
+2. **核心机制**：小怪战 → Boss 战两段式流程；格挡→小鬼→主角的承伤顺序；召唤小鬼 / 使魔号令 / 联动卡注入形成最小闭环
+3. **当前状态**：标题已更新为 `Claw 機制鏡像 v2.6`，适合作为最短分享入口与手机端快速试玩链接
+
+#### claw/index.html / claw/b.html（幽塔·术士竖版正式版 - V0.6）
+1. **定位**：竖版正式版入口，验证“召唤物驱动的手机回合制卡牌”是否能兼顾舞台感、信息密度与单手观看阅读
+2. **敌人职责化**：哨戒鬼差（压制减能量）/ 缚魂纸偶（直伤压血）/ 纸甲阴兵（自护顶线）三类职责已成型
+3. **信息表达**：支持 intent badge、点按 inspect、敌方行动预告与压制说明，便于玩家读懂下一回合压力来源
+
+#### claw/h.html（幽塔·术士横版预览）
+1. **定位**：用同一套卡牌、敌人与召唤逻辑验证横版构图与手牌区可读性，方便对照手机横屏截图继续微调
+2. **当前价值**：更偏布局 / 信息层验证，不替代竖版主玩入口
+
+#### claw/g.html / claw/godot-v01/index.html（Godot Web 对照入口）
+1. **定位**：保留 Godot Web 导出包与短链，便于把 H5 原型和 Godot 落地版放在同一工作区做 UI / 节奏对照
+2. **入口结构**：`claw/g.html` 自动跳转到 `claw/godot-v01/index.html`，后者为实际网页构建入口
 
 ### 部署信息
 
@@ -98,6 +118,11 @@
 - **在线游戏链接（纸扎夜市验证线）**：https://jojo780849.github.io/cut-them-all/demo_ranged_bazaar.html
 - **在线游戏链接（远程爽感实验线）**：https://jojo780849.github.io/cut-them-all/demo_ranged_juice.html
 - **在线游戏链接（远程爽感短路径）**：https://jojo780849.github.io/cut-them-all/juice.html
+- **在线游戏链接（Claw H5 机制镜像）**：https://jojo780849.github.io/cut-them-all/b.html
+- **在线游戏链接（Claw 竖版正式版）**：https://jojo780849.github.io/cut-them-all/claw/
+- **在线游戏链接（Claw 竖版主玩镜像）**：https://jojo780849.github.io/cut-them-all/claw/b.html
+- **在线游戏链接（Claw 横版预览）**：https://jojo780849.github.io/cut-them-all/claw/h.html
+- **在线游戏链接（Claw Godot Web 短链）**：https://jojo780849.github.io/cut-them-all/claw/g.html
 
 
 ### 协作与跨设备同步约定
@@ -146,7 +171,11 @@
   - `spire_fusion_mobile_demo.html`：完成“竖版舞台 + 美术预留 + 点按解说 + 拖拽出牌”的展示型样机
   - `squad_demo.html`：完成 branch1 小队指挥原型，验证 3 格站位 + 角色牌/技能牌拖拽出牌
   - `warlock_v0_1.html`：完成偏炉石式的术士基础出牌感对照
-  - `warlock_v0_2.html`：完成主角居中 + 召唤物侧翼 + 联动卡动态注入；`b.html` 同步切为短路径镜像
+  - `warlock_v0_2.html`：完成主角居中 + 召唤物侧翼 + 联动卡动态注入；为后续 Claw 子线提供前置验证
+- 2026-04-26：补录远端当日已提交但此前未写入文档的 Claw / 幽塔术士进展：
+  - 根目录 `b.html` 已演化为 `Claw 機制鏡像 v2.6`，聚焦双战流程与格挡→小鬼→主角承伤传导
+  - 新增 `claw/` 目录：`claw/index.html` / `claw/b.html` 为竖版正式版入口，`claw/h.html` 为横版预览，`claw/g.html` 指向 `claw/godot-v01/index.html` Godot Web 导出包
+  - 竖版正式版已形成三类敌人职责化（哨戒鬼差 / 缚魂纸偶 / 纸甲阴兵）、intent badge、点按 inspect 与压制减能量机制
 
 
 
