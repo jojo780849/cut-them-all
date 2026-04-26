@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v2.9</title>
+  <title>Claw 機制鏡像 v2.10</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -150,7 +150,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v2.9）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.10）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -161,7 +161,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.9：血契復活保底（下次敵回合承傷+1）</div>
+      <div class="hint" id="hint">v2.10：小鬼召喚後顯示 HP</div>
 
 
       <div class="hero-stand"></div>
@@ -335,11 +335,13 @@ function renderTop(){
 }
 function renderMeta(){
   document.getElementById("deckInfo").textContent=`抽牌 ${S.drawPile.length}｜棄牌 ${S.discard.length}`;
-  document.getElementById("systemInfo").textContent=`格擋 ${S.player.block}｜召喚 ${S.minions.imp?"小鬼在場":"無"}`;
+  const impState=S.minions.imp?`小鬼 HP ${getImpGuardCap()}/${getImpGuardCap()}`:"無";
+  document.getElementById("systemInfo").textContent=`格擋 ${S.player.block}｜召喚 ${impState}`;
   document.getElementById("impInfo").textContent=`使魔事件：${S.impLastEvent}`;
   const stageText=S.runCleared?"已完成兩戰流程":`進度 ${S.battleIndex+1}/${BATTLE_PRESET.length}｜${currentBattle().label}`;
   document.getElementById("stageInfo").textContent=stageText;
 }
+
 function renderEnergy(){
   const el=document.getElementById("energy");el.innerHTML="";
   for(let i=0;i<S.player.maxEnergy;i++){
@@ -376,8 +378,16 @@ function renderEnemies(){
 function renderImpAvatar(){
   const el=document.getElementById("impAvatar");
   if(!el)return;
-  el.classList.toggle("on",!!S.minions.imp);
+  const on=!!S.minions.imp;
+  el.classList.toggle("on",on);
+  if(on){
+    const hp=getImpGuardCap();
+    el.textContent=`😈 小鬼 HP ${hp}/${hp}`;
+  }else{
+    el.textContent="😈 小鬼";
+  }
 }
+
 
 
 function cardPlayable(c){return !S.battleOver && S.playerTurn && S.player.energy>=cardCost(c);}
