@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v1.7</title>
+  <title>Claw 機制鏡像 v1.8</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -132,7 +132,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v1.7）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v1.8）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -141,7 +141,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v1.7 單怪測試：攻擊、防禦 + 小鬼聯動節奏</div>
+      <div class="hint" id="hint">v1.8 方案B：攻防基底 + 小鬼召喚 + 使魔號令</div>
 
 
       <div class="hero-stand"></div>
@@ -174,18 +174,17 @@ const BASE_DECK = [
   {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
   {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
   {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
-  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
-  {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
-  {name:"召喚小鬼",cost:1,text:"召喚小鬼，並注入 2 張聯動卡",target:"self",summon:"imp"}
+  {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5，並注入 2 張聯動卡",target:"self",summon:"imp",onSummonDamage:5},
+  {name:"使魔號令",cost:1,text:"若小鬼在場：立刻造成 10 傷害；否則抽 1",target:"self",impCommand:true,drawIfNoImp:1}
 ];
 
 const INJECTION_TEMPLATES = {
   imp: [
-    {name:"小鬼揮爪",cost:1,text:"小鬼撕咬，造成 6 傷害",target:"enemy",damage:6,linkOwner:"imp",injected:true},
-    {name:"小鬼獻祭",cost:1,text:"獻祭小鬼：抽 2",target:"self",draw:2,sacrifice:"imp",linkOwner:"imp",injected:true}
+    {name:"小鬼揮爪",cost:1,text:"小鬼撕咬，造成 8 傷害",target:"enemy",damage:8,linkOwner:"imp",injected:true},
+    {name:"小鬼獻祭",cost:1,text:"獻祭小鬼：抽 2 並回 1 能量",target:"self",draw:2,energyGain:1,sacrifice:"imp",linkOwner:"imp",injected:true}
   ]
 };
 
@@ -215,7 +214,7 @@ function init(){
   S.enemies=ENEMY_PRESET.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
   S.drawPile=shuffle(BASE_DECK.map(cloneCard));
   drawCards(DRAW_PER_TURN);
-  setHint("你的回合：攻擊與防禦打節奏，抽到召喚小鬼就開聯動");
+  setHint("你的回合：先攻防穩住，召喚小鬼後用使魔號令打爆發");
   renderAll();
 }
 
@@ -373,7 +372,24 @@ function resolveCard(c,targetId){
   if(c.summon){
     S.minions[c.summon]=true;
     injectMinionCards(c.summon);
-    setHint("已召喚小鬼，聯動卡已注入牌組");
+    const summonTarget=aliveEnemies()[0]||null;
+    if(c.onSummonDamage&&summonTarget){
+      summonTarget.hp=Math.max(0,summonTarget.hp-c.onSummonDamage);
+    }
+    setHint("小鬼登場：進場撕咬 + 聯動卡注入");
+  }
+
+  if(c.impCommand){
+    if(S.minions.imp){
+      const cmdTarget=aliveEnemies()[0]||null;
+      if(cmdTarget){
+        cmdTarget.hp=Math.max(0,cmdTarget.hp-10);
+        setHint("使魔號令生效：小鬼立刻追擊 10 傷害");
+      }
+    }else if(c.drawIfNoImp){
+      drawCards(c.drawIfNoImp);
+      setHint("場上無小鬼，號令轉為抽牌");
+    }
   }
 
   if(c.sacrifice&&S.minions[c.sacrifice]){
@@ -423,10 +439,8 @@ function enemyTurn(){
   for(const e of aliveEnemies()){
     const dmg=e.intent;
     if(S.minions.imp && e.id==="enemy_near"){
-      if(dmg>=9){
-        S.minions.imp=false;
-        setHint("小鬼替主角擋下重擊並倒下");
-      }
+      S.minions.imp=false;
+      setHint("小鬼替主角擋下一擊並離場");
     }else{
       dealDamageToPlayer(dmg);
     }
@@ -448,7 +462,7 @@ function nextTurn(){
   S.player.block=0;
   S.playerTurn=true;
   drawCards(DRAW_PER_TURN-S.hand.length);
-  setHint("你的回合：普通攻擊壓血、用防禦扛傷，抽到小鬼就測聯動");
+  setHint("你的回合：攻防穩定過牌，抓召喚小鬼 + 使魔號令爆發");
   renderAll();
 }
 
