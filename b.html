@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v1.9</title>
+  <title>Claw 機制鏡像 v2.0</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -55,6 +55,16 @@
     .gem{width:14px;height:14px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:var(--blue)}
     .gem.off{opacity:.2}
 
+    .imp-avatar{position:absolute;left:208px;bottom:76px;min-width:70px;padding:6px 8px;border-radius:10px;border:1px solid #6d5a4a;background:rgba(38,27,22,.92);font-size:11px;color:#f7d7a2;z-index:9;display:none;box-shadow:0 6px 14px rgba(0,0,0,.32)}
+    .imp-avatar.on{display:block}
+
+    .float-layer{position:fixed;inset:0;pointer-events:none;z-index:40}
+    .float-num{position:fixed;transform:translate(-50%,-50%);font-weight:900;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.7);animation:floatUp .65s ease forwards}
+    .float-num.dmg{color:#ffb3a6}
+    .float-num.heal{color:#9ff4b8}
+    @keyframes floatUp{0%{opacity:0;transform:translate(-50%,-8px) scale(.85)}15%{opacity:1;transform:translate(-50%,-14px) scale(1)}100%{opacity:0;transform:translate(-50%,-44px) scale(1.06)}}
+
+
     .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 54px);width:min(980px,calc(100vw - 10px));display:flex;gap:7px;justify-content:center;overflow-x:auto;padding:0 10px 4px;z-index:12;scrollbar-width:none}
     .hand::-webkit-scrollbar{display:none}
     .card{flex:0 0 96px;width:96px;min-height:124px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative;box-shadow:0 8px 16px rgba(0,0,0,.25);user-select:none}
@@ -96,10 +106,14 @@
       .enemy.enemy_near{left:224px;top:0;width:118px}
       .enemy-layer.single{width:222px;height:150px;right:12px;top:38px}
       .enemy-layer.single .enemy.enemy_near{left:56px;top:8px;width:150px}
+      .float-num{font-size:15px}
 
       .enemy .name{font-size:11px}
+
       .enemy .hp,.intent{font-size:10px}
       .hud-left{left:10px;bottom:14px;padding:6px 8px}
+      .imp-avatar{left:176px;bottom:52px;min-width:62px;padding:5px 7px;font-size:10px}
+
       .hand{bottom:calc(env(safe-area-inset-bottom) + 42px);width:min(926px,calc(100vw - 8px));gap:6px;padding:0 6px 2px}
       .card{flex:0 0 84px;width:84px;min-height:112px;padding:7px}
       .card .cost{width:22px;height:22px;font-size:12px}
@@ -121,8 +135,10 @@
       .enemy.enemy_near{left:154px;top:0;width:96px}
       .enemy-layer.single{width:200px;height:170px;right:20px;top:82px}
       .enemy-layer.single .enemy.enemy_near{left:48px;top:12px;width:132px}
+      .imp-avatar{left:150px;bottom:128px;min-width:64px;padding:5px 7px;font-size:10px}
 
       .hand{width:min(410px,calc(100vw - 12px));gap:6px}
+
       .card{flex:0 0 92px;width:92px;min-height:132px}
       .ctl{width:min(410px,calc(100vw - 12px))}
       .end{width:142px}
@@ -132,7 +148,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v1.9）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.0）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -142,7 +158,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v1.9：小鬼死亡提示強化（看得見為何離場）</div>
+      <div class="hint" id="hint">v2.0：小鬼頭像實體 + 全體受傷飄字</div>
 
 
       <div class="hero-stand"></div>
@@ -152,6 +168,7 @@
       </div>
 
       <div class="enemy-layer" id="enemies"></div>
+      <div class="imp-avatar" id="impAvatar">😈 小鬼</div>
 
       <div class="hud-left">
         <span class="label">能量</span>
@@ -167,6 +184,8 @@
     <div class="drag-line" id="dragLine"></div>
     <div class="drag-dot" id="dragDot"></div>
   </div>
+  <div class="float-layer" id="floatLayer"></div>
+
 
 <script>
 const DRAW_PER_TURN = 4;
@@ -211,6 +230,29 @@ function enemyById(id){return S.enemies.find(e=>e.id===id&&e.hp>0)||aliveEnemies
 function totalCurse(){return Object.values(S.curseByEnemy).reduce((a,b)=>a+b,0);}
 function isSilentCard(c){return !!(c.linkOwner && !S.minions[c.linkOwner]);}
 function cardCost(c){return isSilentCard(c)?0:c.cost;}
+function enemyElById(id){return document.querySelector(`.enemy[data-eid="${id}"]`);} 
+function popFloatAtElement(el,value,kind="dmg"){
+  if(!el||value<=0)return;
+  const layer=document.getElementById("floatLayer");
+  if(!layer)return;
+  const r=el.getBoundingClientRect();
+  const n=document.createElement("div");
+  n.className=`float-num ${kind}`;
+  n.textContent=kind==="heal"?`+${value}`:`-${value}`;
+  n.style.left=`${r.left+r.width*0.5}px`;
+  n.style.top=`${r.top+r.height*0.35}px`;
+  layer.appendChild(n);
+  setTimeout(()=>n.remove(),700);
+}
+function popEnemyDamage(enemyId,val){popFloatAtElement(enemyElById(enemyId),val,"dmg");}
+function popPlayerDamage(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"dmg");}
+function popImpDamage(val){popFloatAtElement(document.getElementById("impAvatar"),val,"dmg");}
+function damageEnemyByAmount(enemy,val){
+  if(!enemy||val<=0)return;
+  enemy.hp=Math.max(0,enemy.hp-val);
+  popEnemyDamage(enemy.id,val);
+}
+
 
 function init(){
   S.enemies=ENEMY_PRESET.map(e=>({...e,hp:e.maxHp,intent:e.pattern[0]}));
@@ -231,7 +273,8 @@ function drawCards(n){
   }
 }
 
-function renderAll(){renderTop();renderEnergy();renderEnemies();renderHand();renderMeta();}
+function renderAll(){renderTop();renderEnergy();renderEnemies();renderImpAvatar();renderHand();renderMeta();}
+
 function renderTop(){
   document.getElementById("turn").textContent=`回合 ${S.turn}`;
   document.getElementById("heroHpText").textContent=`HP ${S.player.hp}/${S.player.maxHp}｜甲 ${S.player.block}`;
@@ -271,6 +314,13 @@ function renderEnemies(){
     root.appendChild(d);
   });
 }
+
+function renderImpAvatar(){
+  const el=document.getElementById("impAvatar");
+  if(!el)return;
+  el.classList.toggle("on",!!S.minions.imp);
+}
+
 
 function cardPlayable(c){return !S.battleOver && S.playerTurn && S.player.energy>=cardCost(c);}
 
@@ -378,8 +428,9 @@ function resolveCard(c,targetId){
     injectMinionCards(c.summon);
     const summonTarget=aliveEnemies()[0]||null;
     if(c.onSummonDamage&&summonTarget){
-      summonTarget.hp=Math.max(0,summonTarget.hp-c.onSummonDamage);
+      damageEnemyByAmount(summonTarget,c.onSummonDamage);
     }
+
     setHint("小鬼登場：進場撕咬 + 聯動卡注入");
   }
 
@@ -387,7 +438,8 @@ function resolveCard(c,targetId){
     if(S.minions.imp){
       const cmdTarget=aliveEnemies()[0]||null;
       if(cmdTarget){
-        cmdTarget.hp=Math.max(0,cmdTarget.hp-10);
+        damageEnemyByAmount(cmdTarget,10);
+
         S.impLastEvent="在場（已號令追擊）";
         setHint("使魔號令生效：小鬼立刻追擊 10 傷害");
       }
@@ -404,7 +456,8 @@ function resolveCard(c,targetId){
     setHint("小鬼已獻祭，相關聯動卡將轉為沉默廢牌");
   }
 
-  if(c.damage&&t) t.hp=Math.max(0,t.hp-c.damage);
+  if(c.damage&&t) damageEnemyByAmount(t,c.damage);
+
   if(c.block) S.player.block=Math.min(99,S.player.block+c.block);
 
   if(c.selfDamage) S.player.hp=Math.max(0,S.player.hp-c.selfDamage);
@@ -439,19 +492,23 @@ function dealDamageToPlayer(dmg){
   const blocked=Math.min(S.player.block,dmg);
   S.player.block-=blocked;
   const real=Math.max(0,dmg-blocked);
+  if(real>0) popPlayerDamage(real);
   S.player.hp=Math.max(0,S.player.hp-real);
 }
+
 
 function enemyTurn(){
   for(const e of aliveEnemies()){
     const dmg=e.intent;
     if(S.minions.imp && e.id==="enemy_near"){
+      popImpDamage(dmg);
       S.minions.imp=false;
       S.impLastEvent=`已離場（替你擋下 ${dmg} 傷害）`;
       setHint("小鬼替主角擋下一擊並離場");
     }else{
       dealDamageToPlayer(dmg);
     }
+
     e.idx=(e.idx+1)%e.pattern.length;
     e.intent=e.pattern[e.idx];
   }
