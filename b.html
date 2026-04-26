@@ -7,54 +7,77 @@
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{margin:0;background:linear-gradient(180deg,#161212,#0f0d0d);color:#f6f0e5;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
-    .app{max-width:430px;margin:0 auto;min-height:100dvh;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px)}
+    body{margin:0;background:linear-gradient(180deg,#15100f,#0d0a0a);color:#f6f0e5;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
+    .app{max-width:430px;margin:0 auto;min-height:100dvh;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);position:relative}
     .row{display:flex;gap:8px;align-items:center}
     .between{justify-content:space-between}
+    .top{margin-bottom:8px}
     .pill{background:#201b18;border:1px solid #3a2f28;border-radius:999px;padding:6px 10px;font-size:12px}
-    .title{font-weight:800;letter-spacing:.8px}
-    .arena{margin-top:8px;background:rgba(23,18,16,.92);border:1px solid #3a2f28;border-radius:16px;padding:10px}
-    .hero{margin-bottom:8px;padding:8px;border:1px solid #433831;border-radius:12px;background:#1e1a17}
+    .title{font-weight:900;letter-spacing:.9px;font-size:15px}
+
+    .battle{position:relative;height:calc(100dvh - 220px);min-height:420px;background:radial-gradient(circle at 52% 10%,rgba(255,238,198,.08),transparent 30%),linear-gradient(180deg,#1a1412,#120e0d 60%,#100c0c);border:1px solid #3a2f28;border-radius:18px;overflow:hidden}
+    .battle::after{content:"";position:absolute;inset:8px;border-radius:14px;border:1px solid rgba(255,255,255,.05);pointer-events:none}
+
+    .hero-panel{position:absolute;left:10px;bottom:118px;width:148px;padding:8px;border:1px solid #433831;border-radius:12px;background:rgba(30,26,23,.9);z-index:3}
+    .hero-stand{position:absolute;left:8px;bottom:102px;width:160px;height:190px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 26%),linear-gradient(180deg,#3f203f,#221522);opacity:.32;z-index:1}
     .bar{height:10px;background:#2c2622;border-radius:999px;overflow:hidden;border:1px solid #4a3f38}
     .fill{height:100%;background:linear-gradient(90deg,#b94444,#e88989)}
+
+    .enemy-layer{position:absolute;right:8px;top:76px;width:250px;height:250px;z-index:4}
+    .enemy{position:absolute;padding:6px;border:1px solid #493a33;border-radius:12px;background:#221c19;box-shadow:0 8px 16px rgba(0,0,0,.28)}
+    .enemy.enemy_far{left:0;top:42px;width:124px}
+    .enemy.enemy_mid{left:78px;top:24px;width:132px}
+    .enemy.enemy_near{left:154px;top:0;width:96px}
+    .enemy.sel{outline:2px solid var(--gold)}
+    .enemy.dead{opacity:.4;filter:grayscale(1)}
+    .enemy .name{font-size:11px;font-weight:700}
+    .enemy .hp{font-size:10px;opacity:.9}
+    .intent{font-size:11px;color:#ffd7cf;margin-top:4px}
+
+    .hint{position:absolute;left:10px;right:10px;top:10px;font-size:12px;color:#dbc9a8;min-height:18px;z-index:5;background:rgba(18,14,12,.62);border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:5px 10px}
+
+    .hud-left{position:absolute;left:12px;bottom:74px;display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:999px;background:rgba(17,14,13,.72);border:1px solid rgba(255,255,255,.08);z-index:6}
+    .hud-left .label{font-size:11px;color:#d7c8ab}
     .energy{display:flex;gap:4px}
     .gem{width:14px;height:14px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:var(--blue)}
     .gem.off{opacity:.2}
-    .enemies{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-    .enemy{padding:8px;border:1px solid #493a33;border-radius:12px;background:#221c19;position:relative}
-    .enemy.sel{outline:2px solid var(--gold)}
-    .enemy.dead{opacity:.4;filter:grayscale(1)}
-    .intent{font-size:12px;color:#ffd7cf;margin-top:4px}
-    .hint{margin:8px 0 0;font-size:12px;color:#dbc9a8;min-height:18px}
-    .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 70px);width:min(410px,calc(100vw - 16px));display:flex;gap:6px;justify-content:center;z-index:5}
-    .card{width:92px;min-height:132px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative}
+
+    .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 64px);width:min(410px,calc(100vw - 12px));display:flex;gap:6px;justify-content:flex-start;overflow-x:auto;padding:0 6px 3px;z-index:8}
+    .hand::-webkit-scrollbar{display:none}
+    .card{flex:0 0 92px;width:92px;min-height:132px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative;box-shadow:0 8px 16px rgba(0,0,0,.25)}
     .card .cost{position:absolute;left:8px;top:8px;background:#1f1a16;color:var(--blue);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800}
     .card h4{margin:24px 0 4px;font-size:13px;line-height:1.2}
     .card p{margin:0;font-size:11px;line-height:1.35}
     .card button{margin-top:6px;width:100%;border:0;border-radius:8px;padding:6px;background:#2c241f;color:#fff;font-weight:700}
     .card button[disabled]{opacity:.35}
-    .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(410px,calc(100vw - 16px));z-index:6}
-    .end{width:100%;border:0;border-radius:12px;padding:14px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px}
+
+    .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(410px,calc(100vw - 12px));display:flex;justify-content:flex-end;z-index:9;padding-right:6px}
+    .end{width:142px;border:0;border-radius:12px;padding:14px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px;box-shadow:0 8px 18px rgba(0,0,0,.3)}
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="row between">
-      <div class="title">幽塔・術士（H5 機制鏡像 v1）</div>
+    <div class="row between top">
+      <div class="title">幽塔・術士（H5 機制鏡像 v1.1）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
-    <div class="arena">
-      <div class="hero">
+
+    <section class="battle">
+      <div class="hint" id="hint">點卡牌，單體卡再點怪物出牌</div>
+
+      <div class="hero-stand"></div>
+      <div class="hero-panel">
         <div class="row between"><b>術士</b><span id="heroHpText">HP 80/80</span></div>
         <div class="bar"><div class="fill" id="heroHpFill" style="width:100%"></div></div>
-        <div class="row between" style="margin-top:8px">
-          <span>能量</span>
-          <div class="energy" id="energy"></div>
-        </div>
       </div>
-      <div class="enemies" id="enemies"></div>
-      <div class="hint" id="hint">點卡牌，單體卡再點怪物出牌</div>
-    </div>
+
+      <div class="enemy-layer" id="enemies"></div>
+
+      <div class="hud-left">
+        <span class="label">能量</span>
+        <div class="energy" id="energy"></div>
+      </div>
+    </section>
   </div>
 
   <div class="hand" id="hand"></div>
@@ -110,10 +133,11 @@ function renderEnergy(){const el=document.getElementById("energy");el.innerHTML=
 
 function renderEnemies(){
   const root=document.getElementById("enemies");root.innerHTML="";
+  const posMap={enemy_far:"enemy_far",enemy_mid:"enemy_mid",enemy_near:"enemy_near"};
   S.enemies.forEach(e=>{
     const d=document.createElement("div");
-    d.className="enemy"+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"");
-    d.innerHTML=`<div class="row between"><b>${e.name}</b><span>${e.hp}/${e.maxHp}</span></div><div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div></div><div class="intent">意圖：攻擊 ${e.intent}</div>`;
+    d.className="enemy "+(posMap[e.id]||"enemy_mid")+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"");
+    d.innerHTML=`<div class="row between"><span class="name">${e.name}</span><span class="hp">${e.hp}/${e.maxHp}</span></div><div class="bar" style="margin-top:4px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div></div><div class="intent">⚔ ${e.intent}</div>`;
     d.onclick=()=>{
       if(e.hp<=0)return;
       S.selectedEnemy=e.id;
