@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v2.6</title>
+  <title>Claw 機制鏡像 v2.7</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -150,7 +150,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v2.6）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.7）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -161,7 +161,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.6：雙戰壓力提升（維持格擋→小鬼→主角）</div>
+      <div class="hint" id="hint">v2.7：小鬼死亡清算（移除污染牌）</div>
 
 
       <div class="hero-stand"></div>
@@ -472,6 +472,45 @@ function injectMinionCards(type){
   S.discard.push(...injected);
 }
 
+function removeCardsInPlace(pile,pred){
+  let removed=0;
+  for(let i=pile.length-1;i>=0;i--){
+    if(pred(pile[i])){pile.splice(i,1);removed++;}
+  }
+  return removed;
+}
+
+function purgeImpLinkedCardsOnDeath(){
+  const isImpLinked=(c)=>c.linkOwner==="imp";
+  let removed=0;
+  removed+=removeCardsInPlace(S.drawPile,isImpLinked);
+  removed+=removeCardsInPlace(S.discard,isImpLinked);
+
+  const kept=[];
+  let keptOneInHand=false;
+  for(const c of S.hand){
+    if(isImpLinked(c)){
+      if(!keptOneInHand){kept.push(c);keptOneInHand=true;}
+      else removed+=1;
+    }else{
+      kept.push(c);
+    }
+  }
+  S.hand=kept;
+  return {removed,keptOneInHand};
+}
+
+function onImpDefeated(reason){
+  if(!S.minions.imp)return;
+  S.minions.imp=false;
+  const settle=purgeImpLinkedCardsOnDeath();
+  drawCards(1);
+  S.impLastEvent=`已離場（${reason}；清算 ${settle.removed} 張）`;
+  const keepText=settle.keptOneInHand?"，手上保留 1 張":"";
+  setHint(`小鬼離場：清算 ${settle.removed} 張聯動牌${keepText}，補抽 1`);
+}
+
+
 function resolveCard(c,targetId){
   if(isSilentCard(c)){setHint("沉默廢牌：本回合空過");return;}
   const t=enemyById(targetId);
@@ -598,10 +637,9 @@ function dealDamageToPlayer(dmg,sourceName="敵人"){
     const guard=Math.min(IMP_GUARD_CAP,remain);
     popImpDamage(guard);
     remain-=guard;
-    S.minions.imp=false;
-    S.impLastEvent=`已離場（替你承傷 ${guard}）`;
-    setHint(`${sourceName}擊穿格擋後，小鬼承傷 ${guard}`);
+    onImpDefeated(`${sourceName}承傷 ${guard}`);
   }
+
 
   if(remain>0){
     dealDirectHpDamage(remain);
@@ -616,14 +654,13 @@ function enemyTurn(){
     if(targetType==="imp_mark"&&S.minions.imp){
       const guard=Math.min(IMP_GUARD_CAP,dmg);
       popImpDamage(guard);
-      S.minions.imp=false;
-      S.impLastEvent=`已離場（被 ${e.name} 點名 ${guard}）`;
-      setHint(`${e.name}點名後排，小鬼承傷 ${guard}`);
+      onImpDefeated(`${e.name}點名 ${guard}`);
       const overflow=Math.max(0,dmg-guard);
       if(overflow>0) dealDirectHpDamage(overflow);
     }else{
       dealDamageToPlayer(dmg,e.name);
     }
+
 
     e.idx=(e.idx+1)%e.pattern.length;
     e.intent=e.pattern[e.idx];
