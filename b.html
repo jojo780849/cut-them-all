@@ -3,67 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v1</title>
+  <title>Claw 機制鏡像 v1.2</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{margin:0;background:linear-gradient(180deg,#15100f,#0d0a0a);color:#f6f0e5;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
-    .app{max-width:430px;margin:0 auto;min-height:100dvh;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);position:relative}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    body{margin:0;background:linear-gradient(180deg,#15100f,#0d0a0a);color:#f6f0e5;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;overflow:hidden}
+
+    .app{max-width:980px;margin:0 auto;min-height:100dvh;padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);position:relative}
     .row{display:flex;gap:8px;align-items:center}
     .between{justify-content:space-between}
     .top{margin-bottom:8px}
     .pill{background:#201b18;border:1px solid #3a2f28;border-radius:999px;padding:6px 10px;font-size:12px}
-    .title{font-weight:900;letter-spacing:.9px;font-size:15px}
+    .title{font-weight:900;letter-spacing:.9px;font-size:16px}
 
-    .battle{position:relative;height:calc(100dvh - 220px);min-height:420px;background:radial-gradient(circle at 52% 10%,rgba(255,238,198,.08),transparent 30%),linear-gradient(180deg,#1a1412,#120e0d 60%,#100c0c);border:1px solid #3a2f28;border-radius:18px;overflow:hidden}
+    .battle{position:relative;height:calc(100dvh - 170px);min-height:300px;background:radial-gradient(circle at 52% 10%,rgba(255,238,198,.08),transparent 30%),linear-gradient(180deg,#1a1412,#120e0d 60%,#100c0c);border:1px solid #3a2f28;border-radius:18px;overflow:hidden}
     .battle::after{content:"";position:absolute;inset:8px;border-radius:14px;border:1px solid rgba(255,255,255,.05);pointer-events:none}
 
-    .hero-panel{position:absolute;left:10px;bottom:118px;width:148px;padding:8px;border:1px solid #433831;border-radius:12px;background:rgba(30,26,23,.9);z-index:3}
-    .hero-stand{position:absolute;left:8px;bottom:102px;width:160px;height:190px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 26%),linear-gradient(180deg,#3f203f,#221522);opacity:.32;z-index:1}
+    .hint{position:absolute;left:10px;right:10px;top:10px;font-size:12px;color:#dbc9a8;min-height:18px;z-index:8;background:rgba(18,14,12,.62);border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:6px 10px}
+
+    .hero-stand{position:absolute;left:10px;bottom:96px;width:220px;height:220px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,0) 26%),linear-gradient(180deg,#3f203f,#221522);opacity:.35;z-index:1}
+    .hero-panel{position:absolute;left:12px;bottom:112px;width:188px;padding:8px;border:1px solid #433831;border-radius:12px;background:rgba(30,26,23,.9);z-index:4}
     .bar{height:10px;background:#2c2622;border-radius:999px;overflow:hidden;border:1px solid #4a3f38}
     .fill{height:100%;background:linear-gradient(90deg,#b94444,#e88989)}
 
-    .enemy-layer{position:absolute;right:8px;top:76px;width:250px;height:250px;z-index:4}
-    .enemy{position:absolute;padding:6px;border:1px solid #493a33;border-radius:12px;background:#221c19;box-shadow:0 8px 16px rgba(0,0,0,.28)}
-    .enemy.enemy_far{left:0;top:42px;width:124px}
-    .enemy.enemy_mid{left:78px;top:24px;width:132px}
-    .enemy.enemy_near{left:154px;top:0;width:96px}
+    .enemy-layer{position:absolute;right:14px;top:74px;width:430px;height:260px;z-index:5}
+    .enemy{position:absolute;padding:7px;border:1px solid #493a33;border-radius:12px;background:#221c19;box-shadow:0 8px 16px rgba(0,0,0,.28);transition:transform .12s ease,outline-color .12s ease}
+    .enemy.enemy_far{left:0;top:54px;width:148px}
+    .enemy.enemy_mid{left:136px;top:30px;width:158px}
+    .enemy.enemy_near{left:286px;top:0;width:144px}
     .enemy.sel{outline:2px solid var(--gold)}
+    .enemy.hover{outline:2px solid #8dd3ff;transform:translateY(-4px)}
     .enemy.dead{opacity:.4;filter:grayscale(1)}
-    .enemy .name{font-size:11px;font-weight:700}
+    .enemy .name{font-size:12px;font-weight:700}
     .enemy .hp{font-size:10px;opacity:.9}
     .intent{font-size:11px;color:#ffd7cf;margin-top:4px}
 
-    .hint{position:absolute;left:10px;right:10px;top:10px;font-size:12px;color:#dbc9a8;min-height:18px;z-index:5;background:rgba(18,14,12,.62);border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:5px 10px}
-
-    .hud-left{position:absolute;left:12px;bottom:74px;display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:999px;background:rgba(17,14,13,.72);border:1px solid rgba(255,255,255,.08);z-index:6}
+    .hud-left{position:absolute;left:12px;bottom:48px;display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:999px;background:rgba(17,14,13,.72);border:1px solid rgba(255,255,255,.08);z-index:8}
     .hud-left .label{font-size:11px;color:#d7c8ab}
     .energy{display:flex;gap:4px}
     .gem{width:14px;height:14px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:var(--blue)}
     .gem.off{opacity:.2}
 
-    .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 64px);width:min(410px,calc(100vw - 12px));display:flex;gap:6px;justify-content:flex-start;overflow-x:auto;padding:0 6px 3px;z-index:8}
+    .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 62px);width:min(960px,calc(100vw - 12px));display:flex;gap:8px;justify-content:flex-start;overflow-x:auto;padding:0 8px 4px;z-index:12;scrollbar-width:none}
     .hand::-webkit-scrollbar{display:none}
-    .card{flex:0 0 92px;width:92px;min-height:132px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative;box-shadow:0 8px 16px rgba(0,0,0,.25)}
+    .card{flex:0 0 108px;width:108px;min-height:142px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative;box-shadow:0 8px 16px rgba(0,0,0,.25);user-select:none}
+    .card.playable{border-color:#8a724e}
+    .card.target{box-shadow:0 0 0 2px rgba(108,184,255,.35),0 8px 16px rgba(0,0,0,.25)}
+    .card.dragging{opacity:.7;transform:translateY(-8px)}
     .card .cost{position:absolute;left:8px;top:8px;background:#1f1a16;color:var(--blue);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800}
     .card h4{margin:24px 0 4px;font-size:13px;line-height:1.2}
     .card p{margin:0;font-size:11px;line-height:1.35}
-    .card button{margin-top:6px;width:100%;border:0;border-radius:8px;padding:6px;background:#2c241f;color:#fff;font-weight:700}
-    .card button[disabled]{opacity:.35}
+    .card .hint-mini{margin-top:6px;font-size:10px;color:#6a5b47}
+    .card.disabled{opacity:.45}
 
-    .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(410px,calc(100vw - 12px));display:flex;justify-content:flex-end;z-index:9;padding-right:6px}
-    .end{width:142px;border:0;border-radius:12px;padding:14px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px;box-shadow:0 8px 18px rgba(0,0,0,.3)}
+    .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(960px,calc(100vw - 12px));display:flex;justify-content:flex-end;z-index:13;padding-right:6px}
+    .end{width:154px;border:0;border-radius:12px;padding:14px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px;box-shadow:0 8px 18px rgba(0,0,0,.3)}
+
+    .drag-fx{position:fixed;inset:0;pointer-events:none;z-index:30;display:none}
+    .drag-fx.show{display:block}
+    .drag-line{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,rgba(130,210,255,.15),rgba(130,210,255,.95));transform-origin:0 50%;border-radius:999px;box-shadow:0 0 10px rgba(130,210,255,.45)}
+    .drag-dot{position:fixed;left:0;top:0;width:14px;height:14px;border-radius:50%;background:#8dd3ff;box-shadow:0 0 12px rgba(141,211,255,.9);transform:translate(-50%,-50%)}
+
+    @media (orientation:portrait){
+      .app{max-width:430px;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px)}
+      .battle{height:calc(100dvh - 220px);min-height:420px}
+      .hero-stand{left:8px;bottom:102px;width:160px;height:190px}
+      .hero-panel{left:10px;bottom:118px;width:148px}
+      .enemy-layer{right:8px;top:76px;width:250px;height:250px}
+      .enemy.enemy_far{left:0;top:42px;width:124px}
+      .enemy.enemy_mid{left:78px;top:24px;width:132px}
+      .enemy.enemy_near{left:154px;top:0;width:96px}
+      .hand{width:min(410px,calc(100vw - 12px));gap:6px}
+      .card{flex:0 0 92px;width:92px;min-height:132px}
+      .ctl{width:min(410px,calc(100vw - 12px))}
+      .end{width:142px}
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v1.1）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v1.2）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
 
-    <section class="battle">
-      <div class="hint" id="hint">點卡牌，單體卡再點怪物出牌</div>
+    <section class="battle" id="battle">
+      <div class="hint" id="hint">橫屏測試建議：拖曳卡牌指向怪物後放開出牌</div>
 
       <div class="hero-stand"></div>
       <div class="hero-panel">
@@ -82,6 +107,11 @@
 
   <div class="hand" id="hand"></div>
   <div class="ctl"><button class="end" id="endBtn">結束回合</button></div>
+
+  <div class="drag-fx" id="dragFx">
+    <div class="drag-line" id="dragLine"></div>
+    <div class="drag-dot" id="dragDot"></div>
+  </div>
 
 <script>
 const DECK_TEMPLATES = [
@@ -104,7 +134,8 @@ const ENEMY_PRESET = [
 const S={
   turn:1,playerTurn:true,
   player:{hp:80,maxHp:80,energy:3,maxEnergy:3,block:0},
-  enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null
+  enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
+  drag:null
 };
 
 function cloneCard(t){return {...t,uid:S.uid++};}
@@ -136,7 +167,9 @@ function renderEnemies(){
   const posMap={enemy_far:"enemy_far",enemy_mid:"enemy_mid",enemy_near:"enemy_near"};
   S.enemies.forEach(e=>{
     const d=document.createElement("div");
-    d.className="enemy "+(posMap[e.id]||"enemy_mid")+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"");
+    const hoverClass=S.drag?.hoverEnemyId===e.id?" hover":"";
+    d.className="enemy "+(posMap[e.id]||"enemy_mid")+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"")+hoverClass;
+    d.dataset.eid=e.id;
     d.innerHTML=`<div class="row between"><span class="name">${e.name}</span><span class="hp">${e.hp}/${e.maxHp}</span></div><div class="bar" style="margin-top:4px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div></div><div class="intent">⚔ ${e.intent}</div>`;
     d.onclick=()=>{
       if(e.hp<=0)return;
@@ -152,20 +185,133 @@ function cardPlayable(c){return S.player.energy>=c.cost && S.playerTurn;}
 function renderHand(){
   const root=document.getElementById("hand");root.innerHTML="";
   S.hand.forEach(c=>{
-    const d=document.createElement("div");d.className="card";
-    d.innerHTML=`<div class="cost">${c.cost}</div><h4>${c.name}</h4><p>${c.text}</p><button ${cardPlayable(c)?"":"disabled"}>${S.selectedCard?.uid===c.uid?"已選中":"使用"}</button>`;
-    d.querySelector("button").onclick=()=>{
-      if(!cardPlayable(c))return;
-      if(c.target==="enemy"){
-        S.selectedCard=c;
-        setHint("這張是單體卡：請再點一隻怪");
-        renderHand();
-      }else{
-        tryPlay(c.uid,null);
-      }
-    };
+    const playable=cardPlayable(c);
+    const d=document.createElement("div");
+    d.className="card"+(playable?" playable":" disabled")+(c.target==="enemy"?" target":"")+(S.drag?.cardUid===c.uid?" dragging":"");
+    d.dataset.uid=c.uid;
+    d.innerHTML=`<div class="cost">${c.cost}</div><h4>${c.name}</h4><p>${c.text}</p><div class="hint-mini">${c.target==="enemy"?"拖曳到怪物施放":"點一下施放"}</div>`;
+
+    d.addEventListener("pointerdown",ev=>onCardPointerDown(ev,c,d));
+    d.addEventListener("pointermove",onCardPointerMove);
+    d.addEventListener("pointerup",onCardPointerUp);
+    d.addEventListener("pointercancel",onCardPointerCancel);
+
     root.appendChild(d);
   });
+}
+
+function onCardPointerDown(ev,c,cardEl){
+  if(!cardPlayable(c))return;
+  if(c.target!=="enemy"){
+    tryPlay(c.uid,null);
+    return;
+  }
+  ev.preventDefault();
+  cardEl.setPointerCapture?.(ev.pointerId);
+  S.drag={
+    pointerId:ev.pointerId,
+    cardUid:c.uid,
+    cardEl,
+    startX:ev.clientX,
+    startY:ev.clientY,
+    x:ev.clientX,
+    y:ev.clientY,
+    hoverEnemyId:null
+  };
+  showDragFx();
+  updateDragFx();
+  setHint("拖曳到目標怪物，放開出牌");
+  renderEnemies();
+}
+
+function onCardPointerMove(ev){
+  if(!S.drag||S.drag.pointerId!==ev.pointerId)return;
+  ev.preventDefault();
+  S.drag.x=ev.clientX;
+  S.drag.y=ev.clientY;
+  S.drag.hoverEnemyId=findEnemyByPoint(ev.clientX,ev.clientY);
+  updateDragFx();
+  renderEnemies();
+}
+
+function onCardPointerUp(ev){
+  if(!S.drag||S.drag.pointerId!==ev.pointerId)return;
+  ev.preventDefault();
+  finalizeDrag();
+}
+
+function onCardPointerCancel(ev){
+  if(!S.drag||S.drag.pointerId!==ev.pointerId)return;
+  cleanupDrag("取消拖曳");
+}
+
+function findEnemyByPoint(x,y){
+  const els=document.elementsFromPoint(x,y);
+  const enemyEl=els.find(el=>el.classList&&el.classList.contains("enemy"));
+  if(!enemyEl)return null;
+  const id=enemyEl.dataset.eid;
+  const enemy=S.enemies.find(e=>e.id===id);
+  return enemy&&enemy.hp>0?id:null;
+}
+
+function showDragFx(){document.getElementById("dragFx").classList.add("show");}
+function hideDragFx(){document.getElementById("dragFx").classList.remove("show");}
+
+function updateDragFx(){
+  if(!S.drag)return;
+  const rect=S.drag.cardEl.getBoundingClientRect();
+  const x1=rect.left+rect.width/2;
+  const y1=rect.top+8;
+  const x2=S.drag.x;
+  const y2=S.drag.y;
+  const dx=x2-x1;
+  const dy=y2-y1;
+  const len=Math.hypot(dx,dy);
+  const deg=Math.atan2(dy,dx)*180/Math.PI;
+  const line=document.getElementById("dragLine");
+  const dot=document.getElementById("dragDot");
+  line.style.left=`${x1}px`;
+  line.style.top=`${y1}px`;
+  line.style.width=`${len}px`;
+  line.style.transform=`rotate(${deg}deg)`;
+  dot.style.left=`${x2}px`;
+  dot.style.top=`${y2}px`;
+}
+
+function finalizeDrag(){
+  if(!S.drag)return;
+  const moved=Math.hypot(S.drag.x-S.drag.startX,S.drag.y-S.drag.startY);
+  const cardUid=S.drag.cardUid;
+  const targetId=S.drag.hoverEnemyId;
+
+  if(targetId){
+    cleanupDrag();
+    tryPlay(cardUid,targetId);
+    return;
+  }
+
+  if(moved<12){
+    const c=S.hand.find(x=>x.uid===cardUid);
+    if(c&&cardPlayable(c)){
+      S.selectedCard=c;
+      setHint("已選牌：點怪物出牌，或直接拖曳到怪物");
+      cleanupDrag(null,false);
+      renderHand();
+      renderEnemies();
+      return;
+    }
+  }
+
+  cleanupDrag("未命中怪物，取消出牌");
+  renderHand();
+  renderEnemies();
+}
+
+function cleanupDrag(hintText,rerender=true){
+  hideDragFx();
+  if(hintText)setHint(hintText);
+  S.drag=null;
+  if(rerender){renderHand();renderEnemies();}
 }
 
 function removeHand(uid){const i=S.hand.findIndex(c=>c.uid===uid);if(i<0)return null;return S.hand.splice(i,1)[0];}
@@ -215,7 +361,7 @@ function nextTurn(){
   S.player.energy=S.player.maxEnergy;
   S.playerTurn=true;
   drawCards(5-S.hand.length);
-  setHint("你的回合：點卡牌出牌");
+  setHint("你的回合：拖曳卡牌到怪物，或點卡牌後點怪");
   renderAll();
 }
 
