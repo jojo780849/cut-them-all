@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Claw 機制鏡像 v2.3</title>
+  <title>Claw 機制鏡像 v2.4</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -62,7 +62,7 @@
     .float-num{position:fixed;transform:translate(-50%,-50%);font-weight:900;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.7);animation:floatUp .65s ease forwards}
     .float-num.dmg{color:#ffb3a6}
     .float-num.heal{color:#9ff4b8}
-    .float-num.crit{color:#ffd66f;text-shadow:0 0 10px rgba(255,214,111,.75),0 2px 8px rgba(0,0,0,.7);font-size:20px}
+
 
     @keyframes floatUp{0%{opacity:0;transform:translate(-50%,-8px) scale(.85)}15%{opacity:1;transform:translate(-50%,-14px) scale(1)}100%{opacity:0;transform:translate(-50%,-44px) scale(1.06)}}
 
@@ -150,7 +150,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">幽塔・術士（H5 機制鏡像 v2.3）</div>
+      <div class="title">幽塔・術士（H5 機制鏡像 v2.4）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -161,7 +161,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.3：兩戰縱切（小怪→Boss）+ 小鬼後排規則</div>
+      <div class="hint" id="hint">v2.4：兩戰縱切 + 小鬼後排（已取消爆擊）</div>
 
 
       <div class="hero-stand"></div>
@@ -194,19 +194,19 @@
 const DRAW_PER_TURN = 4;
 
 const BASE_DECK = [
-  {name:"普通攻擊",cost:1,text:"造成 7 傷害（可暴擊）",target:"enemy",damage:7},
-  {name:"普通攻擊",cost:1,text:"造成 7 傷害（可暴擊）",target:"enemy",damage:7},
-  {name:"普通攻擊",cost:1,text:"造成 7 傷害（可暴擊）",target:"enemy",damage:7},
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"黑血回流",cost:1,text:"回復 4 HP",target:"self",heal:4},
-  {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5（可暴擊），並注入 2 張聯動卡",target:"self",summon:"imp",onSummonDamage:5},
-  {name:"使魔號令",cost:1,text:"若小鬼在場：立刻造成 10 傷害（可暴擊）；否則抽 1",target:"self",impCommand:true,drawIfNoImp:1}
+  {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5，並注入 2 張聯動卡",target:"self",summon:"imp",onSummonDamage:5},
+  {name:"使魔號令",cost:1,text:"若小鬼在場：立刻造成 10 傷害；否則抽 1",target:"self",impCommand:true,drawIfNoImp:1}
 ];
 
 const INJECTION_TEMPLATES = {
   imp: [
-    {name:"小鬼揮爪",cost:1,text:"小鬼撕咬，造成 8 傷害（可暴擊）",target:"enemy",damage:8,linkOwner:"imp",injected:true},
+    {name:"小鬼揮爪",cost:1,text:"小鬼撕咬，造成 8 傷害",target:"enemy",damage:8,linkOwner:"imp",injected:true},
     {name:"小鬼獻祭",cost:1,text:"獻祭小鬼：抽 2、回 1 能量、回復 2 HP",target:"self",draw:2,energyGain:1,heal:2,sacrifice:"imp",linkOwner:"imp",injected:true}
   ]
 };
@@ -229,7 +229,7 @@ const BATTLE_PRESET = [
 
 const S={
   turn:1,playerTurn:true,battleOver:false,
-  player:{hp:80,maxHp:80,energy:3,maxEnergy:3,block:0,critRate:0.15,critMult:1.5},
+  player:{hp:80,maxHp:80,energy:3,maxEnergy:3,block:0},
   enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
   drag:null,
   curseByEnemy:{},
@@ -248,43 +248,33 @@ function totalCurse(){return Object.values(S.curseByEnemy).reduce((a,b)=>a+b,0);
 function isSilentCard(c){return !!(c.linkOwner && !S.minions[c.linkOwner]);}
 function cardCost(c){return isSilentCard(c)?0:c.cost;}
 function enemyElById(id){return document.querySelector(`.enemy[data-eid="${id}"]`);} 
-function popFloatAtElement(el,value,kind="dmg",isCrit=false){
+function popFloatAtElement(el,value,kind="dmg"){
   if(!el||value<=0)return;
   const layer=document.getElementById("floatLayer");
   if(!layer)return;
   const r=el.getBoundingClientRect();
   const n=document.createElement("div");
-  n.className=`float-num ${kind}${isCrit?" crit":""}`;
-  if(kind==="heal") n.textContent=`+${value}`;
-  else n.textContent=isCrit?`暴 -${value}`:`-${value}`;
+  n.className=`float-num ${kind}`;
+  n.textContent=kind==="heal"?`+${value}`:`-${value}`;
   n.style.left=`${r.left+r.width*0.5}px`;
   n.style.top=`${r.top+r.height*0.35}px`;
   layer.appendChild(n);
   setTimeout(()=>n.remove(),700);
 }
-function popEnemyDamage(enemyId,val,isCrit=false){popFloatAtElement(enemyElById(enemyId),val,"dmg",isCrit);}
-function popPlayerDamage(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"dmg",false);}
-function popPlayerHeal(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"heal",false);}
-function popImpDamage(val){popFloatAtElement(document.getElementById("impAvatar"),val,"dmg",false);}
-function damageEnemyByAmount(enemy,val,opt={}){
+function popEnemyDamage(enemyId,val){popFloatAtElement(enemyElById(enemyId),val,"dmg");}
+function popPlayerDamage(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"dmg");}
+function popPlayerHeal(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"heal");}
+function popImpDamage(val){popFloatAtElement(document.getElementById("impAvatar"),val,"dmg");}
+function damageEnemyByAmount(enemy,val){
   if(!enemy||val<=0)return;
-  const isCrit=!!opt.isCrit;
   enemy.hp=Math.max(0,enemy.hp-val);
-  popEnemyDamage(enemy.id,val,isCrit);
+  popEnemyDamage(enemy.id,val);
 }
-function calcAttackDamage(base){
-  const isCrit=Math.random()<S.player.critRate;
-  const final=isCrit?Math.round(base*S.player.critMult):base;
-  return {final,isCrit};
-}
-function attackEnemyByAmount(enemy,base,label=""){
+function attackEnemyByAmount(enemy,base){
   if(!enemy||base<=0)return;
-  const hit=calcAttackDamage(base);
-  damageEnemyByAmount(enemy,hit.final,{isCrit:hit.isCrit});
-  if(hit.isCrit){
-    setHint(`${label||"攻擊"}暴擊！造成 ${hit.final} 傷害`);
-  }
+  damageEnemyByAmount(enemy,base);
 }
+
 function healPlayerByAmount(v,label=""){
   if(v<=0)return;
   const before=S.player.hp;
