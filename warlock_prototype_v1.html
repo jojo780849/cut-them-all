@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Warlock Prototype v1.1</title>
+  <title>Warlock Prototype v1.2</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -163,7 +163,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">術士原型 v1.1（Month 1 主線）</div>
+      <div class="title">術士原型 v1.2（Month 1 主線）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -174,7 +174,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v1.1：戰後三選一 + 商店刪牌 + 營火技能</div>
+      <div class="hint" id="hint">v1.2：開局難度回調 + 首戰容錯加強</div>
 
 
       <div class="hero-stand"></div>
@@ -219,8 +219,8 @@ const IMP_GUARD_CAP = 6;
 
 
 const BASE_DECK = [
-  {name:"普通攻擊",cost:1,text:"造成 6 傷害",target:"enemy",damage:6},
-  {name:"普通攻擊",cost:1,text:"造成 6 傷害",target:"enemy",damage:6},
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
   {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5 + 注入2張；若已在場則抽1+格擋3",target:"self",summon:"imp",onSummonDamage:5,resummonDraw:1,resummonBlock:3},
@@ -246,9 +246,9 @@ const BATTLE_PRESET = [
   {
     label:"術士試煉戰",
     enemies:[
-      {id:"enemy_far",name:"腐尸",maxHp:24,pattern:[5,6,7],idx:0},
-      {id:"enemy_mid",name:"骷髏弓手",maxHp:22,pattern:[4,8,5],idx:0},
-      {id:"enemy_near",name:"毒瘴鬼",maxHp:30,pattern:[6,7,9],idx:0}
+      {id:"enemy_far",name:"腐尸",maxHp:20,pattern:[3,4,5],idx:0},
+      {id:"enemy_mid",name:"骷髏弓手",maxHp:18,pattern:[3,5,3],idx:0},
+      {id:"enemy_near",name:"毒瘴鬼",maxHp:24,pattern:[4,5,7],idx:0}
     ]
   },
   {
@@ -271,7 +271,7 @@ const REWARD_POOL = [
 
 const S={
   turn:1,playerTurn:true,battleOver:false,
-  player:{hp:50,maxHp:50,energy:2,maxEnergy:2,block:0},
+  player:{hp:54,maxHp:54,energy:3,maxEnergy:3,block:0},
   enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
   drag:null,
   curseByEnemy:{},
@@ -406,8 +406,9 @@ function init(){
   S.drawPile=shuffle(BASE_DECK.map(cloneCard));
   S.discard=[];
   S.hand=[];
-  drawCards(DRAW_PER_TURN);
-  setHint("術士試煉：先疊三型詛咒，再用共鳴與爆發收尾");
+  S.player.block=8;
+  drawCards(DRAW_PER_TURN+1);
+  setHint("術士試煉：開局已給 8 格擋與 +1 抽牌，先穩住再疊詛咒");
   renderAll();
 }
 
