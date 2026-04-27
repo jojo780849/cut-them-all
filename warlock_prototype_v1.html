@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Warlock Prototype v1.2</title>
+  <title>Warlock Prototype v1.3 FX</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -59,12 +59,59 @@
     .imp-avatar.on{display:block}
 
     .float-layer{position:fixed;inset:0;pointer-events:none;z-index:40}
-    .float-num{position:fixed;transform:translate(-50%,-50%);font-weight:900;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.7);animation:floatUp .42s ease forwards}
+    .float-num{position:fixed;transform:translate(-50%,-50%);font-weight:900;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.7);animation:floatUp .5s ease forwards}
     .float-num.dmg{color:#ffb3a6}
     .float-num.heal{color:#9ff4b8}
+    .float-num.bone{color:#f2ede0;text-shadow:0 0 6px rgba(255,255,255,.55),0 2px 8px rgba(0,0,0,.8)}
+    .float-num.weak{color:#9dd7a6;text-shadow:0 0 6px rgba(120,200,140,.5),0 2px 8px rgba(0,0,0,.8)}
+    .float-num.decay{color:#c98bff;text-shadow:0 0 6px rgba(170,100,230,.55),0 2px 8px rgba(0,0,0,.8)}
+    .float-num.crit{font-size:26px}
 
+    @keyframes floatUp{0%{opacity:0;transform:translate(-50%,-8px) scale(.85)}15%{opacity:1;transform:translate(-50%,-14px) scale(1)}100%{opacity:0;transform:translate(-50%,-50px) scale(1.1)}}
 
-    @keyframes floatUp{0%{opacity:0;transform:translate(-50%,-8px) scale(.85)}15%{opacity:1;transform:translate(-50%,-14px) scale(1)}100%{opacity:0;transform:translate(-50%,-44px) scale(1.06)}}
+    /* ===== 反饋層：震屏 / 紅閃 / 高潮大字 / 召喚弹出 ===== */
+    .battle.shake{animation:camShake .18s ease}
+    .battle.shake-big{animation:camShake .28s ease}
+    @keyframes camShake{
+      0%{transform:translate(0,0)}
+      20%{transform:translate(-4px,2px)}
+      40%{transform:translate(5px,-3px)}
+      60%{transform:translate(-3px,3px)}
+      80%{transform:translate(3px,-2px)}
+      100%{transform:translate(0,0)}
+    }
+    .enemy.hit{animation:hitFlash .22s ease}
+    @keyframes hitFlash{
+      0%{background:#ff4b3a;box-shadow:0 0 0 2px rgba(255,120,100,.6),0 8px 16px rgba(0,0,0,.28)}
+      100%{background:#221c19;box-shadow:0 8px 16px rgba(0,0,0,.28)}
+    }
+    .hero-panel.hit{animation:heroHitFlash .26s ease}
+    @keyframes heroHitFlash{
+      0%{background:rgba(190,60,50,.9)}
+      100%{background:rgba(30,26,23,.9)}
+    }
+    .imp-avatar.hit{animation:hitFlash .22s ease}
+    .imp-avatar.pop{animation:impPop .35s ease}
+    @keyframes impPop{
+      0%{transform:scale(.3);opacity:0;filter:brightness(2)}
+      50%{transform:scale(1.25);opacity:1;filter:brightness(1.6)}
+      100%{transform:scale(1);opacity:1;filter:brightness(1)}
+    }
+    .card.just-played{animation:cardPop .22s ease}
+    @keyframes cardPop{
+      0%{transform:scale(1)}
+      50%{transform:scale(1.12) translateY(-6px);filter:brightness(1.2)}
+      100%{transform:scale(1)}
+    }
+    .bigflash{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:38px;font-weight:900;letter-spacing:3px;color:#ffd566;text-shadow:0 0 18px rgba(255,200,80,.85),0 4px 14px rgba(0,0,0,.8);z-index:50;pointer-events:none;animation:bigFlashAnim .6s ease forwards}
+    .bigflash.purple{color:#d9a6ff;text-shadow:0 0 18px rgba(200,120,255,.85),0 4px 14px rgba(0,0,0,.8)}
+    .bigflash.red{color:#ff9280;text-shadow:0 0 18px rgba(255,120,90,.85),0 4px 14px rgba(0,0,0,.8)}
+    @keyframes bigFlashAnim{
+      0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}
+      25%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}
+      75%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+      100%{opacity:0;transform:translate(-50%,-64%) scale(.95)}
+    }
 
 
     .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 54px);width:min(980px,calc(100vw - 10px));display:flex;gap:7px;justify-content:center;overflow-x:auto;padding:0 10px 4px;z-index:12;scrollbar-width:none}
@@ -163,7 +210,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">術士原型 v1.2（Month 1 主線）</div>
+      <div class="title">術士原型 v1.3 · 反饋層（Month 1 主線）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -174,7 +221,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v1.2：開局難度回調 + 首戰容錯加強</div>
+      <div class="hint" id="hint">v1.3 反饋層：震屏 / 紅閃 / 詛咒顏色飄字 / 共鳴大字</div>
 
 
       <div class="hero-stand"></div>
@@ -333,37 +380,76 @@ function isSilentCard(c){return !!(c.linkOwner && !S.minions[c.linkOwner]);}
 
 function cardCost(c){return isSilentCard(c)?0:c.cost;}
 function enemyElById(id){return document.querySelector(`.enemy[data-eid="${id}"]`);} 
-function popFloatAtElement(el,value,kind="dmg"){
+function popFloatAtElement(el,value,kind="dmg",opts={}){
   if(!el||value<=0)return;
   const layer=document.getElementById("floatLayer");
   if(!layer)return;
   const r=el.getBoundingClientRect();
   const n=document.createElement("div");
-  n.className=`float-num ${kind}`;
-  n.textContent=kind==="heal"?`+${value}`:`-${value}`;
+  n.className=`float-num ${kind}`+(opts.crit?" crit":"");
+  const prefix=opts.prefix!==undefined?opts.prefix:(kind==="heal"?"+":"-");
+  n.textContent=`${prefix}${value}`;
   n.style.left=`${r.left+r.width*0.5}px`;
   n.style.top=`${r.top+r.height*0.35}px`;
   layer.appendChild(n);
-  setTimeout(()=>n.remove(),460);
+  setTimeout(()=>n.remove(),520);
 }
-function popEnemyDamage(enemyId,val){popFloatAtElement(enemyElById(enemyId),val,"dmg");}
-function popPlayerDamage(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"dmg");}
+function popEnemyDamage(enemyId,val,opts={}){
+  const el=enemyElById(enemyId);
+  popFloatAtElement(el,val,"dmg",opts);
+  shakeBattle(val>=10?"big":"small");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
+function popPlayerDamage(val){
+  const el=document.querySelector(".hero-panel");
+  popFloatAtElement(el,val,"dmg");
+  shakeBattle(val>=8?"big":"small");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
 function popPlayerHeal(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"heal");}
-function popImpDamage(val){popFloatAtElement(document.getElementById("impAvatar"),val,"dmg");}
+function popImpDamage(val){
+  const el=document.getElementById("impAvatar");
+  popFloatAtElement(el,val,"dmg");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
+function popCurseFloat(enemyId,type,val){
+  const el=enemyElById(enemyId);
+  const name=type==="bone"?"蝕骨":(type==="weak"?"削衰":"腐朽");
+  popFloatAtElement(el,val,type,{prefix:`${name} +`});
+}
+function shakeBattle(kind="small"){
+  const el=document.getElementById("battle");
+  if(!el)return;
+  el.classList.remove("shake","shake-big");
+  void el.offsetWidth;
+  el.classList.add(kind==="big"?"shake-big":"shake");
+  setTimeout(()=>el.classList.remove("shake","shake-big"),300);
+}
+function bigFlash(text,variant=""){
+  const n=document.createElement("div");
+  n.className="bigflash"+(variant?` ${variant}`:"");
+  n.textContent=text;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(),620);
+}
 function damageEnemyByAmount(enemy,val){
   if(!enemy||val<=0)return;
   enemy.hp=Math.max(0,enemy.hp-val);
-  popEnemyDamage(enemy.id,val);
+  popEnemyDamage(enemy.id,val,{crit:val>=10});
 }
 function attackEnemyByAmount(enemy,base){
   if(!enemy||base<=0)return;
   const c=initEnemyCurses(enemy);
   let dmg=base;
+  let killer=false;
   if(enemy.hp<=c.decay&&c.decay>0){
     dmg=Math.floor(base*3);
+    killer=true;
     setHint(`腐朽斬殺觸發：${base} → ${dmg}`);
+    bigFlash("腐朽斬殺","purple");
   }
   damageEnemyByAmount(enemy,dmg);
+  if(killer) shakeBattle("big");
 }
 
 
@@ -807,6 +893,11 @@ function resolveCard(c,targetId){
         attackEnemyByAmount(summonTarget,c.onSummonDamage);
       }
       setHint("小鬼登場：進場撕咬 + 聯動卡注入");
+      // 小鬼弹出动画
+      setTimeout(()=>{
+        const el=document.getElementById("impAvatar");
+        if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
+      },30);
     }
   }
 
@@ -816,6 +907,7 @@ function resolveCard(c,targetId){
     const onDamage=c.impCommandDamage||10;
     if(S.minions.imp){
       if(cmdTarget){
+        bigFlash("使魔號令");
         attackEnemyByAmount(cmdTarget,onDamage);
 
 
@@ -837,14 +929,17 @@ function resolveCard(c,targetId){
 
   if(c.curseBone&&t){
     applyCurse(t,"bone",c.curseBone);
+    popCurseFloat(t.id,"bone",c.curseBone);
     setHint(`施加蝕骨 +${c.curseBone}`);
   }
   if(c.curseWeak&&t){
     applyCurse(t,"weak",c.curseWeak);
+    popCurseFloat(t.id,"weak",c.curseWeak);
     setHint(`施加削衰 +${c.curseWeak}`);
   }
   if(c.curseDecay&&t){
     applyCurse(t,"decay",c.curseDecay);
+    popCurseFloat(t.id,"decay",c.curseDecay);
     setHint(`施加腐朽 +${c.curseDecay}`);
   }
 
@@ -855,6 +950,8 @@ function resolveCard(c,targetId){
       cc.weak=Math.min(10,cc.weak*2);
       cc.decay=Math.min(10,cc.decay*2);
       drawCards(1);
+      bigFlash("詛咒共鳴","purple");
+      shakeBattle("big");
       setHint("詛咒共鳴：三型詛咒翻倍並抽 1");
     }else{
       setHint("詛咒共鳴未觸發：目標尚未湊齊三型詛咒");
@@ -865,6 +962,7 @@ function resolveCard(c,targetId){
     const layers=consumeAllCurses(t);
     const burst=layers*3;
     if(burst>0){
+      bigFlash("腐蝕爆發","red");
       attackEnemyByAmount(t,burst);
       setHint(`腐蝕爆發：消耗 ${layers} 層詛咒，造成 ${burst} 傷害`);
     }else{
@@ -939,6 +1037,10 @@ function tryPlay(cardUid,targetId){
   const c=S.hand.find(x=>x.uid===cardUid);if(!c)return;
   if(S.player.energy<cardCost(c)){setHint("能量不足");return;}
   if(c.target==="enemy"&&!targetId){setHint("先選敵人");return;}
+
+  // 出牌弹动反馈
+  const cardEl=document.querySelector(`.card[data-uid="${cardUid}"]`);
+  if(cardEl){cardEl.classList.remove("just-played");void cardEl.offsetWidth;cardEl.classList.add("just-played");}
 
   S.player.energy-=cardCost(c);
   const played=removeHand(cardUid);
