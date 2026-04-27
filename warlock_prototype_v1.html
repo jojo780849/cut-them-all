@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>Warlock Prototype v1</title>
+  <title>Warlock Prototype v1.1</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -83,8 +83,21 @@
     .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(980px,calc(100vw - 10px));display:flex;justify-content:flex-end;z-index:13;padding-right:8px}
     .end{width:144px;border:0;border-radius:12px;padding:13px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px;box-shadow:0 8px 18px rgba(0,0,0,.3)}
 
+    .flow-panel{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:14px;z-index:35}
+    .flow-panel.hidden{display:none}
+    .flow-card{width:min(680px,96vw);max-height:80dvh;overflow:auto;background:#1b1512;border:1px solid #5b473a;border-radius:16px;padding:14px;box-shadow:0 14px 34px rgba(0,0,0,.42)}
+    .flow-title{font-size:18px;font-weight:900;margin-bottom:4px}
+    .flow-sub{font-size:12px;opacity:.86;margin-bottom:10px}
+    .flow-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .flow-item{flex:1 1 180px;min-width:180px;background:#261e19;border:1px solid #5a493d;border-radius:10px;padding:9px}
+    .flow-item b{display:block;font-size:13px;margin-bottom:4px}
+    .flow-item small{display:block;font-size:11px;opacity:.86;line-height:1.35}
+    .flow-actions{display:flex;flex-wrap:wrap;gap:8px}
+    .flow-btn{border:0;border-radius:10px;padding:9px 12px;font-weight:800;background:#e1bc7c;color:#2d2116}
+    .flow-btn.alt{background:#51433a;color:#f2dfbf}
 
     .drag-fx{position:fixed;inset:0;pointer-events:none;z-index:30;display:none}
+
     .drag-fx.show{display:block}
     .drag-line{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,rgba(130,210,255,.15),rgba(130,210,255,.95));transform-origin:0 50%;border-radius:999px;box-shadow:0 0 10px rgba(130,210,255,.45)}
     .drag-dot{position:fixed;left:0;top:0;width:14px;height:14px;border-radius:50%;background:#8dd3ff;box-shadow:0 0 12px rgba(141,211,255,.9);transform:translate(-50%,-50%)}
@@ -150,18 +163,18 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">術士原型 v1（Month 1 主線）</div>
+      <div class="title">術士原型 v1.1（Month 1 主線）</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
       <div class="pill" id="deckInfo">抽牌 0｜棄牌 0</div>
       <div class="pill" id="systemInfo">格擋 0｜召喚 無</div>
       <div class="pill" id="impInfo">使魔事件：未召喚</div>
-      <div class="pill" id="stageInfo">進度 1/1｜術士試煉戰</div>
+      <div class="pill" id="stageInfo">進度 1/2｜術士試煉戰</div>
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v1：術士卡池 + 三型詛咒 + 召喚聯動</div>
+      <div class="hint" id="hint">v1.1：戰後三選一 + 商店刪牌 + 營火技能</div>
 
 
       <div class="hero-stand"></div>
@@ -183,7 +196,17 @@
   <div class="hand" id="hand"></div>
   <div class="ctl"><button class="end" id="endBtn">結束回合</button></div>
 
+  <div class="flow-panel hidden" id="flowPanel">
+    <div class="flow-card">
+      <div class="flow-title" id="flowTitle">戰後獎勵</div>
+      <div class="flow-sub" id="flowSub">選擇你的下一步</div>
+      <div class="flow-list" id="flowList"></div>
+      <div class="flow-actions" id="flowActions"></div>
+    </div>
+  </div>
+
   <div class="drag-fx" id="dragFx">
+
     <div class="drag-line" id="dragLine"></div>
     <div class="drag-dot" id="dragDot"></div>
   </div>
@@ -227,8 +250,24 @@ const BATTLE_PRESET = [
       {id:"enemy_mid",name:"骷髏弓手",maxHp:22,pattern:[4,8,5],idx:0},
       {id:"enemy_near",name:"毒瘴鬼",maxHp:30,pattern:[6,7,9],idx:0}
     ]
+  },
+  {
+    label:"終局監軍",
+    enemies:[
+      {id:"enemy_boss",name:"紙甲監軍（Boss）",maxHp:66,pattern:[9,11,13],impStrikeAt:[1],idx:0}
+    ]
   }
 ];
+
+const REWARD_POOL = [
+  {name:"魂裂彈",cost:1,text:"造成 9 傷害",target:"enemy",damage:9},
+  {name:"衰弱瘟印",cost:1,text:"施加 削衰 +3",target:"enemy",curseWeak:3},
+  {name:"疫骨針",cost:1,text:"施加 蝕骨 +3",target:"enemy",curseBone:3},
+  {name:"腐滅觸",cost:1,text:"施加 腐朽 +3",target:"enemy",curseDecay:3},
+  {name:"暗幕護體",cost:1,text:"獲得 8 格擋並抽 1",target:"self",block:8,draw:1},
+  {name:"獵犬號令",cost:1,text:"若召喚在場：造成 12，否則造成 5",target:"self",impCommand:true,impCommandDamage:12,damageIfNoImp:5}
+];
+
 
 const S={
   turn:1,playerTurn:true,battleOver:false,
@@ -243,8 +282,13 @@ const S={
   runCleared:false,
   runStartTs:0,
   battleStartTs:0,
-  battleDurations:[]
+  battleDurations:[],
+  flowPhase:"none",
+  rewardChoices:[],
+  campUsed:false,
+  shopUsed:false
 };
+
 
 
 
@@ -351,15 +395,22 @@ function init(){
   S.battleIndex=0;
   S.runCleared=false;
   S.impGuardBonusEnemyTurns=0;
+  S.flowPhase="none";
+  S.rewardChoices=[];
+  S.campUsed=false;
+  S.shopUsed=false;
   S.runStartTs=nowSec();
   S.battleStartTs=S.runStartTs;
   S.battleDurations=[];
   S.enemies=buildEnemiesFromBattle(S.battleIndex);
   S.drawPile=shuffle(BASE_DECK.map(cloneCard));
+  S.discard=[];
+  S.hand=[];
   drawCards(DRAW_PER_TURN);
   setHint("術士試煉：先疊三型詛咒，再用共鳴與爆發收尾");
   renderAll();
 }
+
 
 
 
@@ -394,8 +445,131 @@ function renderMeta(){
   document.getElementById("stageInfo").textContent=stageText;
 }
 
+function setFlowVisible(show){
+  document.getElementById("flowPanel").classList.toggle("hidden",!show);
+}
+function makeFlowButton(text,onClick,isAlt=false){
+  const b=document.createElement("button");
+  b.className="flow-btn"+(isAlt?" alt":"");
+  b.textContent=text;
+  b.onclick=onClick;
+  return b;
+}
+function getAllDeckCards(){
+  return [...S.hand,...S.drawPile,...S.discard];
+}
+function getRewardChoices(){
+  const pool=shuffle(REWARD_POOL.map(x=>({...x})));
+  return pool.slice(0,3);
+}
+function renderFlowPanel(){
+  const title=document.getElementById("flowTitle");
+  const sub=document.getElementById("flowSub");
+  const list=document.getElementById("flowList");
+  const actions=document.getElementById("flowActions");
+  list.innerHTML="";
+  actions.innerHTML="";
+
+  if(S.flowPhase==="reward"){
+    title.textContent="戰後三選一";
+    sub.textContent="挑一張新牌加入本局牌組（直接進棄牌堆）";
+    S.rewardChoices.forEach((c,idx)=>{
+      const item=document.createElement("div");
+      item.className="flow-item";
+      item.innerHTML=`<b>${c.name}（${c.cost}）</b><small>${c.text}</small>`;
+      list.appendChild(item);
+      actions.appendChild(makeFlowButton(`拿 ${c.name}`,()=>pickRewardCard(idx)));
+    });
+  }else if(S.flowPhase==="shop"){
+    title.textContent="商店：刪牌";
+    sub.textContent="刪掉一張牌，提升抽牌品質";
+    const deck=getAllDeckCards();
+    if(!deck.length){
+      list.innerHTML="<div class=\"flow-item\"><b>目前無可刪牌</b><small>直接進入下一節點</small></div>";
+    }else{
+      deck.slice(0,10).forEach(c=>{
+        const item=document.createElement("div");
+        item.className="flow-item";
+        item.innerHTML=`<b>${c.name}</b><small>${c.text}</small>`;
+        list.appendChild(item);
+        actions.appendChild(makeFlowButton(`刪 ${c.name}`,()=>removeCardFromDeck(c.uid)));
+      });
+    }
+    actions.appendChild(makeFlowButton("跳過商店",()=>gotoCamp(),true));
+  }else if(S.flowPhase==="camp"){
+    title.textContent="營火：技能強化";
+    sub.textContent="選一個本局增益後進入 Boss";
+    list.innerHTML="<div class=\"flow-item\"><b>惡魔專注</b><small>能量上限 +1，並立刻回滿能量</small></div><div class=\"flow-item\"><b>血契調息</b><small>回復 10 HP 並抽 1</small></div>";
+    actions.appendChild(makeFlowButton("拿惡魔專注",()=>takeCampSkill("energy")));
+    actions.appendChild(makeFlowButton("拿血契調息",()=>takeCampSkill("heal")));
+  }else if(S.flowPhase==="boss"){
+    title.textContent="路線完成";
+    sub.textContent="已取得獎勵，準備進入終局監軍";
+    list.innerHTML="<div class=\"flow-item\"><b>下一戰：終局監軍</b><small>你可以在 Boss 戰驗證新增牌與增益是否有感</small></div>";
+    actions.appendChild(makeFlowButton("進入 Boss 戰",()=>startNextBattleFromFlow()));
+  }
+}
+function openFlow(phase){
+  S.flowPhase=phase;
+  S.playerTurn=false;
+  S.battleOver=true;
+  renderFlowPanel();
+  setFlowVisible(true);
+}
+function pickRewardCard(idx){
+  const c=S.rewardChoices[idx];
+  if(!c)return;
+  S.discard.push(cloneCard(c));
+  setHint(`已獲得新牌：${c.name}`);
+  gotoShop();
+}
+function removeCardFromDeck(uid){
+  const removeIn=(arr)=>{const i=arr.findIndex(c=>c.uid===uid);if(i>=0){return arr.splice(i,1)[0];}return null;};
+  const removed=removeIn(S.hand)||removeIn(S.drawPile)||removeIn(S.discard);
+  if(removed){
+    setHint(`商店刪牌完成：${removed.name}`);
+  }
+  gotoCamp();
+}
+function gotoShop(){
+  S.shopUsed=true;
+  openFlow("shop");
+}
+function gotoCamp(){
+  S.campUsed=true;
+  openFlow("camp");
+}
+function takeCampSkill(type){
+  if(type==="energy"){
+    S.player.maxEnergy=Math.min(6,S.player.maxEnergy+1);
+    S.player.energy=S.player.maxEnergy;
+    setHint("獲得技能：惡魔專注（能量上限 +1）");
+  }else{
+    healPlayerByAmount(10,"血契調息");
+    drawCards(1);
+    setHint("獲得技能：血契調息（回10並抽1）");
+  }
+  openFlow("boss");
+}
+function startNextBattleFromFlow(){
+  setFlowVisible(false);
+  S.flowPhase="none";
+  S.battleIndex+=1;
+  S.battleStartTs=nowSec();
+  S.enemies=buildEnemiesFromBattle(S.battleIndex);
+  S.selectedCard=null;
+  S.selectedEnemy=null;
+  S.player.block=0;
+  S.player.energy=S.player.maxEnergy;
+  S.playerTurn=true;
+  S.battleOver=false;
+  drawCards(DRAW_PER_TURN-S.hand.length);
+  setHint("進入終局監軍：用新牌與技能打穿 Boss");
+  renderAll();
+}
 
 function renderEnergy(){
+
   const el=document.getElementById("energy");el.innerHTML="";
   for(let i=0;i<S.player.maxEnergy;i++){
     const d=document.createElement("div");
@@ -638,13 +812,14 @@ function resolveCard(c,targetId){
 
   if(c.impCommand){
     const cmdTarget=aliveEnemies()[0]||null;
+    const onDamage=c.impCommandDamage||10;
     if(S.minions.imp){
       if(cmdTarget){
-        attackEnemyByAmount(cmdTarget,10);
+        attackEnemyByAmount(cmdTarget,onDamage);
 
 
         S.impLastEvent="在場（已號令追擊）";
-        setHint("使魔號令生效：小鬼立刻追擊 10 傷害");
+        setHint(`使魔號令生效：小鬼立刻追擊 ${onDamage} 傷害`);
       }
     }else if(c.damageIfNoImp){
       if(cmdTarget){
@@ -654,6 +829,7 @@ function resolveCard(c,targetId){
       setHint(`場上無小鬼，號令改為 ${c.damageIfNoImp} 傷害`);
     }
   }
+
 
 
 
@@ -731,20 +907,19 @@ function checkBattleEnd(){
   if(S.battleIndex<BATTLE_PRESET.length-1){
     const battleSec=getCurrentBattleElapsedSec();
     S.battleDurations[S.battleIndex]=battleSec;
-    S.battleIndex+=1;
-    S.battleStartTs=nowSec();
-    S.enemies=buildEnemiesFromBattle(S.battleIndex);
     S.discard.push(...S.hand);
     S.hand=[];
     S.selectedCard=null;
     S.selectedEnemy=null;
     S.player.block=0;
     S.player.energy=S.player.maxEnergy;
-    S.playerTurn=true;
-    drawCards(DRAW_PER_TURN);
-    setHint(`前一戰耗時 ${fmtClock(battleSec)}，進入 ${currentBattle().label}`);
-    return false;
+    S.rewardChoices=getRewardChoices();
+    setHint(`試煉戰結束（${fmtClock(battleSec)}）：先拿牌，再走商店/營火`);
+    openFlow("reward");
+    renderAll();
+    return true;
   }
+
 
   const finalBattleSec=getCurrentBattleElapsedSec();
   S.battleDurations[S.battleIndex]=finalBattleSec;
