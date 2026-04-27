@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="術士" />
+  <meta name="theme-color" content="#0d0a0a" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23140b08'/%3E%3Ctext x='50%25' y='54%25' font-size='110' text-anchor='middle' dominant-baseline='middle'%3E🔮%3C/text%3E%3Ctext x='50%25' y='85%25' font-size='22' fill='%23f0c977' text-anchor='middle' font-family='-apple-system' font-weight='700'%3E術士%3C/text%3E%3C/svg%3E" />
+  <title>Warlock Prototype v2.0 · 跑圖閉環 + 小 Boss</title>
+  <style>
+    :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    body{margin:0;background:linear-gradient(180deg,#15100f,#0d0a0a);color:#f6f0e5;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;overflow:hidden}
+
+    .app{max-width:980px;margin:0 auto;min-height:100dvh;padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);position:relative}
+    .row{display:flex;gap:8px;align-items:center}
+    .between{justify-content:space-between}
+    .top{margin-bottom:8px}
+    .pill{background:#201b18;border:1px solid #3a2f28;border-radius:999px;padding:6px 10px;font-size:12px}
+    .title{font-weight:900;letter-spacing:.9px;font-size:16px}
+    .meta{margin:-2px 0 6px;display:flex;gap:6px;flex-wrap:wrap}
+    .meta .pill{padding:5px 9px;font-size:11px;opacity:.92}
+
+
+    .battle{position:relative;height:clamp(280px,62dvh,420px);min-height:280px;background:radial-gradient(circle at 52% 10%,rgba(255,238,198,.08),transparent 30%),linear-gradient(180deg,#1a1412,#120e0d 60%,#100c0c);border:1px solid #3a2f28;border-radius:18px;overflow:hidden}
+
+    .battle::after{content:"";position:absolute;inset:8px;border-radius:14px;border:1px solid rgba(255,255,255,.05);pointer-events:none}
+
+    .hint{position:absolute;left:10px;right:10px;top:10px;font-size:12px;color:#dbc9a8;min-height:18px;z-index:8;background:rgba(18,14,12,.62);border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:6px 10px}
+
+    .hero-stand{position:absolute;left:10px;bottom:74px;width:210px;height:198px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,0) 26%),linear-gradient(180deg,#3f203f,#221522);opacity:.35;z-index:1}
+    .hero-panel{position:absolute;left:12px;bottom:84px;width:178px;padding:8px;border:1px solid #433831;border-radius:12px;background:rgba(30,26,23,.9);z-index:4}
+
+    .bar{height:10px;background:#2c2622;border-radius:999px;overflow:hidden;border:1px solid #4a3f38;position:relative}
+    .fill{height:100%;background:linear-gradient(90deg,#b94444,#e88989)}
+    .bar .threshold{position:absolute;top:-2px;bottom:-2px;width:2px;background:#c98bff;box-shadow:0 0 4px rgba(200,120,255,.9);z-index:2}
+    .bar .threshold::after{content:"☠";position:absolute;top:-12px;left:-4px;font-size:10px;color:#c98bff;text-shadow:0 0 4px rgba(0,0,0,.8)}
+    .bar.weaken .fill{background:linear-gradient(90deg,#8a8a6a,#bdbd96)}
+    .curse-row{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+    .curse-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;line-height:1;border:1px solid rgba(255,255,255,.15)}
+    .curse-badge.bone{background:rgba(242,237,224,.18);color:#f2ede0;border-color:rgba(255,255,255,.4)}
+    .curse-badge.weak{background:rgba(157,215,166,.15);color:#9dd7a6;border-color:rgba(157,215,166,.5)}
+    .curse-badge.decay{background:rgba(201,139,255,.18);color:#e6c8ff;border-color:rgba(201,139,255,.55)}
+    .curse-badge.zero{display:none}
+    .curse-badge.bump{animation:curseBump .35s ease}
+    @keyframes curseBump{0%{transform:scale(1)}40%{transform:scale(1.38);filter:brightness(1.5)}100%{transform:scale(1)}}
+
+    .enemy-layer{position:absolute;right:20px;top:38px;width:390px;height:220px;z-index:5}
+    .enemy{position:absolute;padding:7px;border:1px solid #493a33;border-radius:12px;background:#221c19;box-shadow:0 8px 16px rgba(0,0,0,.28);transition:transform .12s ease,outline-color .12s ease}
+    .enemy.enemy_far{left:0;top:48px;width:134px}
+    .enemy.enemy_mid{left:122px;top:24px;width:142px}
+    .enemy.enemy_near{left:256px;top:0;width:134px}
+    .enemy-layer.single{width:260px;height:190px;right:34px;top:44px}
+    .enemy-layer.single .enemy.enemy_near{left:72px;top:14px;width:162px}
+
+
+    .enemy.sel{outline:2px solid var(--gold)}
+    .enemy.hover{outline:2px solid #8dd3ff;transform:translateY(-4px);box-shadow:0 0 0 2px rgba(141,211,255,.2),0 10px 20px rgba(0,0,0,.28)}
+
+    .enemy.dead{opacity:.4;filter:grayscale(1)}
+    .enemy .name{font-size:12px;font-weight:700}
+    .enemy .hp{font-size:10px;opacity:.9}
+    .intent{font-size:11px;color:#ffd7cf;margin-top:4px}
+
+    .hud-left{position:absolute;left:12px;bottom:34px;display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:999px;background:rgba(17,14,13,.72);border:1px solid rgba(255,255,255,.08);z-index:8}
+
+    .hud-left .label{font-size:11px;color:#d7c8ab}
+    .energy{display:flex;gap:4px}
+    .gem{width:14px;height:14px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:var(--blue)}
+    .gem.off{opacity:.2}
+
+    .imp-avatar{position:absolute;left:208px;bottom:76px;min-width:70px;padding:6px 8px;border-radius:10px;border:1px solid #6d5a4a;background:rgba(38,27,22,.92);font-size:11px;color:#f7d7a2;z-index:9;display:none;box-shadow:0 6px 14px rgba(0,0,0,.32)}
+    .imp-avatar.on{display:block}
+    .hound-avatar{position:absolute;left:292px;bottom:76px;min-width:70px;padding:6px 8px;border-radius:10px;border:1px solid #6a4a3a;background:rgba(45,25,20,.92);font-size:11px;color:#ffc8a0;z-index:9;display:none;box-shadow:0 6px 14px rgba(0,0,0,.32)}
+    .hound-avatar.on{display:block}
+    .hound-avatar.hit{animation:hitFlash .22s ease}
+    .hound-avatar.pop{animation:impPop .35s ease}
+
+    .float-layer{position:fixed;inset:0;pointer-events:none;z-index:40}
+    .float-num{position:fixed;transform:translate(-50%,-50%);font-weight:900;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.7);animation:floatUp .5s ease forwards}
+    .float-num.dmg{color:#ffb3a6}
+    .float-num.heal{color:#9ff4b8}
+    .float-num.bone{color:#f2ede0;text-shadow:0 0 6px rgba(255,255,255,.55),0 2px 8px rgba(0,0,0,.8)}
+    .float-num.weak{color:#9dd7a6;text-shadow:0 0 6px rgba(120,200,140,.5),0 2px 8px rgba(0,0,0,.8)}
+    .float-num.decay{color:#c98bff;text-shadow:0 0 6px rgba(170,100,230,.55),0 2px 8px rgba(0,0,0,.8)}
+    .float-num.crit{font-size:26px}
+
+    @keyframes floatUp{0%{opacity:0;transform:translate(-50%,-8px) scale(.85)}15%{opacity:1;transform:translate(-50%,-14px) scale(1)}100%{opacity:0;transform:translate(-50%,-50px) scale(1.1)}}
+
+    /* ===== 反饋層：震屏 / 紅閃 / 高潮大字 / 召喚弹出 ===== */
+    .battle.shake{animation:camShake .18s ease}
+    .battle.shake-big{animation:camShake .28s ease}
+    @keyframes camShake{
+      0%{transform:translate(0,0)}
+      20%{transform:translate(-4px,2px)}
+      40%{transform:translate(5px,-3px)}
+      60%{transform:translate(-3px,3px)}
+      80%{transform:translate(3px,-2px)}
+      100%{transform:translate(0,0)}
+    }
+    .enemy.hit{animation:hitFlash .22s ease}
+    @keyframes hitFlash{
+      0%{background:#ff4b3a;box-shadow:0 0 0 2px rgba(255,120,100,.6),0 8px 16px rgba(0,0,0,.28)}
+      100%{background:#221c19;box-shadow:0 8px 16px rgba(0,0,0,.28)}
+    }
+    .hero-panel.hit{animation:heroHitFlash .26s ease}
+    @keyframes heroHitFlash{
+      0%{background:rgba(190,60,50,.9)}
+      100%{background:rgba(30,26,23,.9)}
+    }
+    .imp-avatar.hit{animation:hitFlash .22s ease}
+    .imp-avatar.pop{animation:impPop .35s ease}
+    @keyframes impPop{
+      0%{transform:scale(.3);opacity:0;filter:brightness(2)}
+      50%{transform:scale(1.25);opacity:1;filter:brightness(1.6)}
+      100%{transform:scale(1);opacity:1;filter:brightness(1)}
+    }
+    .card.just-played{animation:cardPop .22s ease}
+    @keyframes cardPop{
+      0%{transform:scale(1)}
+      50%{transform:scale(1.12) translateY(-6px);filter:brightness(1.2)}
+      100%{transform:scale(1)}
+    }
+    .bigflash{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:38px;font-weight:900;letter-spacing:3px;color:#ffd566;text-shadow:0 0 18px rgba(255,200,80,.85),0 4px 14px rgba(0,0,0,.8);z-index:50;pointer-events:none;animation:bigFlashAnim .6s ease forwards}
+    .bigflash.purple{color:#d9a6ff;text-shadow:0 0 18px rgba(200,120,255,.85),0 4px 14px rgba(0,0,0,.8)}
+    .bigflash.red{color:#ff9280;text-shadow:0 0 18px rgba(255,120,90,.85),0 4px 14px rgba(0,0,0,.8)}
+    @keyframes bigFlashAnim{
+      0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}
+      25%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}
+      75%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+      100%{opacity:0;transform:translate(-50%,-64%) scale(.95)}
+    }
+
+
+    .hand{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 54px);width:min(980px,calc(100vw - 10px));display:flex;gap:7px;justify-content:center;overflow-x:auto;padding:0 10px 4px;z-index:12;scrollbar-width:none}
+    .hand::-webkit-scrollbar{display:none}
+    .card{flex:0 0 96px;width:96px;min-height:124px;border:2px solid #6f5b46;border-radius:14px;background:var(--card);color:var(--ink);padding:8px;position:relative;box-shadow:0 8px 16px rgba(0,0,0,.25);user-select:none}
+
+    .card.playable{border-color:#8a724e}
+    .card.target{box-shadow:0 0 0 2px rgba(108,184,255,.35),0 8px 16px rgba(0,0,0,.25)}
+    .card.dragging{opacity:.7;transform:translateY(-8px)}
+    .card .cost{position:absolute;left:8px;top:8px;background:#1f1a16;color:var(--blue);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800}
+    .card h4{margin:24px 0 4px;font-size:13px;line-height:1.2}
+    .card p{margin:0;font-size:11px;line-height:1.35}
+    .card .hint-mini{margin-top:6px;font-size:10px;color:#6a5b47}
+    .card.disabled{opacity:.45}
+
+    .ctl{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 10px);width:min(980px,calc(100vw - 10px));display:flex;justify-content:flex-end;z-index:13;padding-right:8px}
+    .end{width:144px;border:0;border-radius:12px;padding:13px 10px;background:linear-gradient(180deg,#f0d79f,#cfaa68);font-weight:900;color:#2b2014;letter-spacing:1px;box-shadow:0 8px 18px rgba(0,0,0,.3)}
+
+    .flow-panel{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:14px;z-index:35}
+    .flow-panel.hidden{display:none}
+    .flow-card{width:min(680px,96vw);max-height:80dvh;overflow:auto;background:#1b1512;border:1px solid #5b473a;border-radius:16px;padding:14px;box-shadow:0 14px 34px rgba(0,0,0,.42)}
+    .flow-title{font-size:18px;font-weight:900;margin-bottom:4px}
+    .flow-sub{font-size:12px;opacity:.86;margin-bottom:10px}
+    .flow-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .flow-item{flex:1 1 180px;min-width:180px;background:#261e19;border:1px solid #5a493d;border-radius:10px;padding:9px}
+    .flow-item b{display:block;font-size:13px;margin-bottom:4px}
+    .flow-item small{display:block;font-size:11px;opacity:.86;line-height:1.35}
+    .flow-actions{display:flex;flex-wrap:wrap;gap:8px}
+    .flow-btn{border:0;border-radius:10px;padding:9px 12px;font-weight:800;background:#e1bc7c;color:#2d2116}
+    .flow-btn.alt{background:#51433a;color:#f2dfbf}
+
+    .drag-fx{position:fixed;inset:0;pointer-events:none;z-index:30;display:none}
+
+    .drag-fx.show{display:block}
+    .drag-line{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,rgba(130,210,255,.15),rgba(130,210,255,.95));transform-origin:0 50%;border-radius:999px;box-shadow:0 0 10px rgba(130,210,255,.45)}
+    .drag-dot{position:fixed;left:0;top:0;width:14px;height:14px;border-radius:50%;background:#8dd3ff;box-shadow:0 0 12px rgba(141,211,255,.9);transform:translate(-50%,-50%)}
+
+    @media (orientation:landscape) and (max-height:430px) and (min-width:900px){
+      .app{max-width:926px;padding:4px 8px calc(env(safe-area-inset-bottom) + 4px)}
+      .top{margin-bottom:4px}
+      .title{font-size:14px}
+      .pill{padding:4px 8px;font-size:11px}
+      .meta{margin:-1px 0 4px;gap:5px}
+      .meta .pill{padding:3px 7px;font-size:10px}
+
+      .battle{height:clamp(220px,58dvh,270px);min-height:220px;border-radius:14px}
+      .hint{left:8px;right:8px;top:8px;padding:4px 9px;font-size:11px}
+      .hero-stand{left:8px;bottom:50px;width:172px;height:152px}
+      .hero-panel{left:10px;bottom:58px;width:146px;padding:6px}
+      .enemy-layer{right:14px;top:32px;width:330px;height:170px}
+      .enemy{padding:5px 6px}
+      .enemy.enemy_far{left:0;top:38px;width:108px}
+      .enemy.enemy_mid{left:100px;top:18px;width:116px}
+      .enemy.enemy_near{left:212px;top:0;width:118px}
+      .enemy-layer.single{width:222px;height:150px;right:16px;top:38px}
+      .enemy-layer.single .enemy.enemy_near{left:36px;top:8px;width:178px}
+      .float-num{font-size:15px}
+
+      .enemy .name{font-size:11px}
+
+      .enemy .hp,.intent{font-size:10px}
+      .hud-left{left:10px;bottom:14px;padding:6px 8px}
+      .imp-avatar{left:176px;bottom:52px;min-width:62px;padding:5px 7px;font-size:10px}
+      .hound-avatar{left:248px;bottom:52px;min-width:62px;padding:5px 7px;font-size:10px}
+
+      .hand{bottom:calc(env(safe-area-inset-bottom) + 52px);width:min(926px,calc(100vw - 8px));gap:6px;padding:0 6px 2px}
+      .card{flex:0 0 82px;width:82px;min-height:108px;padding:7px}
+      .card .cost{width:22px;height:22px;font-size:12px}
+      .card h4{margin:22px 0 3px;font-size:12px}
+      .card p{font-size:10px;line-height:1.25}
+      .card .hint-mini{margin-top:4px;font-size:9px}
+      .ctl{bottom:calc(env(safe-area-inset-bottom) + 14px);width:min(926px,calc(100vw - 8px));padding-right:6px}
+      .end{width:120px;padding:10px 8px;font-size:13px}
+    }
+
+    @media (orientation:portrait){
+      .app{max-width:430px;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px)}
+      .battle{height:calc(100dvh - 220px);min-height:420px}
+      .hero-stand{left:8px;bottom:102px;width:160px;height:190px}
+      .hero-panel{left:10px;bottom:118px;width:148px}
+      .enemy-layer{right:8px;top:76px;width:250px;height:250px}
+      .enemy.enemy_far{left:0;top:42px;width:124px}
+      .enemy.enemy_mid{left:78px;top:24px;width:132px}
+      .enemy.enemy_near{left:154px;top:0;width:96px}
+      .enemy-layer.single{width:200px;height:170px;right:20px;top:82px}
+      .enemy-layer.single .enemy.enemy_near{left:48px;top:12px;width:132px}
+      .imp-avatar{left:150px;bottom:128px;min-width:64px;padding:5px 7px;font-size:10px}
+      .hound-avatar{left:222px;bottom:128px;min-width:64px;padding:5px 7px;font-size:10px}
+
+      .hand{width:min(410px,calc(100vw - 12px));gap:6px}
+
+      .card{flex:0 0 92px;width:92px;min-height:132px}
+      .ctl{width:min(410px,calc(100vw - 12px))}
+      .end{width:142px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="row between top">
+      <div class="title">術士 v2.0 · 跑圖閉環（Month 2）</div>
+      <div class="pill" id="turn">回合 1</div>
+    </div>
+    <div class="meta">
+      <div class="pill" id="deckInfo">抽牌 0｜棄牌 0</div>
+      <div class="pill" id="systemInfo">格擋 0｜召喚 無</div>
+      <div class="pill" id="impInfo">使魔事件：未召喚</div>
+      <div class="pill" id="stageInfo">戰 1/4</div>
+    </div>
+
+    <section class="battle" id="battle">
+      <div class="hint" id="hint">v2.0：3 場小怪戰 → 營火 → 小 Boss；戰後三選一可跳過</div>
+
+
+      <div class="hero-stand"></div>
+      <div class="hero-panel">
+        <div class="row between"><b>術士</b><span id="heroHpText">HP 80/80</span></div>
+        <div class="bar"><div class="fill" id="heroHpFill" style="width:100%"></div></div>
+      </div>
+
+      <div class="enemy-layer" id="enemies"></div>
+      <div class="imp-avatar" id="impAvatar">😈 小鬼</div>
+      <div class="hound-avatar" id="houndAvatar">🐺 獵犬</div>
+
+      <div class="hud-left">
+        <span class="label">能量</span>
+        <div class="energy" id="energy"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="hand" id="hand"></div>
+  <div class="ctl"><button class="end" id="endBtn">結束回合</button></div>
+
+  <div class="flow-panel hidden" id="flowPanel">
+    <div class="flow-card">
+      <div class="flow-title" id="flowTitle">戰後獎勵</div>
+      <div class="flow-sub" id="flowSub">選擇你的下一步</div>
+      <div class="flow-list" id="flowList"></div>
+      <div class="flow-actions" id="flowActions"></div>
+    </div>
+  </div>
+
+  <div class="drag-fx" id="dragFx">
+
+    <div class="drag-line" id="dragLine"></div>
+    <div class="drag-dot" id="dragDot"></div>
+  </div>
+  <div class="float-layer" id="floatLayer"></div>
+
+
+<script>
+const DRAW_PER_TURN = 4;
+const IMP_GUARD_CAP = 6;
+const HOUND_GUARD_CAP = 9;
+
+
+const BASE_DECK = [
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
+  {name:"普通攻擊",cost:1,text:"造成 7 傷害",target:"enemy",damage:7},
+  {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
+  {name:"防禦",cost:1,text:"獲得 5 格擋",target:"self",block:5},
+  {name:"召喚小鬼",cost:1,text:"召喚小鬼：進場撕咬 5 + 注入2張；若已在場則抽1+格擋3",target:"self",summon:"imp",onSummonDamage:5,resummonDraw:1,resummonBlock:3},
+  {name:"召喚獵犬",cost:2,text:"召喚獵犬（可與小鬼共存）：進場撕咬 8；若已在場則獲得 7 格擋",target:"self",summon:"hound",onSummonDamage:8,resummonDraw:0,resummonBlock:7},
+  {name:"使魔號令",cost:1,text:"若召喚在場：立刻造成 10 傷害；否則造成 6 傷害",target:"self",impCommand:true,damageIfNoImp:6},
+  {name:"痛苦詛咒",cost:1,text:"施加 蝕骨 +2（回合末持續掉血）",target:"enemy",curseBone:2},
+  {name:"痛苦詛咒",cost:1,text:"施加 蝕骨 +2（回合末持續掉血）",target:"enemy",curseBone:2},
+  {name:"衰朽印記",cost:1,text:"施加 削衰 +2（降低敵人攻擊）",target:"enemy",curseWeak:2},
+  {name:"腐朽刻印",cost:1,text:"施加 腐朽 +2（斬殺門檻）",target:"enemy",curseDecay:2},
+  {name:"暗影衝擊",cost:1,text:"造成 4 + 該敵詛咒總層數 的傷害",target:"enemy",damageBase:4,damageScaleByCurse:true},
+  {name:"腐蝕爆發",cost:2,text:"消耗該敵全部詛咒；每層造成 3 傷害",target:"enemy",curseBurst:true},
+  {name:"詛咒共鳴",cost:1,text:"若目標同時有三種詛咒：全部層數翻倍並抽 1",target:"enemy",curseResonate:true}
+];
+
+const INJECTION_TEMPLATES = {
+  imp: [
+    {name:"小鬼揮爪",cost:1,text:"小鬼撕咬，造成 8 傷害",target:"enemy",damage:8,linkOwner:"imp",injected:true},
+    {name:"小鬼獻祭",cost:1,text:"獻祭小鬼：抽 2、回 1 能量、回復 2 HP",target:"self",draw:2,energyGain:1,heal:2,sacrifice:"imp",linkOwner:"imp",injected:true}
+  ]
+};
+
+const BATTLE_PRESET = [
+  {
+    label:"路口腐尸",
+    enemies:[
+      {id:"enemy_mid",name:"腐尸",maxHp:20,pattern:[3,4,5],idx:0},
+      {id:"enemy_near",name:"小骷髏",maxHp:14,pattern:[2,3,4],idx:0}
+    ]
+  },
+  {
+    label:"毒瘴小隊",
+    enemies:[
+      {id:"enemy_far",name:"腐尸",maxHp:22,pattern:[3,4,5],idx:0},
+      {id:"enemy_mid",name:"骷髏弓手",maxHp:18,pattern:[3,5,3],idx:0},
+      {id:"enemy_near",name:"毒瘴鬼",maxHp:24,pattern:[4,5,7],idx:0}
+    ]
+  },
+  {
+    label:"骨巫雙子",
+    enemies:[
+      {id:"enemy_mid",name:"骨巫·左",maxHp:22,pattern:[4,6,4],curseSeed:{weak:1},idx:0},
+      {id:"enemy_near",name:"骨巫·右",maxHp:22,pattern:[5,3,6],curseSeed:{bone:1},idx:0}
+    ]
+  },
+  {
+    label:"紙甲監軍（小 Boss）",
+    enemies:[
+      {id:"enemy_boss",name:"紙甲監軍",maxHp:72,bossKind:"papercmdr",idx:0,intent:8,pattern:[8]}
+    ]
+  }
+];
+
+const REWARD_POOL = [
+  {name:"魂裂彈",cost:1,text:"造成 9 傷害",target:"enemy",damage:9},
+  {name:"衰弱瘟印",cost:1,text:"施加 削衰 +3",target:"enemy",curseWeak:3},
+  {name:"疫骨針",cost:1,text:"施加 蝕骨 +3",target:"enemy",curseBone:3},
+  {name:"腐滅觸",cost:1,text:"施加 腐朽 +3",target:"enemy",curseDecay:3},
+  {name:"暗幕護體",cost:1,text:"獲得 8 格擋並抽 1",target:"self",block:8,draw:1},
+  {name:"獵犬號令",cost:1,text:"若召喚在場：造成 12，否則造成 5",target:"self",impCommand:true,impCommandDamage:12,damageIfNoImp:5}
+];
+
+
+const S={
+  turn:1,playerTurn:true,battleOver:false,
+  player:{hp:70,maxHp:70,energy:3,maxEnergy:3,block:0},
+  enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
+  drag:null,
+  curseByEnemy:{},
+  minions:{imp:false,hound:false},
+  impLastEvent:"未召喚",
+  impGuardBonusEnemyTurns:0,
+  battleIndex:0,
+  runCleared:false,
+  runStartTs:0,
+  battleStartTs:0,
+  battleDurations:[],
+  flowPhase:"none",
+  rewardChoices:[],
+  campUsed:false,
+  shopUsed:false
+};
+
+
+
+
+function cloneCard(t){return {...t,uid:S.uid++};}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function aliveEnemies(){return S.enemies.filter(e=>e.hp>0);} 
+function setHint(t){document.getElementById("hint").textContent=t;}
+function enemyById(id){return S.enemies.find(e=>e.id===id&&e.hp>0)||aliveEnemies()[0]||null;}
+function totalCurse(){
+  return aliveEnemies().reduce((sum,e)=>sum+getEnemyCurseTotal(e),0);
+}
+function initEnemyCurses(e){
+  if(!e.curses) e.curses={bone:0,weak:0,decay:0};
+  return e.curses;
+}
+function getEnemyCurseTotal(e){
+  const c=initEnemyCurses(e);
+  return c.bone+c.weak+c.decay;
+}
+function applyCurse(e,type,val){
+  if(!e||val<=0)return;
+  const c=initEnemyCurses(e);
+  c[type]=Math.min(10,(c[type]||0)+val);
+}
+function consumeAllCurses(e){
+  const c=initEnemyCurses(e);
+  const total=getEnemyCurseTotal(e);
+  c.bone=0;c.weak=0;c.decay=0;
+  return total;
+}
+function nowSec(){return Math.floor(Date.now()/1000);}
+
+function fmtClock(sec){
+  const s=Math.max(0,sec|0);
+  const m=Math.floor(s/60);
+  const r=s%60;
+  return `${m}:${String(r).padStart(2,"0")}`;
+}
+function getRunElapsedSec(){return S.runStartTs?nowSec()-S.runStartTs:0;}
+function getCurrentBattleElapsedSec(){return S.battleStartTs?nowSec()-S.battleStartTs:0;}
+function isSilentCard(c){return !!(c.linkOwner && !S.minions[c.linkOwner]);}
+
+function cardCost(c){return isSilentCard(c)?0:c.cost;}
+function enemyElById(id){return document.querySelector(`.enemy[data-eid="${id}"]`);} 
+function popFloatAtElement(el,value,kind="dmg",opts={}){
+  if(!el||value<=0)return;
+  const layer=document.getElementById("floatLayer");
+  if(!layer)return;
+  const r=el.getBoundingClientRect();
+  const n=document.createElement("div");
+  n.className=`float-num ${kind}`+(opts.crit?" crit":"");
+  const prefix=opts.prefix!==undefined?opts.prefix:(kind==="heal"?"+":"-");
+  n.textContent=`${prefix}${value}`;
+  n.style.left=`${r.left+r.width*0.5}px`;
+  n.style.top=`${r.top+r.height*0.35}px`;
+  layer.appendChild(n);
+  setTimeout(()=>n.remove(),520);
+}
+function popEnemyDamage(enemyId,val,opts={}){
+  const el=enemyElById(enemyId);
+  popFloatAtElement(el,val,"dmg",opts);
+  shakeBattle(val>=10?"big":"small");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
+function popPlayerDamage(val){
+  const el=document.querySelector(".hero-panel");
+  popFloatAtElement(el,val,"dmg");
+  shakeBattle(val>=8?"big":"small");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
+function popPlayerHeal(val){popFloatAtElement(document.querySelector(".hero-panel"),val,"heal");}
+function popImpDamage(val){
+  const el=document.getElementById("impAvatar");
+  popFloatAtElement(el,val,"dmg");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
+function popCurseFloat(enemyId,type,val){
+  const el=enemyElById(enemyId);
+  const name=type==="bone"?"蝕骨":(type==="weak"?"削衰":"腐朽");
+  popFloatAtElement(el,val,type,{prefix:`${name} +`});
+  // 徽章 bump 动画
+  setTimeout(()=>{
+    const badge=document.querySelector(`.curse-badge[data-curse="${type}-${enemyId}"]`);
+    if(badge){badge.classList.remove("bump");void badge.offsetWidth;badge.classList.add("bump");}
+  },40);
+}
+function shakeBattle(kind="small"){
+  const el=document.getElementById("battle");
+  if(!el)return;
+  el.classList.remove("shake","shake-big");
+  void el.offsetWidth;
+  el.classList.add(kind==="big"?"shake-big":"shake");
+  setTimeout(()=>el.classList.remove("shake","shake-big"),300);
+}
+function bigFlash(text,variant=""){
+  const n=document.createElement("div");
+  n.className="bigflash"+(variant?` ${variant}`:"");
+  n.textContent=text;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(),620);
+}
+function damageEnemyByAmount(enemy,val){
+  if(!enemy||val<=0)return;
+  enemy.hp=Math.max(0,enemy.hp-val);
+  popEnemyDamage(enemy.id,val,{crit:val>=10});
+}
+function attackEnemyByAmount(enemy,base){
+  if(!enemy||base<=0)return;
+  const c=initEnemyCurses(enemy);
+  let dmg=base;
+  let killer=false;
+  if(enemy.hp<=c.decay&&c.decay>0){
+    dmg=Math.floor(base*3);
+    killer=true;
+    setHint(`腐朽斬殺觸發：${base} → ${dmg}`);
+    bigFlash("腐朽斬殺","purple");
+  }
+  damageEnemyByAmount(enemy,dmg);
+  if(killer) shakeBattle("big");
+}
+
+
+function healPlayerByAmount(v,label=""){
+  if(v<=0)return;
+  const before=S.player.hp;
+  S.player.hp=Math.min(S.player.maxHp,S.player.hp+v);
+  const real=S.player.hp-before;
+  if(real>0){
+    popPlayerHeal(real);
+    if(label) setHint(`${label}：回復 ${real} HP`);
+  }
+}
+
+
+function currentBattle(){return BATTLE_PRESET[S.battleIndex];}
+function buildEnemiesFromBattle(idx){
+  return BATTLE_PRESET[idx].enemies.map(e=>{
+    const seed=e.curseSeed||{bone:0,weak:0,decay:0};
+    const curses={bone:seed.bone||0,weak:seed.weak||0,decay:seed.decay||0};
+    const copy={...e,hp:e.maxHp,curses};
+    if(e.bossKind==="papercmdr"){
+      // Boss 3 招循環：蓄力 → 重擊 → 召喚/反噬（交替）
+      copy.bossPhase=0;   // 0 蓄力 1 重擊 2 詛咒反噬
+      copy.bossCycle=0;   // 總循環次數
+      copy.intent=0;      // 蓄力不打
+      copy.bossMoveName="蓄力（下回合重擊）";
+    }else{
+      copy.intent=e.pattern[0];
+    }
+    return copy;
+  });
+}
+
+function getEnemyTargetType(e){
+  if(S.minions.imp&&Array.isArray(e.impStrikeAt)&&e.impStrikeAt.includes(e.idx)) return "imp_mark";
+  if(S.minions.imp) return "player_then_imp";
+  return "player";
+}
+
+
+function init(){
+  S.battleIndex=0;
+  S.runCleared=false;
+  S.impGuardBonusEnemyTurns=0;
+  S.flowPhase="none";
+  S.rewardChoices=[];
+  S.campUsed=false;
+  S.shopUsed=false;
+  S.runStartTs=nowSec();
+  S.battleStartTs=S.runStartTs;
+  S.battleDurations=[];
+  S.enemies=buildEnemiesFromBattle(S.battleIndex);
+  S.drawPile=shuffle(BASE_DECK.map(cloneCard));
+  S.discard=[];
+  S.hand=[];
+  S.player.block=8;
+  drawCards(DRAW_PER_TURN+1);
+  setHint(`戰 1：${currentBattle().label}。開局 8 格擋 + 1 抽牌，先穩住再疊詛咒`);
+  renderAll();
+}
+
+
+
+
+
+function drawCards(n){
+  for(let i=0;i<n;i++){
+    if(!S.drawPile.length && S.discard.length){
+      S.drawPile=shuffle(S.discard.splice(0));
+      setHint("牌庫已洗牌重組");
+    }
+    if(!S.drawPile.length)break;
+    S.hand.push(S.drawPile.pop());
+  }
+}
+
+function renderAll(){renderTop();renderEnergy();renderEnemies();renderImpAvatar();renderHand();renderMeta();}
+
+function renderTop(){
+  document.getElementById("turn").textContent=`回合 ${S.turn}`;
+  document.getElementById("heroHpText").textContent=`HP ${S.player.hp}/${S.player.maxHp}｜甲 ${S.player.block}`;
+  document.getElementById("heroHpFill").style.width=`${Math.max(0,S.player.hp)/S.player.maxHp*100}%`;
+}
+function renderMeta(){
+  document.getElementById("deckInfo").textContent=`抽牌 ${S.drawPile.length}｜棄牌 ${S.discard.length}`;
+  const impState=S.minions.imp?`小鬼${getImpGuardCap()}`:"";
+  const houndState=S.minions.hound?`獵犬${HOUND_GUARD_CAP}`:"";
+  const minionStr=[impState,houndState].filter(Boolean).join("+")||"無";
+  document.getElementById("systemInfo").textContent=`格擋 ${S.player.block}｜召喚 ${minionStr}`;
+  document.getElementById("impInfo").textContent=`使魔事件：${S.impLastEvent}`;
+  const runElapsed=fmtClock(getRunElapsedSec());
+  const battleElapsed=fmtClock(getCurrentBattleElapsedSec());
+  const stageBase=S.runCleared?"通關":`戰 ${S.battleIndex+1}/${BATTLE_PRESET.length}｜${currentBattle().label}`;
+  const stageText=`${stageBase}｜總 ${runElapsed}｜本戰 ${battleElapsed}`;
+  document.getElementById("stageInfo").textContent=stageText;
+}
+
+function setFlowVisible(show){
+  document.getElementById("flowPanel").classList.toggle("hidden",!show);
+}
+function makeFlowButton(text,onClick,isAlt=false){
+  const b=document.createElement("button");
+  b.className="flow-btn"+(isAlt?" alt":"");
+  b.textContent=text;
+  b.onclick=onClick;
+  return b;
+}
+function getAllDeckCards(){
+  return [...S.hand,...S.drawPile,...S.discard];
+}
+function getRewardChoices(){
+  const pool=shuffle(REWARD_POOL.map(x=>({...x})));
+  return pool.slice(0,3);
+}
+function renderFlowPanel(){
+  const title=document.getElementById("flowTitle");
+  const sub=document.getElementById("flowSub");
+  const list=document.getElementById("flowList");
+  const actions=document.getElementById("flowActions");
+  list.innerHTML="";
+  actions.innerHTML="";
+
+  if(S.flowPhase==="reward"){
+    title.textContent=`戰 ${S.battleIndex+1} 結束 · 戰後三選一`;
+    sub.textContent="挑一張新牌進牌組；或跳過（+3 HP）直接進下一戰";
+    S.rewardChoices.forEach((c,idx)=>{
+      const item=document.createElement("div");
+      item.className="flow-item";
+      item.innerHTML=`<b>${c.name}（${c.cost}）</b><small>${c.text}</small>`;
+      list.appendChild(item);
+      actions.appendChild(makeFlowButton(`拿 ${c.name}`,()=>pickRewardCard(idx)));
+    });
+    actions.appendChild(makeFlowButton("跳過（+3 HP）",()=>skipReward(),true));
+  }else if(S.flowPhase==="camp"){
+    title.textContent="Boss 前營火";
+    sub.textContent="三選一（本局常駐）後進入 Boss 戰";
+    list.innerHTML=`
+      <div class="flow-item"><b>🔥 治療</b><small>回復 18 HP（最多至上限）</small></div>
+      <div class="flow-item"><b>⚡ 惡魔專注</b><small>能量上限 +1，並立刻回滿能量</small></div>
+      <div class="flow-item"><b>🗡 刪一張基礎牌</b><small>從抽+棄+手中的第一張「普通攻擊/防禦」移除</small></div>`;
+    actions.appendChild(makeFlowButton("治療 +18",()=>takeCampChoice("heal")));
+    actions.appendChild(makeFlowButton("惡魔專注",()=>takeCampChoice("energy")));
+    actions.appendChild(makeFlowButton("刪基礎牌",()=>takeCampChoice("purge")));
+  }else if(S.flowPhase==="bossReady"){
+    title.textContent="路線完成 · 準備 Boss";
+    sub.textContent="下一戰：紙甲監軍（蓄力 → 重擊 → 詛咒反噬 3 招循環）";
+    list.innerHTML=`<div class="flow-item"><b>下一戰：紙甲監軍</b><small>3 招循環：第 1 回合蓄力（不打），第 2 回合重擊 16+，第 3 回合詛咒反噬（每層 2 真傷）</small></div>`;
+    actions.appendChild(makeFlowButton("進入 Boss 戰",()=>startNextBattleFromFlow()));
+  }
+}
+function openFlow(phase){
+  S.flowPhase=phase;
+  S.playerTurn=false;
+  S.battleOver=true;
+  renderFlowPanel();
+  setFlowVisible(true);
+}
+function pickRewardCard(idx){
+  const c=S.rewardChoices[idx];
+  if(!c)return;
+  S.discard.push(cloneCard(c));
+  setHint(`已獲得新牌：${c.name}`);
+  advanceToNextBattle();
+}
+function skipReward(){
+  healPlayerByAmount(3,"跳過獎勵");
+  setHint("跳過三選一：回復 3 HP");
+  advanceToNextBattle();
+}
+function advanceToNextBattle(){
+  setFlowVisible(false);
+  S.flowPhase="none";
+  S.battleIndex+=1;
+  S.battleStartTs=nowSec();
+  S.enemies=buildEnemiesFromBattle(S.battleIndex);
+  S.selectedCard=null;
+  S.selectedEnemy=null;
+  S.player.block=0;
+  S.player.energy=S.player.maxEnergy;
+  S.playerTurn=true;
+  S.battleOver=false;
+  drawCards(DRAW_PER_TURN-S.hand.length);
+  setHint(`進入戰 ${S.battleIndex+1}：${currentBattle().label}`);
+  renderAll();
+}
+function takeCampChoice(type){
+  if(type==="energy"){
+    S.player.maxEnergy=Math.min(6,S.player.maxEnergy+1);
+    S.player.energy=S.player.maxEnergy;
+    setHint("營火：惡魔專注（能量上限 +1）");
+  }else if(type==="heal"){
+    healPlayerByAmount(18,"營火治療");
+  }else if(type==="purge"){
+    const isBase=(c)=>c.name==="普通攻擊"||c.name==="防禦";
+    const tryPurge=(arr)=>{const i=arr.findIndex(isBase);if(i>=0){return arr.splice(i,1)[0];}return null;};
+    const removed=tryPurge(S.discard)||tryPurge(S.drawPile)||tryPurge(S.hand);
+    if(removed){setHint(`營火刪牌：移除一張「${removed.name}」`);}
+    else{setHint("營火：找不到可刪的基礎牌，改為回血 10");healPlayerByAmount(10,"營火補償");}
+  }
+  openFlow("bossReady");
+}
+function startNextBattleFromFlow(){
+  setFlowVisible(false);
+  S.flowPhase="none";
+  S.battleIndex+=1;
+  S.battleStartTs=nowSec();
+  S.enemies=buildEnemiesFromBattle(S.battleIndex);
+  S.selectedCard=null;
+  S.selectedEnemy=null;
+  S.player.block=0;
+  S.player.energy=S.player.maxEnergy;
+  S.playerTurn=true;
+  S.battleOver=false;
+  drawCards(DRAW_PER_TURN-S.hand.length);
+  setHint("進入 Boss：紙甲監軍（注意蓄力後那回合 16+ 重擊）");
+  renderAll();
+}
+
+function renderEnergy(){
+
+  const el=document.getElementById("energy");el.innerHTML="";
+  for(let i=0;i<S.player.maxEnergy;i++){
+    const d=document.createElement("div");
+    d.className="gem"+(i<S.player.energy?"":" off");
+    el.appendChild(d);
+  }
+}
+
+function renderEnemies(){
+  const root=document.getElementById("enemies");
+  root.innerHTML="";
+  root.classList.toggle("single",aliveEnemies().length===1);
+  const posMap={enemy_far:"enemy_far",enemy_mid:"enemy_mid",enemy_near:"enemy_near",enemy_boss:"enemy_near"};
+  S.enemies.forEach(e=>{
+    const d=document.createElement("div");
+    const hoverClass=S.drag?.hoverEnemyId===e.id?" hover":"";
+
+    d.className="enemy "+(posMap[e.id]||"enemy_mid")+(e.hp<=0?" dead":"")+(S.selectedEnemy===e.id?" sel":"")+hoverClass;
+    d.dataset.eid=e.id;
+    const c=initEnemyCurses(e);
+    const intentVal=Math.max(1,(e.intent||0)-c.weak);
+    // Boss 招式名稱 + 意圖短化
+    const bossMoveLabel=e.bossMoveName||"";
+    const intentCore=c.weak>0?`${intentVal}(-${c.weak})`:`${intentVal}`;
+    const intentLine=bossMoveLabel
+      ? `<div class="intent">${bossMoveLabel}：⚔${intentCore}</div>`
+      : `<div class="intent">⚔${intentCore} → 主</div>`;
+    // 腐朽斩杀阈值（血条上一条紫色竖线）
+    const thresholdPct=c.decay>0?Math.min(100,(c.decay/e.maxHp)*100):0;
+    const thresholdHtml=thresholdPct>0?`<div class="threshold" style="left:${thresholdPct}%"></div>`:"";
+    const barClass=c.weak>0?"bar weaken":"bar";
+
+    const badges=`<div class="curse-row">
+      <span class="curse-badge bone${c.bone?"":" zero"}" data-curse="bone-${e.id}">🦴 ${c.bone}</span>
+      <span class="curse-badge weak${c.weak?"":" zero"}" data-curse="weak-${e.id}">🌿 ${c.weak}</span>
+      <span class="curse-badge decay${c.decay?"":" zero"}" data-curse="decay-${e.id}">☠ ${c.decay}</span>
+    </div>`;
+
+    d.innerHTML=`<div class="row between"><span class="name">${e.name}</span><span class="hp">${e.hp}/${e.maxHp}</span></div><div class="${barClass}" style="margin-top:4px"><div class="fill" style="width:${Math.max(0,e.hp)/e.maxHp*100}%"></div>${thresholdHtml}</div>${intentLine}${badges}`;
+
+    d.onclick=()=>{
+      if(e.hp<=0||S.battleOver)return;
+      S.selectedEnemy=e.id;
+      if(S.selectedCard){tryPlay(S.selectedCard.uid,e.id);} else {setHint(`已選目標：${e.name}`);renderEnemies();}
+    };
+    root.appendChild(d);
+  });
+}
+
+
+function renderImpAvatar(){
+  const el=document.getElementById("impAvatar");
+  if(el){
+    const on=!!S.minions.imp;
+    el.classList.toggle("on",on);
+    if(on){
+      const hp=getImpGuardCap();
+      el.textContent=`😈 小鬼 ${hp}/${hp}`;
+    }else{
+      el.textContent="😈 小鬼";
+    }
+  }
+  const el2=document.getElementById("houndAvatar");
+  if(el2){
+    const on=!!S.minions.hound;
+    el2.classList.toggle("on",on);
+    if(on){
+      const hp=HOUND_GUARD_CAP;
+      el2.textContent=`🐺 獵犬 ${hp}/${hp}`;
+    }else{
+      el2.textContent="🐺 獵犬";
+    }
+  }
+}
+
+
+
+function cardPlayable(c){return !S.battleOver && S.playerTurn && S.player.energy>=cardCost(c);}
+
+function renderHand(){
+  const root=document.getElementById("hand");root.innerHTML="";
+  S.hand.forEach(c=>{
+    if(isSilentCard(c)){
+      const oldUid=c.uid;
+      const revived=makeImpReviveCard(c);
+      Object.keys(c).forEach(k=>delete c[k]);
+      Object.assign(c,revived,{uid:oldUid});
+    }
+
+    const playable=cardPlayable(c);
+    const d=document.createElement("div");
+    d.className="card"+(playable?" playable":" disabled")+(c.target==="enemy"?" target":"")+(S.drag?.cardUid===c.uid?" dragging":"");
+    d.dataset.uid=c.uid;
+    const title=c.name;
+    const text=c.text;
+    const hintMini=(c.target==="enemy"?"拖曳到怪物施放":"點一下施放");
+    d.innerHTML=`<div class="cost">${cardCost(c)}</div><h4>${title}</h4><p>${text}</p><div class="hint-mini">${hintMini}</div>`;
+
+
+    d.addEventListener("pointerdown",ev=>onCardPointerDown(ev,c,d));
+    d.addEventListener("pointermove",onCardPointerMove);
+    d.addEventListener("pointerup",onCardPointerUp);
+    d.addEventListener("pointercancel",onCardPointerCancel);
+
+    root.appendChild(d);
+  });
+}
+
+function onCardPointerDown(ev,c,cardEl){
+  if(!cardPlayable(c))return;
+  if(c.target!=="enemy"){
+    tryPlay(c.uid,null);
+    return;
+  }
+  ev.preventDefault();
+  cardEl.setPointerCapture?.(ev.pointerId);
+  S.drag={pointerId:ev.pointerId,cardUid:c.uid,cardEl,startX:ev.clientX,startY:ev.clientY,x:ev.clientX,y:ev.clientY,hoverEnemyId:null};
+  showDragFx();
+  updateDragFx();
+  setHint("拖曳到目標怪物，放開出牌");
+  renderEnemies();
+}
+
+function onCardPointerMove(ev){
+  if(!S.drag||S.drag.pointerId!==ev.pointerId)return;
+  ev.preventDefault();
+  S.drag.x=ev.clientX;S.drag.y=ev.clientY;
+  S.drag.hoverEnemyId=findEnemyByPoint(ev.clientX,ev.clientY);
+  updateDragFx();
+  renderEnemies();
+}
+
+function onCardPointerUp(ev){if(!S.drag||S.drag.pointerId!==ev.pointerId)return;ev.preventDefault();finalizeDrag();}
+function onCardPointerCancel(ev){if(!S.drag||S.drag.pointerId!==ev.pointerId)return;cleanupDrag("取消拖曳");}
+
+function findEnemyByPoint(x,y){
+  const enemyEl=document.elementsFromPoint(x,y).find(el=>el.classList&&el.classList.contains("enemy"));
+  if(!enemyEl)return null;
+  const enemy=S.enemies.find(e=>e.id===enemyEl.dataset.eid);
+  return enemy&&enemy.hp>0?enemy.id:null;
+}
+
+function showDragFx(){document.getElementById("dragFx").classList.add("show");}
+function hideDragFx(){document.getElementById("dragFx").classList.remove("show");}
+
+function updateDragFx(){
+  if(!S.drag)return;
+  const rect=S.drag.cardEl.getBoundingClientRect();
+  const x1=rect.left+rect.width/2,y1=rect.top+8,x2=S.drag.x,y2=S.drag.y;
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),deg=Math.atan2(dy,dx)*180/Math.PI;
+  const line=document.getElementById("dragLine"),dot=document.getElementById("dragDot");
+  line.style.left=`${x1}px`;line.style.top=`${y1}px`;line.style.width=`${len}px`;line.style.transform=`rotate(${deg}deg)`;
+  dot.style.left=`${x2}px`;dot.style.top=`${y2}px`;
+}
+
+function finalizeDrag(){
+  if(!S.drag)return;
+  const moved=Math.hypot(S.drag.x-S.drag.startX,S.drag.y-S.drag.startY);
+  const {cardUid,hoverEnemyId}=S.drag;
+  if(hoverEnemyId){cleanupDrag();tryPlay(cardUid,hoverEnemyId);return;}
+  if(moved<12){
+    const c=S.hand.find(x=>x.uid===cardUid);
+    if(c&&cardPlayable(c)){
+      S.selectedCard=c;
+      setHint("已選牌：點怪物出牌，或直接拖曳到怪物");
+      cleanupDrag(null,false);renderHand();renderEnemies();
+      return;
+    }
+  }
+  cleanupDrag("未命中怪物，取消出牌");renderHand();renderEnemies();
+}
+
+function cleanupDrag(hintText,rerender=true){hideDragFx();if(hintText)setHint(hintText);S.drag=null;if(rerender){renderHand();renderEnemies();}}
+function removeHand(uid){const i=S.hand.findIndex(c=>c.uid===uid);return i<0?null:S.hand.splice(i,1)[0];}
+
+function injectMinionCards(type){
+  const injected=(INJECTION_TEMPLATES[type]||[]).map(cloneCard);
+  S.discard.push(...injected);
+}
+
+function removeCardsInPlace(pile,pred){
+  let removed=0;
+  for(let i=pile.length-1;i>=0;i--){
+    if(pred(pile[i])){pile.splice(i,1);removed++;}
+  }
+  return removed;
+}
+
+function makeImpReviveCard(fromCard){
+  return {
+    name:"血契回響",
+    cost:1,
+    text:`承接「${fromCard.name}」：復活小鬼（不注入）並獲得 3 格擋；若小鬼已在場則抽 1`,
+    target:"self",
+    reviveImp:true,
+    revivedFrom:fromCard.name
+  };
+}
+
+function purgeImpLinkedCardsOnDeath(){
+  const isImpLinked=(c)=>c.linkOwner==="imp";
+  let removed=0;
+  removed+=removeCardsInPlace(S.drawPile,isImpLinked);
+  removed+=removeCardsInPlace(S.discard,isImpLinked);
+
+  let converted=0;
+  S.hand=S.hand.map(c=>{
+    if(!isImpLinked(c)) return c;
+    converted+=1;
+    return makeImpReviveCard(c);
+  });
+
+  return {removed,converted};
+}
+
+function onImpDefeated(reason){
+  if(!S.minions.imp)return;
+  S.minions.imp=false;
+  S.impGuardBonusEnemyTurns=0;
+  const settle=purgeImpLinkedCardsOnDeath();
+  drawCards(1);
+  S.impLastEvent=`已離場（${reason}；清算 ${settle.removed} 張，轉化 ${settle.converted} 張）`;
+  setHint(`小鬼離場：清算牌庫 ${settle.removed} 張，手牌轉化 ${settle.converted} 張血契回響，補抽 1`);
+}
+
+
+
+
+function resolveCard(c,targetId){
+  const t=enemyById(targetId);
+
+  if(c.reviveImp){
+    if(!S.minions.imp){
+      S.minions.imp=true;
+      S.player.block=Math.min(99,S.player.block+3);
+      S.impGuardBonusEnemyTurns=1;
+      S.impLastEvent="在場（血契回響復活，下次敵回合承傷+1）";
+      setHint("血契回響：小鬼復活（不注入）+3格擋；下次敵回合承傷上限 +1");
+    }else{
+      drawCards(1);
+      S.impLastEvent="在場（血契回響轉抽牌）";
+      setHint("血契回響：小鬼已在場，改為抽 1");
+    }
+  }
+
+
+
+  if(c.summon){
+    const kind=c.summon; // "imp" or "hound"
+    const label=kind==="hound"?"獵犬":"小鬼";
+    const alreadySummoned=!!S.minions[kind];
+    if(alreadySummoned){
+      if(c.resummonBlock) S.player.block=Math.min(99,S.player.block+c.resummonBlock);
+      if(c.resummonDraw) drawCards(c.resummonDraw);
+      S.impLastEvent=`${label}在場（重召：抽${c.resummonDraw||0} + 格擋${c.resummonBlock||0}）`;
+      setHint(`${label}已在場：本次重召轉為控節奏（抽牌+格擋）`);
+    }else{
+      S.minions[kind]=true;
+      S.impLastEvent=`${label}在場（剛召喚）`;
+      if(kind==="imp") injectMinionCards(kind);
+      const summonTarget=aliveEnemies()[0]||null;
+      if(c.onSummonDamage&&summonTarget){
+        attackEnemyByAmount(summonTarget,c.onSummonDamage);
+      }
+      setHint(`${label}登場：進場撕咬${c.onSummonDamage?" "+c.onSummonDamage:""}${kind==="imp"?" + 聯動卡注入":""}`);
+      // 召唤物弹出动画
+      setTimeout(()=>{
+        const el=document.getElementById(kind==="hound"?"houndAvatar":"impAvatar");
+        if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
+      },30);
+    }
+  }
+
+
+  if(c.impCommand){
+    const cmdTarget=aliveEnemies()[0]||null;
+    const onDamage=c.impCommandDamage||10;
+    const hasImp=!!S.minions.imp;
+    const hasHound=!!S.minions.hound;
+    if(hasImp||hasHound){
+      if(cmdTarget){
+        const both=hasImp&&hasHound;
+        bigFlash(both?"雙獸號令":"使魔號令");
+        if(both) shakeBattle("big");
+        if(hasImp) attackEnemyByAmount(cmdTarget,onDamage);
+        if(hasHound){
+          // 猎犬追击：小鬼在场 = 补刀 +4；只猎犬在场 = 独立全额
+          const houndDmg=hasImp?Math.max(4,Math.floor(onDamage*0.4)):onDamage;
+          attackEnemyByAmount(cmdTarget,houndDmg);
+        }
+        const totalTxt=both?`小鬼 ${onDamage} + 獵犬 ${Math.max(4,Math.floor(onDamage*0.4))}`:`${hasImp?"小鬼":"獵犬"} ${onDamage}`;
+        S.impLastEvent=`在場（已號令：${totalTxt}）`;
+        setHint(`使魔號令生效：${totalTxt} 傷害`);
+      }
+    }else if(c.damageIfNoImp){
+      if(cmdTarget){
+        attackEnemyByAmount(cmdTarget,c.damageIfNoImp);
+      }
+      S.impLastEvent=`不在場（號令降階 ${c.damageIfNoImp}）`;
+      setHint(`場上無召喚物，號令改為 ${c.damageIfNoImp} 傷害`);
+    }
+  }
+
+
+
+
+
+  if(c.curseBone&&t){
+    applyCurse(t,"bone",c.curseBone);
+    popCurseFloat(t.id,"bone",c.curseBone);
+    setHint(`施加蝕骨 +${c.curseBone}`);
+  }
+  if(c.curseWeak&&t){
+    applyCurse(t,"weak",c.curseWeak);
+    popCurseFloat(t.id,"weak",c.curseWeak);
+    setHint(`施加削衰 +${c.curseWeak}`);
+  }
+  if(c.curseDecay&&t){
+    applyCurse(t,"decay",c.curseDecay);
+    popCurseFloat(t.id,"decay",c.curseDecay);
+    setHint(`施加腐朽 +${c.curseDecay}`);
+  }
+
+  if(c.curseResonate&&t){
+    const cc=initEnemyCurses(t);
+    if(cc.bone>0&&cc.weak>0&&cc.decay>0){
+      cc.bone=Math.min(10,cc.bone*2);
+      cc.weak=Math.min(10,cc.weak*2);
+      cc.decay=Math.min(10,cc.decay*2);
+      drawCards(1);
+      bigFlash("詛咒共鳴","purple");
+      shakeBattle("big");
+      setHint("詛咒共鳴：三型詛咒翻倍並抽 1");
+    }else{
+      setHint("詛咒共鳴未觸發：目標尚未湊齊三型詛咒");
+    }
+  }
+
+  if(c.curseBurst&&t){
+    const layers=consumeAllCurses(t);
+    const burst=layers*3;
+    if(burst>0){
+      bigFlash("腐蝕爆發","red");
+      attackEnemyByAmount(t,burst);
+      setHint(`腐蝕爆發：消耗 ${layers} 層詛咒，造成 ${burst} 傷害`);
+    }else{
+      setHint("腐蝕爆發落空：目標沒有詛咒層數");
+    }
+  }
+
+  if(c.damageScaleByCurse&&t){
+    const dmg=(c.damageBase||0)+getEnemyCurseTotal(t);
+    attackEnemyByAmount(t,dmg);
+    setHint(`暗影衝擊：基礎 ${c.damageBase||0} + 詛咒層數 = ${dmg}`);
+  }
+
+  if(c.sacrifice&&S.minions[c.sacrifice]){
+    onImpDefeated("你打出小鬼獻祭");
+  }
+
+
+  if(c.damage&&t) attackEnemyByAmount(t,c.damage);
+
+
+  if(c.block) S.player.block=Math.min(99,S.player.block+c.block);
+
+
+  if(c.selfDamage) S.player.hp=Math.max(0,S.player.hp-c.selfDamage);
+  if(c.heal) healPlayerByAmount(c.heal,c.name);
+  if(c.energyGain) S.player.energy=Math.min(99,S.player.energy+c.energyGain);
+
+  if(c.draw) drawCards(c.draw);
+}
+
+function checkBattleEnd(){
+  if(S.player.hp<=0){
+    S.battleOver=true;
+    S.playerTurn=false;
+    setHint("主角 HP 歸零，挑戰失敗");
+    return true;
+  }
+  if(aliveEnemies().length>0)return false;
+
+  // 最後一戰（Boss）結束
+  if(S.battleIndex>=BATTLE_PRESET.length-1){
+    const finalBattleSec=getCurrentBattleElapsedSec();
+    S.battleDurations[S.battleIndex]=finalBattleSec;
+    S.runCleared=true;
+    S.battleOver=true;
+    S.playerTurn=false;
+    const totalSec=getRunElapsedSec();
+    setHint(`通關！｜總耗時 ${fmtClock(totalSec)}（Boss 戰 ${fmtClock(finalBattleSec)}）`);
+    return true;
+  }
+
+  // 小怪戰結束
+  const battleSec=getCurrentBattleElapsedSec();
+  S.battleDurations[S.battleIndex]=battleSec;
+  S.discard.push(...S.hand);
+  S.hand=[];
+  S.selectedCard=null;
+  S.selectedEnemy=null;
+  S.player.block=0;
+  S.player.energy=S.player.maxEnergy;
+
+  // 打完第三場（idx=2，下一戰是 Boss）→ 營火；其他 → 三選一
+  const nextIdxAfter=S.battleIndex+1;
+  if(nextIdxAfter===BATTLE_PRESET.length-1){
+    // 進 Boss 前的營火
+    setHint(`戰 ${S.battleIndex+1} 結束（${fmtClock(battleSec)}）：Boss 前營火`);
+    openFlow("camp");
+  }else{
+    S.rewardChoices=getRewardChoices();
+    setHint(`戰 ${S.battleIndex+1} 結束（${fmtClock(battleSec)}）：戰後三選一`);
+    openFlow("reward");
+  }
+  renderAll();
+  return true;
+}
+
+
+
+function tryPlay(cardUid,targetId){
+  if(!S.playerTurn||S.battleOver)return;
+  const c=S.hand.find(x=>x.uid===cardUid);if(!c)return;
+  if(S.player.energy<cardCost(c)){setHint("能量不足");return;}
+  if(c.target==="enemy"&&!targetId){setHint("先選敵人");return;}
+
+  // 出牌弹动反馈
+  const cardEl=document.querySelector(`.card[data-uid="${cardUid}"]`);
+  if(cardEl){cardEl.classList.remove("just-played");void cardEl.offsetWidth;cardEl.classList.add("just-played");}
+
+  S.player.energy-=cardCost(c);
+  const played=removeHand(cardUid);
+  resolveCard(played,targetId);
+  S.discard.push(played);
+  S.selectedCard=null;S.selectedEnemy=null;
+
+  checkBattleEnd();
+  renderAll();
+}
+
+function dealDirectHpDamage(dmg){
+  if(dmg<=0)return;
+  popPlayerDamage(dmg);
+  S.player.hp=Math.max(0,S.player.hp-dmg);
+}
+
+function getImpGuardCap(){
+  return IMP_GUARD_CAP + (S.impGuardBonusEnemyTurns>0?1:0);
+}
+
+function popHoundDamage(val){
+  const el=document.getElementById("houndAvatar");
+  popFloatAtElement(el,val,"dmg");
+  if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");}
+}
+function onHoundDefeated(reason){
+  if(!S.minions.hound)return;
+  S.minions.hound=false;
+  setHint(`獵犬離場（${reason}）`);
+}
+
+function dealDamageToPlayer(dmg,sourceName="敵人"){
+  let remain=dmg;
+
+  const blocked=Math.min(S.player.block,remain);
+  S.player.block-=blocked;
+  remain-=blocked;
+
+  if(remain<=0)return;
+
+  // 猎犬先顶（血厚，无牌库副作用）
+  if(S.minions.hound){
+    const guard=Math.min(HOUND_GUARD_CAP,remain);
+    popHoundDamage(guard);
+    remain-=guard;
+    onHoundDefeated(`${sourceName}承傷 ${guard}`);
+  }
+
+  if(remain<=0)return;
+
+  // 小鬼再顶
+  if(S.minions.imp){
+    const guard=Math.min(getImpGuardCap(),remain);
+    popImpDamage(guard);
+    remain-=guard;
+    onImpDefeated(`${sourceName}承傷 ${guard}`);
+  }
+
+
+  if(remain>0){
+    dealDirectHpDamage(remain);
+  }
+}
+
+
+
+function runBossAction(e){
+  // 紙甲監軍 3 招循環：0=蓄力（不打） 1=重擊(16) 2=詛咒反噬（當前場上詛咒層數 x2 直接扣玩家）
+  const phase=e.bossPhase||0;
+  if(phase===0){
+    // 蓄力：不打，自給 6 甲（用 block 欄位模擬 → 直接疊本回合扣玩家前的「未命中」概念，簡化處理：下回合傷害 +4）
+    e.bossBuff=4; // 重擊時 +4
+    bigFlash("紙甲監軍·蓄力","purple");
+    shakeBattle("small");
+  }else if(phase===1){
+    const dmg=16+(e.bossBuff||0);
+    e.bossBuff=0;
+    bigFlash("紙甲監軍·重擊","red");
+    shakeBattle("big");
+    dealDamageToPlayer(dmg,e.name);
+  }else{
+    // 詛咒反噬：消耗玩家所有敵人身上的詛咒，每層扣玩家 2 HP（繞過甲繞過小鬼獵犬，直擊 HP）
+    const total=getEnemyCurseTotal(e);
+    if(total>0){
+      const recoil=total*2;
+      consumeAllCurses(e);
+      bigFlash("詛咒反噬","purple");
+      shakeBattle("big");
+      dealDirectHpDamage(recoil);
+      setHint(`紙甲監軍·詛咒反噬：${total} 層 → ${recoil} 真傷`);
+    }else{
+      // 無詛咒 → 改為召喚紙兵（6 HP，下回合開始前自爆 8 傷害）
+      setHint("紙甲監軍召喚紙兵（當前無詛咒可反噬，改為壓迫）");
+      dealDamageToPlayer(6,e.name);
+    }
+  }
+  // 推進下一招
+  e.bossCycle+=1;
+  e.bossPhase=(phase+1)%3;
+  // 預告下一回合意圖
+  if(e.bossPhase===0){e.intent=0;e.bossMoveName="蓄力（下回合重擊）";}
+  else if(e.bossPhase===1){e.intent=16+(e.bossBuff||0);e.bossMoveName="重擊";}
+  else{e.intent=0;e.bossMoveName="詛咒反噬 / 召喚";}
+}
+
+function enemyTurn(){
+  for(const e of aliveEnemies()){
+    if(e.bossKind==="papercmdr"){
+      runBossAction(e);
+      continue;
+    }
+    const cc=initEnemyCurses(e);
+    const dmg=Math.max(1,e.intent-cc.weak);
+    dealDamageToPlayer(dmg,e.name);
+
+    e.idx=(e.idx+1)%e.pattern.length;
+    e.intent=e.pattern[e.idx];
+  }
+
+  for(const e of aliveEnemies()){
+    const cc=initEnemyCurses(e);
+    if(cc.bone>0){
+      damageEnemyByAmount(e,cc.bone);
+    }
+  }
+
+  if(S.impGuardBonusEnemyTurns>0){
+    S.impGuardBonusEnemyTurns-=1;
+  }
+}
+
+
+
+
+
+function nextTurn(){
+  if(!S.playerTurn||S.battleOver)return;
+  S.playerTurn=false;
+  S.discard.push(...S.hand);S.hand=[];S.selectedCard=null;S.selectedEnemy=null;
+
+  enemyTurn();
+  if(checkBattleEnd()){renderAll();return;}
+
+  S.turn+=1;
+  S.player.energy=S.player.maxEnergy;
+  S.player.block=0;
+  S.playerTurn=true;
+  drawCards(DRAW_PER_TURN-S.hand.length);
+  setHint("你的回合：優先保命，利用小鬼承傷窗口換節奏");
+  renderAll();
+}
+
+document.getElementById("endBtn").onclick=nextTurn;
+setInterval(()=>{
+  if(S.runStartTs && !S.battleOver){
+    renderMeta();
+  }
+},1000);
+init();
+</script>
+
+</body>
+</html>
