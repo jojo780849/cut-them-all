@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="術士" />
   <meta name="theme-color" content="#0d0a0a" />
   <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23140b08'/%3E%3Ctext x='50%25' y='54%25' font-size='110' text-anchor='middle' dominant-baseline='middle'%3E🔮%3C/text%3E%3Ctext x='50%25' y='85%25' font-size='22' fill='%23f0c977' text-anchor='middle' font-family='-apple-system' font-weight='700'%3E術士%3C/text%3E%3C/svg%3E" />
-  <title>Warlock Prototype v2.0 · 跑圖閉環 + 小 Boss</title>
+  <title>Warlock Prototype v2.2 · 詛咒×小鬼構築深化</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -233,7 +233,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">術士 v2.0 · 跑圖閉環（Month 2）</div>
+      <div class="title">術士 v2.2 · 詛咒×小鬼構築</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -244,7 +244,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.0：3 場小怪戰 → 營火 → 小 Boss；戰後三選一可跳過</div>
+      <div class="hint" id="hint">v2.2：詛咒×小鬼協同構築 · 22 張獎勵池 · 三類子主題</div>
 
 
       <div class="hero-stand"></div>
@@ -358,7 +358,22 @@ const REWARD_POOL = [
   {name:"衰弱瘟印",cost:1,text:"施加 削衰 +3",target:"enemy",curseWeak:3},
   {name:"腐滅觸",cost:1,text:"施加 腐朽 +3",target:"enemy",curseDecay:3},
   {name:"暗幕護體",cost:1,text:"獲得 8 格擋並抽 1",target:"self",block:8,draw:1},
-  {name:"獵犬號令",cost:1,text:"若召喚在場：造成 12，否則造成 5",target:"self",impCommand:true,impCommandDamage:12,damageIfNoImp:5}
+  {name:"獵犬號令",cost:1,text:"若召喚在場：造成 12，否則造成 5",target:"self",impCommand:true,impCommandDamage:12,damageIfNoImp:5},
+
+  // —— v2.2 新增：小鬼聯動組（3 張）——
+  {name:"使魔滋養",cost:1,text:"消耗目標 1 層詛咒：若小鬼在場，本回合小鬼不會受擊；若獵犬在場，獲得 4 格擋",target:"enemy",minionNourish:true},
+  {name:"疫爪聯擊",cost:1,text:"造成 5 傷害；若小鬼在場，對全體敵人施加 蝕骨 +1",target:"enemy",damage:5,impSpreadBone:1},
+  {name:"血契代價",cost:0,text:"若小鬼在場：抽 2；否則受 2 真傷後抽 2",target:"self",bloodPact:true},
+
+  // —— v2.2 新增：詛咒深化組（3 張）——
+  {name:"詛咒吸蝕",cost:1,text:"消耗目標 2 層任意詛咒 → 回 4 HP，小鬼下回合自動攻擊 +3",target:"enemy",curseDrain:true},
+  {name:"三相毒血",cost:2,text:"目標獲得 蝕骨+1 / 削衰+1 / 腐朽+1（一次湊齊三型）",target:"enemy",curseBone:1,curseWeak:1,curseDecay:1},
+  {name:"腐朽連鎖",cost:1,text:"若目標有腐朽，所有其他敵人獲得相同層數腐朽",target:"enemy",decayChain:true},
+
+  // —— v2.2 新增：協同高光組（3 張，雙滿才爆炸）——
+  {name:"血祭爆裂",cost:1,text:"若小鬼在場且目標詛咒 ≥3：造成 18 並消耗小鬼；否則造成 6",target:"enemy",bloodBurst:true},
+  {name:"黯咒雙獸",cost:2,text:"若小鬼+獵犬同場：全體敵人 蝕骨 +2，並額外觸發一次召喚攻擊",target:"self",dualBeastRitual:true},
+  {name:"終焉契印",cost:1,text:"消耗小鬼：下一張攻擊牌造成 3 倍傷害",target:"self",finalSigil:true}
 ];
 
 
@@ -379,7 +394,12 @@ const S={
   flowPhase:"none",
   rewardChoices:[],
   campUsed:false,
-  shopUsed:false
+  shopUsed:false,
+  // v2.2：構築 buff / 狀態
+  impShieldedThisTurn:false,   // 使魔滋養：小鬼本回合不受擊
+  impBonusNextAuto:0,          // 詛咒吸蝕：小鬼下回合自動攻擊加成
+  nextAttackMult:1,            // 終焉契印：下一張攻擊 3 倍傷害
+  nextAttackConsumed:false
 };
 
 
@@ -492,15 +512,39 @@ function attackEnemyByAmount(enemy,base){
   if(!enemy||base<=0)return;
   const c=initEnemyCurses(enemy);
   let dmg=base;
+  // v2.2：終焉契印倍率（只吃普通攻擊傷害，一次性）
+  if(S.nextAttackMult>1 && !S.nextAttackConsumed){
+    dmg=Math.floor(dmg*S.nextAttackMult);
+    S.nextAttackConsumed=true;
+    S.nextAttackMult=1; // 用完即清
+    bigFlash("終焉契印","purple");
+    shakeBattle("big");
+  }
   let killer=false;
   if(enemy.hp<=c.decay&&c.decay>0){
-    dmg=Math.floor(base*3);
+    dmg=Math.floor(dmg*3);
     killer=true;
     setHint(`腐朽斬殺觸發：${base} → ${dmg}`);
     bigFlash("腐朽斬殺","purple");
   }
   damageEnemyByAmount(enemy,dmg);
   if(killer) shakeBattle("big");
+}
+
+// v2.2：從目標消耗任意類型的 N 層詛咒（優先 腐朽>削衰>蝕骨，保留高價值）
+function consumeAnyCurse(e,amount){
+  const c=initEnemyCurses(e);
+  let remain=amount;
+  const order=["bone","weak","decay"]; // 優先消耗最普通的
+  let consumed=0;
+  for(const t of order){
+    if(remain<=0)break;
+    const take=Math.min(c[t]||0,remain);
+    c[t]-=take;
+    remain-=take;
+    consumed+=take;
+  }
+  return consumed;
 }
 
 
@@ -550,6 +594,10 @@ function init(){
   S.rewardChoices=[];
   S.campUsed=false;
   S.shopUsed=false;
+  S.impShieldedThisTurn=false;
+  S.impBonusNextAuto=0;
+  S.nextAttackMult=1;
+  S.nextAttackConsumed=false;
   S.runStartTs=nowSec();
   S.battleStartTs=S.runStartTs;
   S.battleDurations=[];
@@ -1078,6 +1126,131 @@ function resolveCard(c,targetId){
     setHint(`暗影衝擊：基礎 ${c.damageBase||0} + 詛咒層數 = ${dmg}`);
   }
 
+  // ===== v2.2 協同牌 =====
+
+  // 使魔滋養：消耗目標 1 層詛咒 → 小鬼本回合免傷 / 獵犬 +4 甲
+  if(c.minionNourish&&t){
+    const got=consumeAnyCurse(t,1);
+    if(got>0){
+      if(S.minions.imp){
+        S.impShieldedThisTurn=true;
+        setHint("使魔滋養：小鬼本回合不會受擊");
+        bigFlash("使魔滋養","purple");
+      }
+      if(S.minions.hound){
+        S.player.block=Math.min(99,S.player.block+4);
+        setHint(S.minions.imp?"使魔滋養：小鬼免傷 +4 甲":"使魔滋養：獵犬回應 +4 甲");
+      }
+      if(!S.minions.imp && !S.minions.hound){
+        healPlayerByAmount(3,"使魔滋養");
+      }
+    }else{
+      setHint("使魔滋養落空：目標無詛咒可消耗");
+    }
+  }
+
+  // 疫爪聯擊：造成 5；若小鬼在場全體 +1 蝕骨（damage 已在後面由 c.damage 處理）
+  if(c.impSpreadBone&&S.minions.imp){
+    for(const e of aliveEnemies()){
+      applyCurse(e,"bone",c.impSpreadBone);
+      popCurseFloat(e.id,"bone",c.impSpreadBone);
+    }
+    bigFlash("疫爪聯擊","purple");
+    setHint("疫爪聯擊：小鬼在場，全體敵人 蝕骨 +"+c.impSpreadBone);
+  }
+
+  // 血契代價：小鬼在場直接抽 2；否則受 2 真傷再抽 2
+  if(c.bloodPact){
+    if(S.minions.imp){
+      drawCards(2);
+      setHint("血契代價：小鬼承擔代價，抽 2");
+    }else{
+      dealDirectHpDamage(2);
+      drawCards(2);
+      setHint("血契代價：受 2 真傷後抽 2");
+    }
+  }
+
+  // 詛咒吸蝕：消耗 2 層詛咒 → 回 4 HP + 下回合小鬼自動攻擊 +3
+  if(c.curseDrain&&t){
+    const got=consumeAnyCurse(t,2);
+    if(got>0){
+      healPlayerByAmount(4,"詛咒吸蝕");
+      if(S.minions.imp){
+        S.impBonusNextAuto=(S.impBonusNextAuto||0)+3;
+        setHint("詛咒吸蝕：消耗 "+got+" 層 → 回 4 HP，下回合小鬼自動 +3");
+      }else{
+        setHint("詛咒吸蝕：消耗 "+got+" 層 → 回 4 HP（無小鬼在場）");
+      }
+      bigFlash("詛咒吸蝕","purple");
+    }else{
+      setHint("詛咒吸蝕落空：目標無詛咒");
+    }
+  }
+
+  // 腐朽連鎖：若目標有腐朽，其他敵人獲同層腐朽
+  if(c.decayChain&&t){
+    const cc=initEnemyCurses(t);
+    if(cc.decay>0){
+      const layers=cc.decay;
+      for(const e of aliveEnemies()){
+        if(e.id===t.id) continue;
+        applyCurse(e,"decay",layers);
+        popCurseFloat(e.id,"decay",layers);
+      }
+      bigFlash("腐朽連鎖","purple");
+      setHint("腐朽連鎖：其他敵人 +"+layers+" 層腐朽");
+    }else{
+      setHint("腐朽連鎖未觸發：目標無腐朽");
+    }
+  }
+
+  // 血祭爆裂：小鬼在場 + 目標詛咒 ≥3 → 18 + 消耗小鬼；否則 6
+  if(c.bloodBurst&&t){
+    const hasImp=!!S.minions.imp;
+    const curseTotal=getEnemyCurseTotal(t);
+    if(hasImp && curseTotal>=3){
+      bigFlash("血祭爆裂","red");
+      shakeBattle("big");
+      attackEnemyByAmount(t,18);
+      onImpDefeated("血祭爆裂");
+      setHint("血祭爆裂：18 傷害 + 消耗小鬼");
+    }else{
+      attackEnemyByAmount(t,6);
+      setHint("血祭爆裂未滿足條件（需小鬼+3詛咒）：降階 6 傷害");
+    }
+  }
+
+  // 黯咒雙獸：小鬼+獵犬同場 → 全體 +2 蝕骨 + 額外召喚攻擊
+  if(c.dualBeastRitual){
+    if(S.minions.imp&&S.minions.hound){
+      for(const e of aliveEnemies()){
+        applyCurse(e,"bone",2);
+        popCurseFloat(e.id,"bone",2);
+      }
+      bigFlash("黯咒雙獸","red");
+      shakeBattle("big");
+      // 額外觸發一次召喚攻擊
+      minionAutoStrike();
+      setHint("黯咒雙獸：全體 蝕骨 +2 + 召喚連擊");
+    }else{
+      setHint("黯咒雙獸未觸發：需小鬼+獵犬同場");
+    }
+  }
+
+  // 終焉契印：消耗小鬼 → 下一張攻擊 3 倍
+  if(c.finalSigil){
+    if(S.minions.imp){
+      S.nextAttackMult=3;
+      S.nextAttackConsumed=false;
+      onImpDefeated("終焉契印");
+      bigFlash("終焉契印","purple");
+      setHint("終焉契印：下一張攻擊牌 3 倍傷害");
+    }else{
+      setHint("終焉契印無效：小鬼不在場");
+    }
+  }
+
   if(c.sacrifice&&S.minions[c.sacrifice]){
     onImpDefeated("你打出小鬼獻祭");
   }
@@ -1193,8 +1366,12 @@ function minionAutoStrike(){
   const target=aliveEnemies()[0];
   if(!target) return;
   if(S.minions.imp){
-    bigFlashMaybe("小鬼撕咬");
-    attackEnemyByAmount(target,3);
+    const bonus=S.impBonusNextAuto||0;
+    const dmg=3+bonus;
+    if(bonus>0) bigFlashMaybe("小鬼·強襲 "+dmg);
+    else bigFlashMaybe("小鬼撕咬");
+    attackEnemyByAmount(target,dmg);
+    S.impBonusNextAuto=0;
     const el=document.getElementById("impAvatar");
     if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
   }
@@ -1231,8 +1408,8 @@ function dealDamageToPlayer(dmg,sourceName="敵人"){
 
   if(remain<=0)return;
 
-  // 小鬼再顶
-  if(S.minions.imp){
+  // 小鬼再顶（使魔滋養 buff 生效時跳過）
+  if(S.minions.imp && !S.impShieldedThisTurn){
     const guard=Math.min(getImpGuardCap(),remain);
     popImpDamage(guard);
     remain-=guard;
@@ -1322,6 +1499,8 @@ function nextTurn(){
   S.discard.push(...S.hand);S.hand=[];S.selectedCard=null;S.selectedEnemy=null;
 
   enemyTurn();
+  // v2.2：使魔滋養的小鬼免傷 buff 僅持續一個敵方回合
+  S.impShieldedThisTurn=false;
   if(checkBattleEnd()){renderAll();return;}
 
   S.turn+=1;
