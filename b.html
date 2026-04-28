@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="術士" />
   <meta name="theme-color" content="#0d0a0a" />
   <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23140b08'/%3E%3Ctext x='50%25' y='54%25' font-size='110' text-anchor='middle' dominant-baseline='middle'%3E🔮%3C/text%3E%3Ctext x='50%25' y='85%25' font-size='22' fill='%23f0c977' text-anchor='middle' font-family='-apple-system' font-weight='700'%3E術士%3C/text%3E%3C/svg%3E" />
-  <title>Warlock Prototype v2.2 · 詛咒×小鬼構築深化</title>
+  <title>Warlock Prototype v2.3 · 小鬼堆疊召喚師</title>
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--card:#f5e8c8;--ink:#1a1712;--red:#d85c5c;--gold:#f0c977;--blue:#6cb8ff;--ok:#74d68f}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -233,7 +233,7 @@
 <body>
   <div class="app">
     <div class="row between top">
-      <div class="title">術士 v2.2 · 詛咒×小鬼構築</div>
+      <div class="title">術士 v2.3 · 小鬼堆疊召喚師</div>
       <div class="pill" id="turn">回合 1</div>
     </div>
     <div class="meta">
@@ -244,7 +244,7 @@
     </div>
 
     <section class="battle" id="battle">
-      <div class="hint" id="hint">v2.2：詛咒×小鬼協同構築 · 22 張獎勵池 · 三類子主題</div>
+      <div class="hint" id="hint">v2.3：小鬼堆疊最多 5 隻 · 每隻承傷6/自動攻擊3 · 3 隻以上敵方群凶覺醒</div>
 
 
       <div class="hero-stand"></div>
@@ -288,6 +288,7 @@
 const DRAW_PER_TURN = 4;
 const IMP_GUARD_CAP = 6;
 const HOUND_GUARD_CAP = 9;
+const IMP_MAX_STACK = 5; // v2.3：小鬼堆疊上限（超過則改為刷新承傷+額外效果）
 
 
 // v2.1：起始牌库精简到 10 张（符合尖塔式获取节奏）
@@ -373,7 +374,11 @@ const REWARD_POOL = [
   // —— v2.2 新增：協同高光組（3 張，雙滿才爆炸）——
   {name:"血祭爆裂",cost:1,text:"若小鬼在場且目標詛咒 ≥3：造成 18 並消耗小鬼；否則造成 6",target:"enemy",bloodBurst:true},
   {name:"黯咒雙獸",cost:2,text:"若小鬼+獵犬同場：全體敵人 蝕骨 +2，並額外觸發一次召喚攻擊",target:"self",dualBeastRitual:true},
-  {name:"終焉契印",cost:1,text:"消耗小鬼：下一張攻擊牌造成 3 倍傷害",target:"self",finalSigil:true}
+  {name:"終焉契印",cost:1,text:"消耗小鬼：下一張攻擊牌造成 3 倍傷害",target:"self",finalSigil:true},
+
+  // —— v2.3 新增：小鬼堆疊補強（讓召喚流真的能堆起來）——
+  {name:"再召小鬼",cost:1,text:"召喚 1 隻小鬼（進場撕咬 2）；滿編則抽1+格擋3",target:"self",summon:"imp",onSummonDamage:2,resummonDraw:1,resummonBlock:3},
+  {name:"雙生儀式",cost:2,text:"一次召喚 2 隻小鬼（若滿編則改為抽 2 + 格擋 6）",target:"self",doubleImp:true}
 ];
 
 
@@ -383,7 +388,7 @@ const S={
   enemies:[],drawPile:[],discard:[],hand:[],uid:1,selectedCard:null,selectedEnemy:null,
   drag:null,
   curseByEnemy:{},
-  minions:{imp:false,hound:false},
+  minions:{imp:0,hound:false}, // v2.3：imp 改為計數（0=不在場，>0=小鬼只數）
   impLastEvent:"未召喚",
   impGuardBonusEnemyTurns:0,
   battleIndex:0,
@@ -635,7 +640,8 @@ function renderTop(){
 }
 function renderMeta(){
   document.getElementById("deckInfo").textContent=`抽牌 ${S.drawPile.length}｜棄牌 ${S.discard.length}`;
-  const impState=S.minions.imp?`小鬼${getImpGuardCap()}`:"";
+  const impCount=S.minions.imp|0;
+  const impState=impCount>0?(impCount>=2?`小鬼×${impCount}(${impCount*getImpGuardCap()})`:`小鬼${getImpGuardCap()}`):"";
   const houndState=S.minions.hound?`獵犬${HOUND_GUARD_CAP}`:"";
   const minionStr=[impState,houndState].filter(Boolean).join("+")||"無";
   document.getElementById("systemInfo").textContent=`格擋 ${S.player.block}｜召喚 ${minionStr}`;
@@ -823,11 +829,17 @@ function renderEnemies(){
 function renderImpAvatar(){
   const el=document.getElementById("impAvatar");
   if(el){
-    const on=!!S.minions.imp;
+    const count=S.minions.imp|0;
+    const on=count>0;
     el.classList.toggle("on",on);
     if(on){
-      const hp=getImpGuardCap();
-      el.textContent=`😈 小鬼 ${hp}/${hp}`;
+      const capEach=getImpGuardCap();
+      const total=count*capEach;
+      if(count>=2){
+        el.textContent=`😈×${count} 小鬼 ${total}`;
+      }else{
+        el.textContent=`😈 小鬼 ${capEach}/${capEach}`;
+      }
     }else{
       el.textContent="😈 小鬼";
     }
@@ -986,13 +998,22 @@ function purgeImpLinkedCardsOnDeath(){
 }
 
 function onImpDefeated(reason){
-  if(!S.minions.imp)return;
-  S.minions.imp=false;
+  const before=S.minions.imp|0;
+  if(before<=0)return;
+  S.minions.imp=before-1;
+  const after=S.minions.imp;
+  if(after>0){
+    // 還有小鬼在場：不清算牌庫，只提示損失
+    S.impLastEvent=`小鬼倒下一隻 ×${after}（${reason}）`;
+    setHint(`小鬼倒下一隻：剩餘 ×${after}（總承傷 ${after*IMP_GUARD_CAP}）`);
+    return;
+  }
+  // 全滅才清算牌庫 + 血契回響
   S.impGuardBonusEnemyTurns=0;
   const settle=purgeImpLinkedCardsOnDeath();
   drawCards(1);
-  S.impLastEvent=`已離場（${reason}；清算 ${settle.removed} 張，轉化 ${settle.converted} 張）`;
-  setHint(`小鬼離場：清算牌庫 ${settle.removed} 張，手牌轉化 ${settle.converted} 張血契回響，補抽 1`);
+  S.impLastEvent=`全員陣亡（${reason}；清算 ${settle.removed} 張，轉化 ${settle.converted} 張）`;
+  setHint(`小鬼全員陣亡：清算牌庫 ${settle.removed} 張，手牌轉化 ${settle.converted} 張血契回響，補抽 1`);
 }
 
 
@@ -1003,14 +1024,14 @@ function resolveCard(c,targetId){
 
   if(c.reviveImp){
     if(!S.minions.imp){
-      S.minions.imp=true;
+      S.minions.imp=1;
       S.player.block=Math.min(99,S.player.block+3);
       S.impGuardBonusEnemyTurns=1;
       S.impLastEvent="在場（血契回響復活，下次敵回合承傷+1）";
       setHint("血契回響：小鬼復活（不注入）+3格擋；下次敵回合承傷上限 +1");
     }else{
       drawCards(1);
-      S.impLastEvent="在場（血契回響轉抽牌）";
+      S.impLastEvent=`在場 ×${S.minions.imp}（血契回響轉抽牌）`;
       setHint("血契回響：小鬼已在場，改為抽 1");
     }
   }
@@ -1020,26 +1041,53 @@ function resolveCard(c,targetId){
   if(c.summon){
     const kind=c.summon; // "imp" or "hound"
     const label=kind==="hound"?"獵犬":"小鬼";
-    const alreadySummoned=!!S.minions[kind];
-    if(alreadySummoned){
-      if(c.resummonBlock) S.player.block=Math.min(99,S.player.block+c.resummonBlock);
-      if(c.resummonDraw) drawCards(c.resummonDraw);
-      S.impLastEvent=`${label}在場（重召：抽${c.resummonDraw||0} + 格擋${c.resummonBlock||0}）`;
-      setHint(`${label}已在場：本次重召轉為控節奏（抽牌+格擋）`);
-    }else{
-      S.minions[kind]=true;
-      S.impLastEvent=`${label}在場（剛召喚）`;
-      if(kind==="imp") injectMinionCards(kind);
-      const summonTarget=aliveEnemies()[0]||null;
-      if(c.onSummonDamage&&summonTarget){
-        attackEnemyByAmount(summonTarget,c.onSummonDamage);
+    if(kind==="imp"){
+      // v2.3：小鬼改為堆疊（count 制）
+      const before=S.minions.imp|0;
+      if(before>=IMP_MAX_STACK){
+        // 已達上限：改為刷新承傷 + 額外效果（保留爽感）
+        if(c.resummonBlock) S.player.block=Math.min(99,S.player.block+c.resummonBlock);
+        if(c.resummonDraw) drawCards(c.resummonDraw);
+        S.impLastEvent=`小鬼滿編 ×${before}（重召轉為控節奏）`;
+        setHint(`小鬼已滿編 ×${before}：本次重召轉為抽牌+格擋`);
+      }else{
+        S.minions.imp=before+1;
+        const after=S.minions.imp;
+        if(before===0){
+          // 首次召喚：注入聯動卡（只做一次，避免牌庫膨脹）
+          injectMinionCards("imp");
+        }
+        const summonTarget=aliveEnemies()[0]||null;
+        if(c.onSummonDamage&&summonTarget){
+          attackEnemyByAmount(summonTarget,c.onSummonDamage);
+        }
+        S.impLastEvent=`小鬼在場 ×${after}`;
+        setHint(after===1?`小鬼登場：進場撕咬${c.onSummonDamage?" "+c.onSummonDamage:""} + 聯動卡注入`
+                         :`小鬼增援 ×${after}：進場撕咬${c.onSummonDamage?" "+c.onSummonDamage:""}（總承傷 ${after*IMP_GUARD_CAP}）`);
+        setTimeout(()=>{
+          const el=document.getElementById("impAvatar");
+          if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
+        },30);
       }
-      setHint(`${label}登場：進場撕咬${c.onSummonDamage?" "+c.onSummonDamage:""}${kind==="imp"?" + 聯動卡注入":""}`);
-      // 召唤物弹出动画
-      setTimeout(()=>{
-        const el=document.getElementById(kind==="hound"?"houndAvatar":"impAvatar");
-        if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
-      },30);
+    }else{
+      // 獵犬維持單隻
+      const alreadySummoned=!!S.minions[kind];
+      if(alreadySummoned){
+        if(c.resummonBlock) S.player.block=Math.min(99,S.player.block+c.resummonBlock);
+        if(c.resummonDraw) drawCards(c.resummonDraw);
+        setHint(`${label}已在場：本次重召轉為控節奏（抽牌+格擋）`);
+      }else{
+        S.minions[kind]=true;
+        const summonTarget=aliveEnemies()[0]||null;
+        if(c.onSummonDamage&&summonTarget){
+          attackEnemyByAmount(summonTarget,c.onSummonDamage);
+        }
+        setHint(`${label}登場：進場撕咬${c.onSummonDamage?" "+c.onSummonDamage:""}`);
+        setTimeout(()=>{
+          const el=document.getElementById("houndAvatar");
+          if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
+        },30);
+      }
     }
   }
 
@@ -1251,6 +1299,30 @@ function resolveCard(c,targetId){
     }
   }
 
+  // v2.3 雙生儀式：一次召喚 2 隻小鬼（滿編則轉資源）
+  if(c.doubleImp){
+    const before=S.minions.imp|0;
+    const space=Math.max(0,IMP_MAX_STACK-before);
+    if(space<=0){
+      S.player.block=Math.min(99,S.player.block+6);
+      drawCards(2);
+      setHint(`小鬼已滿編 ×${before}：雙生儀式轉為 +6 格擋 抽 2`);
+    }else{
+      const add=Math.min(2,space);
+      if(before===0) injectMinionCards("imp");
+      S.minions.imp=before+add;
+      const tgt=aliveEnemies()[0];
+      if(tgt) attackEnemyByAmount(tgt,2*add); // 每隻進場 2
+      bigFlash("雙生儀式","purple");
+      S.impLastEvent=`小鬼在場 ×${S.minions.imp}（雙生儀式 +${add}）`;
+      setHint(`雙生儀式：+${add} 隻小鬼 進場撕咬 ${2*add}（總承傷 ${S.minions.imp*IMP_GUARD_CAP}）`);
+      setTimeout(()=>{
+        const el=document.getElementById("impAvatar");
+        if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
+      },30);
+    }
+  }
+
   if(c.sacrifice&&S.minions[c.sacrifice]){
     onImpDefeated("你打出小鬼獻祭");
   }
@@ -1361,21 +1433,27 @@ function onHoundDefeated(reason){
 }
 
 // v2.1：召喚物每回合自動攻擊（玩家回合開始時觸發）
+// v2.3：小鬼按堆疊數量連續攻擊
 function minionAutoStrike(){
   if(S.battleOver) return;
-  const target=aliveEnemies()[0];
-  if(!target) return;
-  if(S.minions.imp){
+  const impCount=S.minions.imp|0;
+  if(impCount>0){
     const bonus=S.impBonusNextAuto||0;
-    const dmg=3+bonus;
-    if(bonus>0) bigFlashMaybe("小鬼·強襲 "+dmg);
-    else bigFlashMaybe("小鬼撕咬");
-    attackEnemyByAmount(target,dmg);
+    const dmgEach=3+bonus;
+    if(impCount>=3) bigFlashMaybe(`小鬼群襲 ×${impCount}`);
+    else if(bonus>0) bigFlashMaybe("小鬼·強襲 "+dmgEach);
+    else bigFlashMaybe(impCount>=2?`小鬼連咬 ×${impCount}`:"小鬼撕咬");
+    // 每隻依序攻擊當前前排（可能分批殺掉多個敵人）
+    for(let i=0;i<impCount;i++){
+      const tgt=aliveEnemies()[0];
+      if(!tgt) break;
+      attackEnemyByAmount(tgt,dmgEach);
+    }
     S.impBonusNextAuto=0;
     const el=document.getElementById("impAvatar");
     if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}
   }
-  // 重新取目標（小鬼可能秒殺）
+  // 獵犬
   const target2=aliveEnemies()[0];
   if(!target2) return;
   if(S.minions.hound){
@@ -1409,11 +1487,21 @@ function dealDamageToPlayer(dmg,sourceName="敵人"){
   if(remain<=0)return;
 
   // 小鬼再顶（使魔滋養 buff 生效時跳過）
-  if(S.minions.imp && !S.impShieldedThisTurn){
-    const guard=Math.min(getImpGuardCap(),remain);
-    popImpDamage(guard);
-    remain-=guard;
-    onImpDefeated(`${sourceName}承傷 ${guard}`);
+  // v2.3：按堆疊依序扛傷，每隻滿額後陣亡才會換下一隻
+  if(S.minions.imp>0 && !S.impShieldedThisTurn){
+    while(remain>0 && S.minions.imp>0){
+      const cap=getImpGuardCap();
+      const guard=Math.min(cap,remain);
+      popImpDamage(guard);
+      remain-=guard;
+      if(guard>=cap){
+        // 這一隻被打爆了
+        onImpDefeated(`${sourceName}承傷 ${guard}`);
+      }else{
+        // 伤害用尽但小鬼没死（這隻扛不滿 cap 卻沒耗盡承傷 = 不合理，跳出保守處理）
+        break;
+      }
+    }
   }
 
 
@@ -1464,13 +1552,20 @@ function runBossAction(e){
 }
 
 function enemyTurn(){
+  // v2.3：群凶覺醒——小鬼堆到 3 隻以上時，敵人本回合攻擊 +2（堆越多越狠）
+  const impCount=S.minions.imp|0;
+  const swarmBonus = impCount>=5 ? 4 : (impCount>=3 ? 2 : 0);
+  if(swarmBonus>0){
+    bigFlashMaybe(`群凶覺醒 +${swarmBonus}`);
+    setHint(`小鬼 ×${impCount} 觸發群凶覺醒：敵人攻擊 +${swarmBonus}`);
+  }
   for(const e of aliveEnemies()){
     if(e.bossKind==="papercmdr"){
       runBossAction(e);
       continue;
     }
     const cc=initEnemyCurses(e);
-    const dmg=Math.max(1,e.intent-cc.weak);
+    const dmg=Math.max(1,e.intent+swarmBonus-cc.weak);
     dealDamageToPlayer(dmg,e.name);
 
     e.idx=(e.idx+1)%e.pattern.length;
